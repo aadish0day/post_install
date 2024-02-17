@@ -3,8 +3,8 @@
 # Exit on any error
 set -e
 
-# Install Nala, an improved APT package manager
-sudo apt install -y nala
+# Ensure nala is installed (this uses apt since nala might not be installed yet)
+sudo apt update && sudo apt install -y nala
 
 # Update the system
 echo "Updating the system..."
