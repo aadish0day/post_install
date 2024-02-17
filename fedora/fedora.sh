@@ -24,7 +24,7 @@ sudo dnf groupupdate -y sound-and-video
 
 # Install packages
 echo "Installing packages..."
-sudo dnf install -y ranger ncdu mpv neovim maven yt-dlp fzf git unzip nodejs
+sudo dnf install -y ranger ncdu mpv neovim maven yt-dlp fzf git unzip nodejs flameshot
 
 # Clone NvChad for Neovim setup
 echo "Cloning NvChad for Neovim setup..."

@@ -7,20 +7,10 @@ sudo apt update
 sudo apt install -y nala
 
 # Use Nala to install required packages
-sudo nala install -y ranger moc ncdu mpv maven yt-dlp fzf ninja-build gettext libtool libtool-bin autoconf automake cmake g++ pkg-config unzip curl doxygen git nodejs
+sudo nala install -y ranger moc ncdu mpv maven yt-dlp fzf ninja-build gettext libtool libtool-bin autoconf automake cmake g++ pkg-config unzip curl doxygen git nodejs flameshot
 
 # Clone and compile Neovim
-if [ ! -d "neovim" ]; then
-    git clone https://github.com/neovim/neovim.git
-    cd neovim || exit
-    make CMAKE_BUILD_TYPE=RelWithDebInfo
-    sudo make install
-    cd .. || exit
-    # Optionally remove the neovim directory after installation
-    # rm -rf neovim
-else
-    echo "Neovim directory already exists. Skipping clone and compile."
-fi
+sudo ./compile_neovim.sh
 
 # Clone and setup NvChad for Neovim
 if [ ! -d "$HOME/.config/nvim" ]; then
