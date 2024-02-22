@@ -29,8 +29,4 @@ sudo nala install -y ninja-build gettext libtool libtool-bin autoconf automake c
 echo "install neovim from source"
 sudo ./compile_neovim.sh
 
-# Clone NvChad for Neovim setup
-echo "Cloning NvChad for Neovim setup..."
-git clone https://github.com/NvChad/NvChad ~/.config/nvim --depth 1 || { echo "NvChad clone failed. It might already be installed, or there's a network issue."; }
-
-echo "Setup complete. Please consider reviewing and customizing your Neovim setup as needed."
+echo "Installation and setup complete on debian Linux."

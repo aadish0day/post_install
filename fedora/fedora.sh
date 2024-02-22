@@ -25,9 +25,4 @@ sudo dnf groupupdate -y sound-and-video
 # Install packages
 echo "Installing packages..."
 sudo dnf install -y ranger ncdu mpv neovim maven yt-dlp fzf git unzip nodejs flameshot
-
-# Clone NvChad for Neovim setup
-echo "Cloning NvChad for Neovim setup..."
-git clone https://github.com/NvChad/NvChad ~/.config/nvim --depth 1 || { echo "NvChad clone failed. It might already be installed, or there's a network issue."; }
-
-echo "Setup complete. Please consider reviewing and customizing your Neovim setup as needed."
+echo "Installation and setup complete on fedora Linux."
