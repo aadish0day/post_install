@@ -24,7 +24,7 @@ sudo nala install -y python3-pip
 pip3 install yt-dlp
 
 echo "install neovim dependencies"
-sudo nala install -y ninja-build gettext libtool libtool-bin autoconf automake cmake g++ pkg-config unzip curl doxygen
+sudo nala install -y ninja-build gettext libtool libtool-bin autoconf automake cmake g++ pkg-config unzip curl doxygen npm
 
 echo "install neovim from source"
 sudo ./compile_neovim.sh
