@@ -3,11 +3,11 @@
 alias ll='ls -alF'
 alias la='ls -A'
 alias l='ls -CF'
-alias yt='yt-dlp -o "%(playlist)s/%(title)s.%(ext)s" --embed-chapters'
+alias yt='yt-dlp -o "%(playlist)s/%(title)s.%(ext)s" --embed-chapters -f "bestvideo[height=1080]+bestaudio/best[height=1080]" --concurrent-fragments 16'
 alias kf='killall firefox-bin'
-alias kb='killall thorium'
 alias sw='termdown'
-
+alias tar='tar -xzf'
+ 
 eval "$(starship init bash)"
 
 
