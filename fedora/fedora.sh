@@ -24,5 +24,5 @@ sudo dnf groupupdate -y sound-and-video
 
 # Install packages
 echo "Installing packages..."
-sudo dnf install -y ranger ncdu mpv neovim maven yt-dlp fzf git unzip nodejs flameshot npm
+sudo dnf install -y ranger ncdu mpv neovim maven yt-dlp fzf git unzip nodejs flameshot htop npm
 echo "Installation and setup complete on fedora Linux."
