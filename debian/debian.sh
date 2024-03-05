@@ -15,7 +15,7 @@ sudo nala install -y software-properties-common
 
 # Install packages
 echo "Installing packages..."
-sudo nala install -y ranger ncdu mpv maven yt-dlp fzf git unzip nodejs flameshot
+sudo nala install -y ranger ncdu mpv maven yt-dlp htop fzf git unzip nodejs flameshot
 
 # For yt-dlp, if not available directly through nala, you might still need to install it via pip or another method
 # Ensure Python3-pip is installed
