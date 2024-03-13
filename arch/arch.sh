@@ -14,4 +14,8 @@ sudo pacman -S --noconfirm neovim ranger ncdu mpv maven yt-dlp fzf git unzip nod
 # cd ..
 # rm -rf yay
 
+echo "Install neovim config"
+git clone https://github.com/Aadishx07/neovim_config.git "${XDG_CONFIG_HOME:-$HOME/.config}"/nvim
+
+
 echo "Installation and setup complete on Arch Linux."
