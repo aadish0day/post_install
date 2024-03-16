@@ -36,8 +36,6 @@ dnf groupupdate -y sound-and-video
 echo "Installing packages..."
 dnf install -y ranger ncdu mpv neovim maven yt-dlp fzf git unzip nodejs flameshot htop npm
 
-echo "install neovim config"
-git clone https://github.com/Aadishx07/neovim_config.git "${XDG_CONFIG_HOME:-$HOME/.config}"/nvim
-
 echo "Installation and setup complete on Fedora Linux."
+
 
