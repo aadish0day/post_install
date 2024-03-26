@@ -1,13 +1,28 @@
+#
+# ~/.bashrc
+#
 
-# some more ls aliases
+# If not running interactively, don't do anything
+[[ $- != *i* ]] && return
+
+eval "$(starship init bash)"
+alias ls='ls --color=auto'
+alias grep='grep --color=auto'
 alias ll='ls -alF'
 alias la='ls -A'
 alias l='ls -CF'
-alias yt='yt-dlp -o "%(playlist)s/%(title)s.%(ext)s" --embed-chapters -f "bestvideo[height=1080]+bestaudio/best[height=1080]" --concurrent-fragments 16'
-alias kf='killall firefox-bin'
+alias yt='yt-dlp -o "%(playlist)s/%(title)s.%(ext)s" --embed-chapters -f "bestvideo[height=1080]+bestaudio/best[height=1080]" --concurrent-fragments 30'
+alias kf='killall firefox'
 alias sw='termdown'
+alias music='mocp'
 alias tar='tar -xzf'
- 
-eval "$(starship init bash)"
+alias rd='rm -fr'
+cdf() {
+  local dir
+  dir=$(find ${1:-.} -path '*/\.*' -prune -o -type d -print 2> /dev/null | fzf +m) && cd "$dir"
+}
+export EDITOR='nvim'
 
+
+PS1='[\u@\h \W]\$ '
 
