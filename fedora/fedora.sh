@@ -34,7 +34,7 @@ dnf groupupdate -y sound-and-video
 
 # Install packages
 echo "Installing packages..."
-dnf install -y ranger ncdu mpv neovim maven yt-dlp fzf git unzip nodejs flameshot htop npm xclip ueberzug highlight atool mediainfo neofetch android-tools zathura zathura-pdf-poppler img2pdf
+dnf install -y ranger ncdu mpv neovim maven yt-dlp fzf git unzip nodejs flameshot htop npm xclip ueberzug highlight atool mediainfo neofetch android-tools zathura zathura-pdf-poppler zathura-cb img2pdf
 
 echo "Installation and setup complete on Fedora Linux."
 
