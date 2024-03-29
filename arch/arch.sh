@@ -5,7 +5,7 @@
 sudo pacman -Syu --noconfirm
 
 # Install packages
-sudo pacman -S --noconfirm neovim ranger ncdu mpv maven yt-dlp fzf git unzip nodejs ninja gettext libtool autoconf automake cmake gcc pkgconf htop doxygen flameshot npm xclip ueberzug highlight atool mediainfo neofetch android-tools zathura zathura-pdf-poppler zathura-cb img2pdf
+sudo pacman -S --noconfirm neovim ranger ncdu mpv maven yt-dlp fzf git unzip nodejs ninja gettext libtool autoconf automake cmake gcc pkgconf htop doxygen flameshot npm xclip ueberzug highlight atool mediainfo neofetch android-tools img2pdf zathura zathura-pdf-poppler zathura-ps zathura-djvu zathura-cb
 
 # For AUR helper installation (yay or paru), uncomment and adjust the following:
 # git clone https://aur.archlinux.org/yay.git
