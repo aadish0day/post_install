@@ -15,7 +15,7 @@ sudo nala install -y software-properties-common
 
 # Install packages
 echo "Installing packages..."
-sudo nala install -y ranger ncdu mpv maven yt-dlp htop fzf git unzip nodejs flameshot xclip ueberzug highlight atool mediainfo neofetch android-tools-adb android-tools-fastboot img2pdf zathura zathura-pdf-poppler zathura-ps zathura-djvu zathura-cb obs-studio picom nitrogen
+sudo nala install -y ranger ncdu mpv maven yt-dlp htop fzf git unzip nodejs flameshot xclip ueberzug highlight atool mediainfo neofetch android-tools-adb android-tools-fastboot img2pdf zathura zathura-pdf-poppler zathura-ps zathura-djvu zathura-cb obs-studio picom nitrogen xss-lock brightnessct
 
 # For yt-dlp, if not available directly through nala, you might still need to install it via pip or another method
 # Ensure Python3-pip is installed
@@ -28,5 +28,8 @@ sudo nala install -y ninja-build gettext libtool libtool-bin autoconf automake c
 
 echo "install neovim from source"
 sudo ./compile_neovim.sh
+
+echo "install starship on the system"
+curl -sS https://starship.rs/install.sh | sh 
 
 echo "Installation and setup complete on debian Linux."
