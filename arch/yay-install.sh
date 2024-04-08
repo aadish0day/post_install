@@ -1,4 +1,5 @@
 yay -S i3lock-color
+yay -S thorium-browser-bin
 yay -S vscodium-bin
 yay -S github-desktop-bin
 yay -S mocp
