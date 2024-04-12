@@ -21,6 +21,9 @@ clone_neovim_config() {
 # Clone Neovim configuration before proceeding with the installation
 clone_neovim_config
 
+# making screenshot folder
+mkdir -p Pictures/Screenshot
+
 case $DISTRO_CHOICE in
   1)
     cd debian && ./debian.sh && cd ..
