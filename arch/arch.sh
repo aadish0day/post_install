@@ -1,13 +1,13 @@
 #!/bin/bash
 
-# Update system and packages
-sudo pacman -Syu --noconfirm
-
 # Install reflector for managing mirror list
 sudo pacman -S --needed reflector
 
 # Configure mirrors for India
 sudo reflector --latest 5 --country India --protocol http --protocol https --sort rate --save /etc/pacman.d/mirrorlist
+
+# Update system and packages
+sudo pacman -Syu --noconfirm
 
 # Function to check and install packages if they are not already installed
 install_if_needed() {
