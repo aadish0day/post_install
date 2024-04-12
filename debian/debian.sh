@@ -20,14 +20,6 @@ sudo nala install -y ranger ncdu mpv maven yt-dlp htop fzf git unzip nodejs flam
 # For yt-dlp, if not available directly through nala, you might still need to install it via pip or another method
 # Ensure Python3-pip is installed
 sudo nala install -y python3-pip
-# Install yt-dlp using pip
-pip3 install yt-dlp
-
-echo "install neovim dependencies"
-sudo nala install -y ninja-build gettext libtool libtool-bin autoconf automake cmake g++ pkg-config unzip curl doxygen npm
-
-echo "install neovim from source"
-sudo ./compile_neovim.sh
 
 echo "install starship on the system"
 curl -sS https://starship.rs/install.sh | sh 
