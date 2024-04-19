@@ -12,6 +12,11 @@ install_nerd_fonts() {
   ./nerd_font.sh
 }
 
+install_icon() {
+    echo "Installing Icon"
+    ./icon_theme.sh
+}
+
 # Define a function to clone Neovim configuration
 clone_neovim_config() {
   echo "Cloning Neovim configuration..."
