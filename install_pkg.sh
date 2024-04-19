@@ -12,8 +12,9 @@ install_nerd_fonts() {
   ./nerd_font.sh
 }
 
+# Define a function to install Icon theme
 install_icon() {
-    echo "Installing Icon"
+    echo "Installing Icon theme..."
     ./icon_theme.sh
 }
 
@@ -27,20 +28,23 @@ clone_neovim_config() {
 clone_neovim_config
 
 # making screenshot folder
-mkdir -p Pictures/Screenshot
+mkdir -p "$HOME/Pictures/Screenshot"
 
 case $DISTRO_CHOICE in
   1)
     cd debian && ./debian.sh && cd ..
     install_nerd_fonts
+    install_icon
     ;;
   2)
     cd arch && ./arch.sh && cd ..
     install_nerd_fonts
+    install_icon
     ;;
   3)
     cd fedora && ./fedora.sh && cd ..
     install_nerd_fonts
+    install_icon
     ;;
   *)
     echo "Invalid selection. Exiting."
