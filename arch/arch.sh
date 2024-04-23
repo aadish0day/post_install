@@ -2,27 +2,21 @@
 
 # This script updates the mirror list, system, and installs specified packages on Arch Linux
 
-# Ensure the script is run as root
-if [ "$(id -u)" -ne 0 ]; then
-  echo "This script must be run as root." >&2
-  exit 1
-fi
-
 # Install reflector for managing mirror list
-pacman -S --needed reflector --noconfirm
+sudo pacman -S --needed reflector --noconfirm
 
 # Configure mirrors for India
-reflector --latest 5 --country India --protocol https --sort rate --save /etc/pacman.d/mirrorlist
+sudo reflector --latest 5 --country India --protocol https --sort rate --save /etc/pacman.d/mirrorlist
 
 # Update system and packages
-pacman -Syu --noconfirm
+sudo pacman -Syu --noconfirm
 
 # Function to check and install packages if they are not already installed
 install_if_needed() {
     for pkg in "$@"; do
         if ! pacman -Qi "$pkg" &> /dev/null; then
             echo "Installing $pkg..."
-            pacman -S "$pkg" --noconfirm
+            sudo pacman -S "$pkg" --noconfirm
         else
             echo "$pkg is already installed. Skipping..."
         fi
