@@ -30,44 +30,13 @@ install_yay() {
     echo "yay has been successfully installed."
 }
 
-# Function to check and install a package if it's not installed
-install_package_if_missing() {
-    local package_name=$1
-    # Checking if the package is already installed
-    if ! yay -Qi "$package_name" &> /dev/null && ! pacman -Qi "$package_name" &> /dev/null; then
-        echo "Installing $package_name..."
-        yay -S --noconfirm "$package_name"
-    else
-        echo "$package_name is already installed."
-    fi
-}
-
-# Check if yay is installed, install it if not
-if ! command -v yay &> /dev/null; then
-    install_yay
-else
-    echo "yay is already installed."
-fi
-
-# Update system and databases
-echo "Updating system and databases..."
-yay -Syu --noconfirm
-
-# List of packages to install
-packages=(
-    i3lock-color
-    thorium-browser-bin
-    vscodium-bin
-    github-desktop-bin
-    moc
-    ani-cli
-    hakuneko-desktop
-)
-
-# Loop through the list and install if missing
-for package in "${packages[@]}"; do
-    install_package_if_missing "$package"
-done
+yay -S i3lock-color
+yay -S thorium-browser-bin
+yay -S vscodium-bin
+yay -S github-desktop-bin
+yay -S moc
+yay -S ani-cli
+yay -S hakuneko-desktop
 
 echo "Installation process completed!"
 
