@@ -27,6 +27,12 @@ clone_neovim_config() {
 # Clone Neovim configuration before proceeding with the installation
 clone_neovim_config
 
+# Clone Icon configuration before proceeding with the installation
+install_icon
+
+# Clone Nerd font configuration before proceeding with the installation
+install_nerd_fonts
+
 # making screenshot folder
 mkdir -p "$HOME/Pictures/Screenshot"
 
@@ -51,4 +57,6 @@ case $DISTRO_CHOICE in
     exit 1
     ;;
 esac
+
+
 

@@ -46,3 +46,4 @@ yay -S hakuneko-desktop
 
 echo "Installation process completed!"
 
+
