@@ -2,21 +2,27 @@
 
 # This script updates the mirror list, system, and installs specified packages on Arch Linux
 
-# Install reflector for managing mirror list
-sudo pacman -S --needed reflector --noconfirm
+# Ensure the script is run as root
+if [ "$(id -u)" -ne 0 ]; then
+    echo "This script must be run as root" 1>&2
+    exit 1
+fi
 
-# Configure mirrors for India
-sudo reflector --latest 5 --country India --protocol https --sort rate --save /etc/pacman.d/mirrorlist
+# Install reflector for managing mirror list
+pacman -S --needed reflector --noconfirm || { echo "Failed to install reflector"; exit 1; }
+
+# Configure mirrors for India using reflector
+reflector --latest 5 --country India --protocol https --sort rate --save /etc/pacman.d/mirrorlist || { echo "Failed to update mirror list"; exit 1; }
 
 # Update system and packages
-sudo pacman -Syu --noconfirm
+pacman -Syu --noconfirm || { echo "System update failed"; exit 1; }
 
 # Function to check and install packages if they are not already installed
 install_if_needed() {
     for pkg in "$@"; do
         if ! pacman -Qi "$pkg" &> /dev/null; then
             echo "Installing $pkg..."
-            sudo pacman -S "$pkg" --noconfirm
+            pacman -S "$pkg" --noconfirm || { echo "Failed to install $pkg"; continue; }
         else
             echo "$pkg is already installed. Skipping..."
         fi
@@ -31,8 +37,8 @@ packages=(
 # Install packages
 install_if_needed "${packages[@]}"
 
-echo "To enable bluetooth"
-sudo systemctl enable --now bluetooth.service
+# Enable bluetooth and display message
+systemctl enable --now bluetooth.service && echo "Bluetooth service has been enabled."
 
 echo "Installation and setup complete on Arch Linux."
 

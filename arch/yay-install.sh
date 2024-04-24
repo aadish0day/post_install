@@ -30,6 +30,12 @@ install_yay() {
     echo "yay has been successfully installed."
 }
 
+# Check if yay is installed
+if ! command -v yay &>/dev/null; then
+    install_yay
+fi
+
+# Install packages
 yay -S i3lock-color
 yay -S thorium-browser-bin
 yay -S vscodium-bin

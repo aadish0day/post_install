@@ -13,64 +13,45 @@ if [[ ! $response =~ ^[Yy][Ee][Ss]$ ]]; then
     exit 0
 fi
 
-# ------------------------------------------------------
 # Install Packages
-# ------------------------------------------------------
-packages=(virt-manager virt-viewer qemu vde2 ebtables iptables-nft nftables dnsmasq bridge-utils ovmf swtpm)
+packages=(virt-manager virt-viewer qemu vde2 ebtables dnsmasq bridge-utils ovmf swtpm iptables-nft nftables)
 echo "Installing packages..."
-sudo pacman -S --needed "${packages[@]}" || {
+pacman -S --needed "${packages[@]}" || {
     echo "Failed to install packages."
     exit 1
 }
 
-# ------------------------------------------------------
 # Edit libvirtd.conf
-# ------------------------------------------------------
 echo "Configuring /etc/libvirt/libvirtd.conf..."
-sudo sed -i 's/#unix_sock_group = "libvirt"/unix_sock_group = "libvirt"/' /etc/libvirt/libvirtd.conf
-sudo sed -i 's/#unix_sock_rw_perms = "0770"/unix_sock_rw_perms = "0770"/' /etc/libvirt/libvirtd.conf
-echo 'log_filters="3:qemu 1:libvirt"' | sudo tee -a /etc/libvirt/libvirtd.conf > /dev/null
-echo 'log_outputs="2:file:/var/log/libvirt/libvirtd.log"' | sudo tee -a /etc/libvirt/libvirtd.conf > /dev/null
+sed -i 's/#unix_sock_group = "libvirt"/unix_sock_group = "libvirt"/' /etc/libvirt/libvirtd.conf
+sed -i 's/#unix_sock_rw_perms = "0770"/unix_sock_rw_perms = "0770"/' /etc/libvirt/libvirtd.conf
+echo 'log_filters="3:qemu 1:libvirt"' | tee -a /etc/libvirt/libvirtd.conf > /dev/null
+echo 'log_outputs="2:file:/var/log/libvirt/libvirtd.log"' | tee -a /etc/libvirt/libvirtd.conf > /dev/null
 
-# ------------------------------------------------------
 # Add user to the group
-# ------------------------------------------------------
 echo "Adding $(whoami) to kvm and libvirt groups..."
-sudo usermod -a -G kvm,libvirt $(whoami) || {
+usermod -a -G kvm,libvirt $(whoami) || {
     echo "Failed to add $(whoami) to groups."
     exit 1
 }
 
-# ------------------------------------------------------
-# Enable services
-# ------------------------------------------------------
+# Enable and start services
 echo "Enabling and starting libvirtd service..."
-sudo systemctl enable libvirtd && sudo systemctl start libvirtd || {
+systemctl enable --now libvirtd || {
     echo "Failed to enable or start libvirtd."
     exit 1
 }
 
-# ------------------------------------------------------
-# Edit qemu.conf
-# ------------------------------------------------------
-echo "Configuring /etc/libvirt/qemu.conf..."
-sudo sed -i "s/#user = \"root\"/user = \"$(whoami)\"/" /etc/libvirt/qemu.conf
-sudo sed -i "s/#group = \"root\"/group = \"$(whoami)\"/" /etc/libvirt/qemu.conf
-
-# ------------------------------------------------------
-# Restart Services
-# ------------------------------------------------------
+# Restart libvirtd service after all configurations
 echo "Restarting libvirtd service..."
-sudo systemctl restart libvirtd || {
+systemctl restart libvirtd || {
     echo "Failed to restart libvirtd."
     exit 1
 }
 
-# ------------------------------------------------------
-# Autostart Network
-# ------------------------------------------------------
+# Set default network to autostart
 echo "Setting up default network to autostart..."
-sudo virsh net-autostart default || {
+virsh net-autostart default || {
     echo "Failed to set default network to autostart."
     exit 1
 }
