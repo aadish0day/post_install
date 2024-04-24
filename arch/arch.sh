@@ -31,5 +31,8 @@ packages=(
 # Install packages
 install_if_needed "${packages[@]}"
 
+echo "To enable bluetooth"
+sudo systemctl enable --now bluetooth.service
+
 echo "Installation and setup complete on Arch Linux."
 
