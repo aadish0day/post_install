@@ -24,15 +24,6 @@ clone_neovim_config() {
   git clone https://github.com/Aadishx07/neovim_config.git "${XDG_CONFIG_HOME:-$HOME/.config}/nvim"
 }
 
-# Clone Neovim configuration before proceeding with the installation
-clone_neovim_config
-
-# Clone Icon configuration before proceeding with the installation
-install_icon
-
-# Clone Nerd font configuration before proceeding with the installation
-install_nerd_fonts
-
 # making screenshot folder
 mkdir -p "$HOME/Pictures/Screenshot"
 
