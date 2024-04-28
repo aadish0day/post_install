@@ -24,6 +24,9 @@ clone_neovim_config() {
   git clone https://github.com/Aadishx07/neovim_config.git "${XDG_CONFIG_HOME:-$HOME/.config}/nvim"
 }
 
+#Install neovim config
+clone_neovim_config
+
 # making screenshot folder
 mkdir -p "$HOME/Pictures/Screenshot"
 
