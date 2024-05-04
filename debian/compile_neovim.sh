@@ -25,7 +25,7 @@ cd "$NEOVIM_DIR" || exit 1  # Exit if changing directory fails
 
 echo "Building Neovim..."
 # Build Neovim with Release configuration with Debug info
-make CMAKE_BUILD_TYPE=RelWithDebInfo
+make CMAKE_BUILD_TYPE=Release
 
 echo "Installing Neovim..."
 # Install Neovim
