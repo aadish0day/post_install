@@ -10,12 +10,11 @@ git clone $REPO_URL
 
 # Check if the directory exists and install the icon pack
 if [ -d "$DIR_NAME" ]; then
-    echo "Installing Papirus icon theme..."
-    cd "$DIR_NAME"
-    sudo ./install.sh
-    echo "Installation complete!"
+	echo "Installing Papirus icon theme..."
+	cd "$DIR_NAME"
+	sudo ./install.sh
+	echo "Installation complete!"
 else
-    echo "Failed to clone the repository."
-    exit 1
+	echo "Failed to clone the repository."
+	exit 1
 fi
-

@@ -4,10 +4,10 @@
 fonts_dir="${HOME}/.local/share/fonts"
 # Create the directory if it does not exist
 if [ ! -d "${fonts_dir}" ]; then
-    echo "mkdir -p $fonts_dir"
-    mkdir -p "${fonts_dir}"
+	echo "mkdir -p $fonts_dir"
+	mkdir -p "${fonts_dir}"
 else
-    echo "Found fonts dir $fonts_dir"
+	echo "Found fonts dir $fonts_dir"
 fi
 
 # Version is now tied to the nerd-fonts release version
@@ -24,4 +24,3 @@ rm ${zip}
 # Update the font cache
 echo "fc-cache -f"
 fc-cache -f
-

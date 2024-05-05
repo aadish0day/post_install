@@ -5,8 +5,8 @@ set -e
 
 # Ensure the script is run as root
 if [ "$(id -u)" != "0" ]; then
-   echo "This script must be run as root" 1>&2
-   exit 1
+	echo "This script must be run as root" 1>&2
+	exit 1
 fi
 
 # Backup the existing dnf.conf and replace it with a new one
@@ -37,5 +37,3 @@ echo "Installing packages..."
 dnf install -y ranger ncdu mpv neovim maven yt-dlp fzf git unzip nodejs flameshot htop npm xclip ueberzug highlight atool mediainfo neofetch android-tools img2pdf zathura zathura-pdf-poppler zathura-ps zathura-djvu zathura-cb obs-studio picom nitrogen starship xss-lock qalculate-qt libreoffice-still brightnessctl bluez bluez-utils blueman
 
 echo "Installation and setup complete on Fedora Linux."
-
-

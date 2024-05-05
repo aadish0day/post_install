@@ -22,6 +22,6 @@ sudo nala install -y ranger ncdu mpv maven yt-dlp htop fzf git unzip nodejs flam
 sudo nala install -y python3-pip
 
 echo "install starship on the system"
-curl -sS https://starship.rs/install.sh | sh 
+curl -sS https://starship.rs/install.sh | sh
 
 echo "Installation and setup complete on debian Linux."
