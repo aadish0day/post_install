@@ -28,10 +28,17 @@ sed -i 's/#unix_sock_rw_perms = "0770"/unix_sock_rw_perms = "0770"/' /etc/libvir
 echo 'log_filters="3:qemu 1:libvirt"' | tee -a /etc/libvirt/libvirtd.conf >/dev/null
 echo 'log_outputs="2:file:/var/log/libvirt/libvirtd.log"' | tee -a /etc/libvirt/libvirtd.conf >/dev/null
 
-# Add user to the group
-echo "Adding $(whoami) to kvm and libvirt groups..."
-usermod -a -G kvm,libvirt $(whoami) || {
-	echo "Failed to add $(whoami) to groups."
+# Add user to the kvm group
+echo "Adding $(whoami) to the kvm group..."
+usermod -a -G kvm $(whoami) || {
+	echo "Failed to add $(whoami) to the kvm group."
+	exit 1
+}
+
+# Add user to the libvirt group
+echo "Adding $(whoami) to the libvirt group..."
+usermod -a -G libvirt $(whoami) || {
+	echo "Failed to add $(whoami) to the libvirt group."
 	exit 1
 }
 
