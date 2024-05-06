@@ -28,19 +28,22 @@ sed -i 's/#unix_sock_rw_perms = "0770"/unix_sock_rw_perms = "0770"/' /etc/libvir
 echo 'log_filters="3:qemu 1:libvirt"' | tee -a /etc/libvirt/libvirtd.conf >/dev/null
 echo 'log_outputs="2:file:/var/log/libvirt/libvirtd.log"' | tee -a /etc/libvirt/libvirtd.conf >/dev/null
 
-# Add user to the kvm group
-echo "Adding $(whoami) to the kvm group..."
-usermod -a -G kvm $(whoami) || {
-	echo "Failed to add $(whoami) to the kvm group."
-	exit 1
+# Get the current username (not the root user in case of sudo execution)
+USER_NAME=$(logname)
+
+echo "Adding $USER_NAME to the kvm group..."
+sudo usermod -a -G kvm "$USER_NAME" || {
+    echo "Failed to add $USER_NAME to the kvm group."
+    exit 1
 }
 
-# Add user to the libvirt group
-echo "Adding $(whoami) to the libvirt group..."
-usermod -a -G libvirt $(whoami) || {
-	echo "Failed to add $(whoami) to the libvirt group."
-	exit 1
+echo "Adding $USER_NAME to the libvirt group..."
+sudo usermod -a -G libvirt "$USER_NAME" || {
+    echo "Failed to add $USER_NAME to the libvirt group."
+    exit 1
 }
+
+echo "User $USER_NAME has been added to kvm and libvirt groups."
 
 # Enable and start services
 echo "Enabling and starting libvirtd service..."
