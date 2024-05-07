@@ -12,6 +12,12 @@ install_nerd_fonts() {
 	./nerd_font.sh
 }
 
+# Define a function to install GTk Fonts
+install_gtk() {
+	echo "Installing Gtk Fonts..."
+	./gtk-theme.sh
+}
+
 # Define a function to install Icon theme
 install_icon() {
 	echo "Installing Icon theme..."
@@ -35,16 +41,19 @@ case $DISTRO_CHOICE in
 	cd debian && ./debian.sh && cd ..
 	install_nerd_fonts
 	install_icon
+	install_gtk
 	;;
 2)
 	cd arch && ./arch.sh && cd ..
 	install_nerd_fonts
 	install_icon
+	install_gtk
 	;;
 3)
 	cd fedora && ./fedora.sh && cd ..
 	install_nerd_fonts
 	install_icon
+	install_gtk
 	;;
 *)
 	echo "Invalid selection. Exiting."
