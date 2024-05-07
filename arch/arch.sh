@@ -23,28 +23,42 @@ sudo pacman -Syu --noconfirm || {
 
 # Function to check and install packages if they are not already installed
 install_if_needed() {
-	local failures=()
-	for pkg in "$@"; do
-		if ! pacman -Qi "$pkg" &>/dev/null; then
-			echo "Installing $pkg..."
-			sudo pacman -S "$pkg" --noconfirm || {
-				echo "Failed to install $pkg"
-				failures+=("$pkg")
-				continue
-			}
-		else
-			echo "$pkg is already installed. Skipping..."
-		fi
-	done
-	if [ ${#failures[@]} -gt 0 ]; then
-		echo "Failed to install the following packages: ${failures[*]}"
-		return 1
-	fi
+    local pkg
+    local failures=()
+    local to_install=()
+
+    # Prepare the list of packages to install
+    for pkg in "$@"; do
+        if ! pacman -Qi "$pkg" &> /dev/null; then
+            to_install+=("$pkg")
+        else
+            echo "$pkg is already installed. Skipping..."
+        fi
+    done
+
+    # Install missing packages if any
+    if [ ${#to_install[@]} -gt 0 ]; then
+        echo "Installing: ${to_install[*]}"
+        sudo pacman -S "${to_install[@]}" --noconfirm || {
+            for pkg in "${to_install[@]}"; do
+                if ! pacman -Qi "$pkg" &> /dev/null; then
+                    echo "Failed to install $pkg"
+                    failures+=("$pkg")
+                fi
+            done
+        }
+    fi
+
+    # Report failures
+    if [ ${#failures[@]} -gt 0 ]; then
+        echo "Failed to install the following packages: ${failures[*]}"
+        return 1
+    fi
 }
 
-# List of packages to install
+# List of packages to install, removing any duplicates
 packages=(
-	neovim ranger ncdu mpv maven yt-dlp fzf git unzip nodejs gcc make git ripgrep fd unzip htop gettext libtool doxygen flameshot npm xclip ueberzug highlight atool mediainfo neofetch android-tools img2pdf zathura zathura-pdf-poppler zathura-ps zathura-djvu zathura-cb obs-studio picom nitrogen starship xss-lock qalculate-qt libreoffice-still brightnessctl qbittorrent bluez bluez-utils blueman kitty bat
+    neovim ranger ncdu mpv maven yt-dlp fzf git nodejs gcc make ripgrep fd unzip htop gettext libtool doxygen flameshot npm xclip ueberzug highlight atool mediainfo neofetch android-tools img2pdf zathura zathura-pdf-poppler zathura-ps zathura-djvu zathura-cb obs-studio picom nitrogen starship xss-lock qalculate-qt libreoffice-still brightnessctl qbittorrent bluez bluez-utils blueman kitty bat
 )
 
 # Install packages
