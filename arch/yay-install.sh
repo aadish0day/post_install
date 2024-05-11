@@ -39,11 +39,19 @@ fi
 
 # Install packages
 yay -S i3lock-color
+
 yay -S thorium-browser-bin
+
 yay -S vscodium-bin
+yay -Rns vscodium-bin-debug
+
 yay -S github-desktop-bin
+yay -Rns github-desktop-bin-debug
+
 yay -S moc
+
 yay -S ani-cli
+
 yay -S hakuneko-desktop
 
 echo "Installation process completed!"
