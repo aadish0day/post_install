@@ -50,6 +50,9 @@ yay -Rns github-desktop-bin-debug
 
 yay -S moc
 
+yay -S ueberzugpp
+yay -Rns ueberzugpp-debug
+
 yay -S ani-cli
 
 yay -S hakuneko-desktop
