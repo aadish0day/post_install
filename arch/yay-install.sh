@@ -37,24 +37,45 @@ else
 	echo "yay is already installed."
 fi
 
-# Install packages
-yay -S i3lock-color
+# List of packages to install
+packages=(
+	"i3lock-color"
+	"thorium-browser-bin"
+	"vscodium-bin"
+	"github-desktop-bin"
+	"moc"
+	"ueberzugpp"
+	"ani-cli"
+	"hakuneko-desktop"
+)
 
-yay -S thorium-browser-bin
+# Handle conflicting packages
+conflicts=(
+	"i3lock:i3lock-color"
+)
 
-yay -S vscodium-bin
-yay -Rns vscodium-bin-debug
+for conflict in "${conflicts[@]}"; do
+	to_remove="${conflict%%:*}"
+	to_install="${conflict##*:}"
+	if pacman -Qq "$to_remove" &>/dev/null; then
+		sudo pacman -Rns --noconfirm "$to_remove"
+	fi
+	yay -S --noconfirm "$to_install"
+	if [[ "$to_install" == *"-bin" ]]; then
+		debug_package="${to_install}-debug"
+		yay -Rns --noconfirm "$debug_package"
+	fi
+done
 
-yay -S github-desktop-bin
-yay -Rns github-desktop-bin-debug
-
-yay -S moc
-
-yay -S ueberzugpp
-yay -Rns ueberzugpp-debug
-
-yay -S ani-cli
-
-yay -S hakuneko-desktop
+# Install other packages
+for package in "${packages[@]}"; do
+	if ! pacman -Qq "$package" &>/dev/null; then
+		yay -S --noconfirm "$package"
+		if [[ "$package" == *"-bin" ]]; then
+			debug_package="${package}-debug"
+			yay -Rns --noconfirm "$debug_package"
+		fi
+	fi
+done
 
 echo "Installation process completed!"

@@ -34,6 +34,21 @@ dnf groupupdate -y sound-and-video
 
 # Install packages
 echo "Installing packages..."
-dnf install -y ranger ncdu mpv neovim maven yt-dlp fzf git unzip nodejs flameshot htop npm xclip ueberzug highlight atool mediainfo fastfetch android-tools img2pdf zathura zathura-pdf-poppler zathura-ps zathura-djvu zathura-cb obs-studio picom nitrogen starship xss-lock qalculate-qt libreoffice-still brightnessctl bluez bluez-utils blueman bat alacritty jpegoptim
+dnf install -y ranger ncdu mpv neovim maven yt-dlp fzf git unzip nodejs flameshot htop npm xclip highlight atool mediainfo fastfetch android-tools zathura zathura-pdf-poppler zathura-ps zathura-djvu zathura-cb obs-studio picom nitrogen xss-lock qalculate-qt brightnessctl bluez blueman bat alacritty jpegoptim zip unzip tar p7zip zstd lz4 xz
+
+# Install ueberzug and img2pdf using pip
+echo "Installing ueberzug and img2pdf using pip..."
+dnf install -y python3-pip
+pip3 install img2pdf
+
+# Enable COPR repository for starship and install it
+echo "Enabling COPR repository for starship and installing it..."
+dnf install -y dnf-plugins-core
+dnf copr enable atim/starship -y
+dnf install -y starship
+
+# Install LibreOffice (Fedora provides a single version, no need for libreoffice-still)
+echo "Installing LibreOffice..."
+dnf install -y libreoffice
 
 echo "Installation and setup complete on Fedora Linux."
