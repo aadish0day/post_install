@@ -49,30 +49,25 @@ packages=(
 	"hakuneko-desktop"
 )
 
-# Handle conflicting packages
-conflicts=(
-	"i3lock:i3lock-color"
-)
-
-for conflict in "${conflicts[@]}"; do
-	to_remove="${conflict%%:*}"
-	to_install="${conflict##*:}"
-	if pacman -Qq "$to_remove" &>/dev/null; then
-		sudo pacman -Rns --noconfirm "$to_remove"
-	fi
-	yay -S --noconfirm "$to_install"
-	if [[ "$to_install" == *"-bin" ]]; then
-		debug_package="${to_install}-debug"
-		yay -Rns --noconfirm "$debug_package"
-	fi
-done
-
-# Install other packages
+# Check for conflicts and install packages
 for package in "${packages[@]}"; do
-	if ! pacman -Qq "$package" &>/dev/null; then
+	if ! pacman -Qi "$package" &>/dev/null; then
+		# Handle conflicts
+		if [[ "$package" == "i3lock-color" ]]; then
+			if pacman -Qq "i3lock" &>/dev/null; then
+				sudo pacman -Rns --noconfirm "i3lock"
+			fi
+		fi
+		# Install package
 		yay -S --noconfirm "$package"
-		if [[ "$package" == *"-bin" ]]; then
-			debug_package="${package}-debug"
+	else
+		echo "$package is already installed."
+	fi
+
+	# Remove debug packages for -bin installations
+	if [[ "$package" == *"-bin" ]]; then
+		debug_package="${package%-bin}-debug"
+		if pacman -Qi "$debug_package" &>/dev/null; then
 			yay -Rns --noconfirm "$debug_package"
 		fi
 	fi

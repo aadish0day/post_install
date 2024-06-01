@@ -47,7 +47,7 @@ install_if_needed() {
 }
 
 # List of packages to install, removing any duplicates
-packages=(neovim ranger ncdu mpv maven yt-dlp fzf git nodejs gcc make ripgrep fd unzip htop gettext libtool doxygen flameshot npm xclip highlight atool mediainfo fastfetch android-tools img2pdf zathura zathura-pdf-poppler zathura-ps zathura-djvu zathura-cb obs-studio picom nitrogen starship xss-lock qalculate-qt libreoffice-still brightnessctl qbittorrent bluez bluez-utils blueman bat alacritty zsh jpegoptim zip unzip tar p7zip  zstd lz4 xz)
+packages=(neovim ranger ncdu mpv maven yt-dlp fzf git nodejs gcc make ripgrep fd unzip htop gettext libtool doxygen flameshot npm xclip highlight atool mediainfo fastfetch android-tools img2pdf zathura zathura-pdf-poppler zathura-ps zathura-djvu zathura-cb obs-studio picom nitrogen starship xss-lock qalculate-qt libreoffice-still brightnessctl qbittorrent bluez bluez-utils blueman bat alacritty zsh jpegoptim zip tar p7zip zstd lz4 xz)
 
 # Install packages
 install_if_needed "${packages[@]}"
@@ -56,8 +56,8 @@ install_if_needed "${packages[@]}"
 sudo systemctl enable --now bluetooth.service
 echo "Bluetooth service has been enabled."
 
-echo "Change it to zsh"
-chsh $USER
+echo "Changing default shell to zsh..."
+chsh -s $(which zsh) $USER
 
 echo "Installation and setup complete on Arch Linux."
 

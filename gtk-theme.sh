@@ -4,17 +4,39 @@
 URL="https://github.com/dracula/gtk/archive/master.zip"
 DEST="/usr/share/themes"
 
-# Download the ZIP file directly into the destination directory
-echo "Downloading Dracula GTK theme..."
-sudo curl -L "$URL" -o "$DEST/theme.zip"
+# Function to download the theme
+download_theme() {
+	echo "Downloading Dracula GTK theme to $DEST..."
+	if sudo curl -L "$URL" -o "$DEST/theme.zip"; then
+		echo "Download successful."
+	else
+		echo "Failed to download the theme."
+		exit 1
+	fi
+}
 
-# Extract the contents of the ZIP file and clean up
-echo "Extracting files..."
-sudo unzip "$DEST/theme.zip" -d "$DEST"
-sudo mv "$DEST/gtk-master" "$DEST/dracula-theme"
-sudo rm "$DEST/theme.zip"
+# Function to extract and clean up
+extract_and_cleanup() {
+	echo "Extracting files..."
+	if sudo unzip -q "$DEST/theme.zip" -d "$DEST"; then
+		echo "Files extracted."
+		sudo mv "$DEST/gtk-master" "$DEST/dracula-theme" && echo "Theme moved to final destination."
+		sudo rm "$DEST/theme.zip"
+		echo "Cleanup completed."
+	else
+		echo "Failed to extract files."
+		exit 1
+	fi
+}
 
-# Remove the original extracted directory structure if it's empty
-sudo rmdir --ignore-fail-on-non-empty "$DEST/gtk-master"
+# Main execution flow
+download_theme
+extract_and_cleanup
+
+# Additional check for leftover directory
+if [ -d "$DEST/gtk-master" ]; then
+	echo "Removing leftover directory..."
+	sudo rmdir --ignore-fail-on-non-empty "$DEST/gtk-master"
+fi
 
 echo "Installation completed successfully."

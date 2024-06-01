@@ -5,10 +5,10 @@ fonts_dir="${HOME}/.local/share/fonts"
 
 # Create the directory if it does not exist
 if [ ! -d "${fonts_dir}" ]; then
-    echo "Creating directory: $fonts_dir"
-    mkdir -p "${fonts_dir}"
+	echo "Creating directory: $fonts_dir"
+	mkdir -p "${fonts_dir}"
 else
-    echo "Found existing fonts directory: $fonts_dir"
+	echo "Found existing fonts directory: $fonts_dir"
 fi
 
 # GitHub repository from which to fetch the latest release
@@ -23,8 +23,8 @@ latest_version=$(echo "$latest_release_json" | grep '"tag_name":' | sed -E 's/.*
 
 # Check if we got a version number
 if [[ -z "$latest_version" ]]; then
-    echo "Failed to fetch the latest version number." >&2
-    exit 1
+	echo "Failed to fetch the latest version number." >&2
+	exit 1
 fi
 
 echo "Latest version is $latest_version"
@@ -35,10 +35,10 @@ zip="FiraMono.zip"
 # Download the zip file using the latest version number
 echo "Downloading Fira Mono Nerd Font version $latest_version..."
 if curl --fail --location --show-error -o "${zip}" "https://github.com/$repo/releases/download/$latest_version/$zip"; then
-    echo "Download successful."
+	echo "Download successful."
 else
-    echo "Failed to download the font zip file." >&2
-    exit 1
+	echo "Failed to download the font zip file." >&2
+	exit 1
 fi
 
 # Unzip the font files into the designated directory
@@ -54,4 +54,3 @@ echo "Updating font cache..."
 fc-cache -f
 
 echo "Font installation completed."
-
