@@ -39,6 +39,7 @@ fi
 
 # List of packages to install
 packages=(
+	"ttf-firacode"
 	"i3lock-color"
 	"thorium-browser-bin"
 	"vscodium-bin"
