@@ -8,18 +8,18 @@ echo "3) Fedora"
 read -p "Distribution (1/2/3): " DISTRO_CHOICE
 
 # Define a function to install Nerd Fonts
-#install_nerd_fonts() {
-#	echo "Installing Nerd Fonts..."
-#	if [ -f "./nerd_font.sh" ]; then
-#		./nerd_font.sh || {
-#			echo "Failed to install Nerd Fonts."
-#			exit 1
-#		}
-#	else
-#		echo "nerd_font.sh script not found."
-#		exit 1
-#	fi
-#}
+install_nerd_fonts() {
+	echo "Installing Nerd Fonts..."
+	if [ -f "./nerd_font.sh" ]; then
+		./nerd_font.sh || {
+			echo "Failed to install Nerd Fonts."
+			exit 1
+		}
+	else
+		echo "nerd_font.sh script not found."
+		exit 1
+	fi
+}
 
 # Define a function to install GTK Fonts
 install_gtk() {
@@ -109,7 +109,7 @@ case $DISTRO_CHOICE in
 esac
 
 # Install fonts, icon themes, and GTK themes
-#install_nerd_fonts
+install_nerd_fonts
 install_icon
 install_gtk
 
