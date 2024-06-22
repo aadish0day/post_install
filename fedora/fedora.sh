@@ -40,7 +40,7 @@ dnf groupupdate -y sound-and-video
 
 # Install essential packages
 log "Installing essential packages..."
-dnf install -y ranger ncdu mpv neovim maven yt-dlp fzf git unzip nodejs flameshot htop npm xclip highlight atool mediainfo fastfetch android-tools zathura zathura-pdf-mupdf zathura-ps zathura-djvu zathura-cb obs-studio picom nitrogen xss-lock qalculate-qt brightnessctl bluez blueman bat alacritty jpegoptim zip unzip tar p7zip zstd lz4 xz trash-cli
+dnf install -y ranger ncdu mpv neovim maven yt-dlp fzf git unzip nodejs flameshot htop npm xclip highlight atool mediainfo fastfetch android-tools zathura zathura-pdf-mupdf zathura-ps zathura-djvu zathura-cb obs-studio picom nitrogen xss-lock qalculate-qt brightnessctl bluez blueman bat alacritty jpegoptim zip unzip tar p7zip zstd lz4 xz trash-cli lxrandr
 
 # Install Python utilities with pip
 log "Installing Python utilities with pip..."
