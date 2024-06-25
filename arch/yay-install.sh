@@ -37,8 +37,8 @@ else
 	echo "yay is already installed."
 fi
 
-# List of packages to install
-packages=(
+# List of general packages to install
+general_packages=(
 	"i3lock-color"
 	"thorium-browser-bin"
 	"vscodium-bin"
@@ -49,28 +49,51 @@ packages=(
 	"hakuneko-desktop"
 )
 
-# Check for conflicts and install packages
-for package in "${packages[@]}"; do
-	if ! pacman -Qi "$package" &>/dev/null; then
-		# Handle conflicts
-		if [[ "$package" == "i3lock-color" ]]; then
-			if pacman -Qq "i3lock" &>/dev/null; then
-				sudo pacman -Rns --noconfirm "i3lock"
+# List of ASUS specific packages to install
+asus_packages=(
+	"asusctl"
+	"supergfxctl"
+	"rog-control-center"
+)
+
+# Function to install packages
+install_packages() {
+	local packages=("$@")
+	for package in "${packages[@]}"; do
+		if ! pacman -Qi "$package" &>/dev/null; then
+			# Handle conflicts
+			if [[ "$package" == "i3lock-color" ]]; then
+				if pacman -Qq "i3lock" &>/dev/null; then
+					sudo pacman -Rns --noconfirm "i3lock"
+				fi
+			fi
+			# Install package
+			yay -S --noconfirm "$package"
+		else
+			echo "$package is already installed."
+		fi
+
+		# Remove debug packages for -bin installations
+		if [[ "$package" == *"-bin" ]]; then
+			debug_package="${package%-bin}-debug"
+			if pacman -Qi "$debug_package" &>/dev/null; then
+				yay -Rns --noconfirm "$debug_package"
 			fi
 		fi
-		# Install package
-		yay -S --noconfirm "$package"
-	else
-		echo "$package is already installed."
-	fi
+	done
+}
 
-	# Remove debug packages for -bin installations
-	if [[ "$package" == *"-bin" ]]; then
-		debug_package="${package%-bin}-debug"
-		if pacman -Qi "$debug_package" &>/dev/null; then
-			yay -Rns --noconfirm "$debug_package"
-		fi
-	fi
-done
+echo "Installing general packages..."
+install_packages "${general_packages[@]}"
+
+# Ask if the user wants to install ASUS specific packages
+read -rp "Do you want to install ASUS specific packages (asusctl, supergfxctl, rog-control-center)? (yes/no): " install_asus
+
+if [[ "$install_asus" == "yes" ]]; then
+	echo "Installing ASUS specific packages..."
+	install_packages "${asus_packages[@]}"
+else
+	echo "Skipping ASUS specific packages."
+fi
 
 echo "Installation process completed!"
