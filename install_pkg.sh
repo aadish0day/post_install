@@ -21,12 +21,12 @@ install_nerd_fonts() {
 	fi
 }
 
-# Define a function to install GTK Fonts
+# Define a function to install GTK themes
 install_gtk() {
-	echo "Installing Gtk Fonts..."
+	echo "Installing GTK themes..."
 	if [ -f "./gtk-theme.sh" ]; then
 		./gtk-theme.sh || {
-			echo "Failed to install Gtk Fonts."
+			echo "Failed to install GTK themes."
 			exit 1
 		}
 	else
@@ -35,12 +35,12 @@ install_gtk() {
 	fi
 }
 
-# Define a function to install Icon theme
+# Define a function to install Icon themes
 install_icon() {
-	echo "Installing Icon theme..."
+	echo "Installing Icon themes..."
 	if [ -f "./icon_theme.sh" ]; then
 		./icon_theme.sh || {
-			echo "Failed to install Icon theme."
+			echo "Failed to install Icon themes."
 			exit 1
 		}
 	else
