@@ -92,6 +92,10 @@ read -rp "Do you want to install ASUS specific packages (asusctl, supergfxctl, r
 if [[ "$install_asus" == "yes" ]]; then
 	echo "Installing ASUS specific packages..."
 	install_packages "${asus_packages[@]}"
+
+	# Enable and start supergfxd service
+	echo "Enabling and starting supergfxd service..."
+	sudo systemctl enable --now supergfxd
 else
 	echo "Skipping ASUS specific packages."
 fi
