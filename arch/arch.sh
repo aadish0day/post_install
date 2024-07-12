@@ -62,4 +62,40 @@ echo "Bluetooth service has been enabled."
 echo "Changing default shell to zsh..."
 chsh -s "$(which zsh)" "$USER"
 
+# Ask if the user wants to install AMD drivers
+read -p "Do you want to install AMD drivers? (y/n): " install_amd
+
+if [[ "$install_amd" == "y" ]]; then
+	# Update the system
+	sudo pacman -Syu --noconfirm
+
+	# Install necessary packages for AMD
+	sudo pacman -S --noconfirm xorg-server xorg-xinit xf86-video-amdgpu amd-ucode vulkan-radeon lib32-vulkan-radeon linux-firmware radeontop
+
+	# Create Xorg configuration if it doesn't exist
+	if [ ! -f /etc/X11/xorg.conf.d/20-amdgpu.conf ]; then
+		sudo mkdir -p /etc/X11/xorg.conf.d
+		sudo tee /etc/X11/xorg.conf.d/20-amdgpu.conf >/dev/null <<EOL
+Section "Device"
+    Identifier "AMD"
+    Driver "amdgpu"
+    Option "TearFree" "true"
+EndSection
+EOL
+		echo "Xorg configuration for AMD created at /etc/X11/xorg.conf.d/20-amdgpu.conf."
+	else
+		echo "Xorg configuration file already exists at /etc/X11/xorg.conf.d/20-amdgpu.conf."
+	fi
+
+	# Edit GRUB configuration
+	sudo sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="[^"]*/& quiet splash nowatchdog nvme_load=YES loglevel=3 amdgpu.dpm=1 amdgpu.audio=0 amdgpu.runpm=1 pcie_aspm=force radeon.si_support=0 radeon.cik_support=0/' /etc/default/grub
+
+	# Update GRUB configuration
+	sudo grub-mkconfig -o /boot/grub/grub.cfg
+
+	echo "AMD drivers installed."
+else
+	echo "Skipping AMD driver installation."
+fi
+
 echo "Installation and setup complete on Arch Linux."
