@@ -14,10 +14,7 @@ if [ "$(id -u)" != "0" ]; then
 	exit 1
 fi
 
-# Backup the existing dnf.conf and replace it with a new one
-log "Backing up and replacing dnf.conf..."
-cp /etc/dnf/dnf.conf /etc/dnf/dnf.conf.bak
-cp ./dnf.conf /etc/dnf/dnf.conf
+log "Starting Fedora setup..."
 
 # Update the system
 log "Updating the system..."
@@ -28,33 +25,63 @@ log "Installing RPM Fusion repositories..."
 dnf install -y "https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm" \
 	"https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm"
 
-# Swapping ffmpeg-free for ffmpeg
-log "Swapping ffmpeg-free for ffmpeg..."
-dnf swap -y ffmpeg-free ffmpeg --allowerasing
-
-# Perform group updates
-log "Performing group updates..."
-dnf groupupdate -y core
-dnf groupupdate -y multimedia --setopt="install_weak_deps=False" --exclude=PackageKit-gstreamer-plugin
-dnf groupupdate -y sound-and-video
-
 # Install essential packages
 log "Installing essential packages..."
-dnf install -y ranger ncdu mpv neovim maven yt-dlp fzf git unzip nodejs flameshot htop npm xclip highlight atool mediainfo fastfetch android-tools zathura zathura-pdf-mupdf zathura-ps zathura-djvu zathura-cb obs-studio picom nitrogen xss-lock qalculate-qt brightnessctl bluez blueman bat alacritty jpegoptim zip unzip tar p7zip zstd lz4 xz trash-cli lxrandr
+dnf install -y ranger ncdu mpv neovim maven yt-dlp fzf git unzip nodejs gcc make ripgrep fd htop gettext \
+	libtool doxygen flameshot npm xclip highlight atool mediainfo fastfetch android-tools \
+	zathura zathura-pdf-mupdf zathura-ps zathura-djvu zathura-cb obs-studio picom nitrogen \
+	xss-lock qalculate-qt libreoffice brightnessctl qbittorrent bluez bluez-utils blueman \
+	bat alacritty zsh jpegoptim zip tar p7zip zstd lz4 xz trash-cli lxrandr
 
 # Install Python utilities with pip
 log "Installing Python utilities with pip..."
 dnf install -y python3-pip
 pip3 install img2pdf ueberzug
 
-# Enable COPR repository for starship and install it
-log "Enabling COPR repository for starship and installing it..."
-dnf install -y dnf-plugins-core
-dnf copr enable atim/starship -y
-dnf install -y starship
+# Enable and start Bluetooth service
+log "Enabling Bluetooth service..."
+systemctl enable --now bluetooth.service
+log "Bluetooth service has been enabled."
 
-# Install LibreOffice
-log "Installing LibreOffice..."
-dnf install -y libreoffice
+# Change default shell to zsh
+log "Changing default shell to zsh..."
+chsh -s "$(which zsh)" "$USER"
+
+# Ask if the user wants to install AMD drivers
+read -p "Do you want to install AMD drivers? (y/n): " install_amd
+
+if [[ "$install_amd" == "y" ]]; then
+	# Install necessary packages for AMD
+	log "Installing AMD drivers..."
+	dnf install -y xorg-x11-server-xorg xorg-x11-xinit xorg-x11-drv-amdgpu vulkan-radeon \
+		lib32-vulkan-radeon linux-firmware radeontop
+
+	# Create Xorg configuration if it doesn't exist
+	if [ ! -f /etc/X11/xorg.conf.d/20-amdgpu.conf ]; then
+		log "Creating Xorg configuration for AMD..."
+		mkdir -p /etc/X11/xorg.conf.d
+		tee /etc/X11/xorg.conf.d/20-amdgpu.conf >/dev/null <<EOL
+Section "Device"
+    Identifier "AMD"
+    Driver "amdgpu"
+    Option "TearFree" "true"
+EndSection
+EOL
+		log "Xorg configuration for AMD created at /etc/X11/xorg.conf.d/20-amdgpu.conf."
+	else
+		log "Xorg configuration file already exists at /etc/X11/xorg.conf.d/20-amdgpu.conf."
+	fi
+
+	# Edit GRUB configuration
+	log "Editing GRUB configuration..."
+	sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="[^"]*/& quiet splash nowatchdog nvme_load=YES loglevel=3 amdgpu.dpm=1 amdgpu.audio=0 amdgpu.runpm=1 pcie_aspm=force radeon.si_support=0 radeon.cik_support=0/' /etc/default/grub
+
+	# Update GRUB configuration
+	grub2-mkconfig -o /boot/grub2/grub.cfg
+
+	log "AMD drivers installed."
+else
+	log "Skipping AMD driver installation."
+fi
 
 log "Installation and setup complete on Fedora Linux."
