@@ -70,7 +70,7 @@ if [[ "$install_amd" == "y" ]]; then
 	sudo pacman -Syu --noconfirm
 
 	# Install necessary packages for AMD
-	sudo pacman -S --noconfirm xorg-server xorg-xinit xf86-video-amdgpu amd-ucode vulkan-radeon lib32-vulkan-radeon linux-firmware radeontop
+	sudo pacman -S --noconfirm xf86-video-amdgpu amd-ucode vulkan-radeon lib32-vulkan-radeon linux-firmware radeontop
 
 	# Create Xorg configuration if it doesn't exist
 	if [ ! -f /etc/X11/xorg.conf.d/20-amdgpu.conf ]; then
