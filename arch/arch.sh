@@ -70,7 +70,7 @@ if [[ "$install_amd" == "y" ]]; then
 	sudo pacman -Syu --noconfirm
 
 	# Install necessary packages for AMD
-	sudo pacman -S --noconfirm xf86-video-amdgpu amd-ucode vulkan-radeon lib32-vulkan-radeon linux-firmware radeontop
+	sudo pacman -S --noconfirm xf86-video-amdgpu amd-ucode vulkan-radeon lib32-vulkan-radeon linux-firmware radeontop lib32-mesa-vdpau mesa-vdpau
 
 	# Create Xorg configuration if it doesn't exist
 	if [ ! -f /etc/X11/xorg.conf.d/20-amdgpu.conf ]; then
@@ -80,6 +80,7 @@ Section "Device"
     Identifier "AMD"
     Driver "amdgpu"
     Option "TearFree" "true"
+    Option "VariableRefresh" "true"
 EndSection
 EOL
 		echo "Xorg configuration for AMD created at /etc/X11/xorg.conf.d/20-amdgpu.conf."
