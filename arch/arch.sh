@@ -50,7 +50,7 @@ install_if_needed() {
 }
 
 # List of packages to install, removing any duplicates
-packages=(neovim ranger ncdu mpv maven yt-dlp fzf git nodejs gcc make ripgrep fd unzip htop gettext libtool doxygen flameshot npm xclip highlight atool mediainfo fastfetch android-tools img2pdf zathura zathura-pdf-mupdf zathura-ps zathura-djvu zathura-cb obs-studio picom nitrogen starship xss-lock qalculate-qt libreoffice-still brightnessctl qbittorrent bluez bluez-utils blueman bat alacritty zsh jpegoptim zip tar p7zip zstd lz4 xz trash-cli lxrandr)
+packages=(neovim ranger ncdu mpv maven yt-dlp fzf git nodejs gcc make ripgrep fd unzip htop gettext libtool doxygen flameshot npm xclip highlight atool mediainfo fastfetch android-tools img2pdf zathura zathura-pdf-mupdf zathura-ps zathura-djvu zathura-cb obs-studio picom nitrogen starship xss-lock qalculate-qt libreoffice-still brightnessctl qbittorrent bluez bluez-utils blueman bat alacritty zsh jpegoptim zip tar p7zip zstd lz4 xz trash-cli lxrandr wine wine-gecko wine-mono winetricks gamemode lib32-gamemode lutris)
 
 # Install packages
 install_if_needed "${packages[@]}"
@@ -62,7 +62,7 @@ echo "Bluetooth service has been enabled."
 echo "Changing default shell to zsh..."
 chsh -s "$(which zsh)" "$USER"
 
-# Ask if the user wants to install AMD drivers
+ Ask if the user wants to install AMD drivers
 read -p "Do you want to install AMD drivers? (y/n): " install_amd
 
 if [[ "$install_amd" == "y" ]]; then
@@ -70,7 +70,7 @@ if [[ "$install_amd" == "y" ]]; then
 	sudo pacman -Syu --noconfirm
 
 	# Install necessary packages for AMD
-	sudo pacman -S --noconfirm xf86-video-amdgpu amd-ucode vulkan-radeon lib32-vulkan-radeon linux-firmware radeontop lib32-mesa-vdpau mesa-vdpau
+	sudo pacman -S --noconfirm xf86-video-amdgpu amd-ucode vulkan-radeon lib32-vulkan-radeon radeontop lib32-mesa-vdpau mesa-vdpau
 
 	# Create Xorg configuration if it doesn't exist
 	if [ ! -f /etc/X11/xorg.conf.d/20-amdgpu.conf ]; then
@@ -89,7 +89,7 @@ EOL
 	fi
 
 	# Edit GRUB configuration
-	sudo sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="[^"]*/& quiet splash nowatchdog nvme_load=YES loglevel=3 amdgpu.dpm=1 amdgpu.audio=0 amdgpu.runpm=1 pcie_aspm=force radeon.si_support=0 radeon.cik_support=0/' /etc/default/grub
+	sudo sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="[^"]*/& quiet splash nowatchdog nvme_load=YES loglevel=4 amdgpu.dpm=1 amdgpu.audio=0 amdgpu.runpm=1 pcie_aspm=force radeon.si_support=0 radeon.cik_support=0 amdgpu.ppfeaturemask=0xffffffff/' /etc/default/grub
 
 	# Update GRUB configuration
 	sudo grub-mkconfig -o /boot/grub/grub.cfg
