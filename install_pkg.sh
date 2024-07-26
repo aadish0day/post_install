@@ -7,53 +7,22 @@ echo "2) Arch Linux"
 echo "3) Fedora"
 read -p "Distribution (1/2/3): " DISTRO_CHOICE
 
-# Define a function to install Nerd Fonts
-install_nerd_fonts() {
-	echo "Installing Nerd Fonts..."
-	if [ -f "./nerd_font.sh" ]; then
-		./nerd_font.sh || {
-			echo "Failed to install Nerd Fonts."
-			exit 1
-		}
-	else
-		echo "nerd_font.sh script not found."
-		exit 1
-	fi
-}
-
-# Define a function to install GTK themes
-install_gtk() {
-	echo "Installing GTK themes..."
-	if [ -f "./gtk-theme.sh" ]; then
-		./gtk-theme.sh || {
-			echo "Failed to install GTK themes."
-			exit 1
-		}
-	else
-		echo "gtk-theme.sh script not found."
-		exit 1
-	fi
-}
-
-# Define a function to install Icon themes
-install_icon() {
-	echo "Installing Icon themes..."
-	if [ -f "./icon_theme.sh" ]; then
-		./icon_theme.sh || {
-			echo "Failed to install Icon themes."
-			exit 1
-		}
-	else
-		echo "icon_theme.sh script not found."
-		exit 1
-	fi
-}
-
 # Define a function to clone Neovim configuration
 clone_neovim_config() {
 	echo "Cloning Neovim configuration..."
-	git clone https://github.com/Aadishx07/neovim_config.git "${XDG_CONFIG_HOME:-$HOME/.config}/nvim" || {
+	if git clone https://github.com/Aadishx07/neovim_config.git "${XDG_CONFIG_HOME:-$HOME/.config}/nvim"; then
+		echo "Neovim configuration cloned successfully."
+	else
 		echo "Failed to clone Neovim configuration."
+		exit 1
+	fi
+}
+
+# Define a function to install theme and font
+install_theme_and_font() {
+	echo "Installing the theme and font for the system..."
+	./theme_and_font.sh || {
+		echo "Failed to install theme and font."
 		exit 1
 	}
 }
@@ -108,9 +77,8 @@ case $DISTRO_CHOICE in
 	;;
 esac
 
-# Install fonts, icon themes, and GTK themes
-install_nerd_fonts
-install_icon
-install_gtk
+# Install theme and font
+install_theme_and_font
 
+# Install fonts, icon themes, and GTK themes
 echo "Setup completed successfully!"

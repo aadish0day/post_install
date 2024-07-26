@@ -15,7 +15,7 @@ sudo nala install -y software-properties-common
 
 # Install packages
 echo "Installing packages..."
-sudo nala install -y ranger ncdu mpv maven yt-dlp htop fzf git unzip nodejs flameshot xclip ueberzug highlight atool mediainfo fastfetch android-tools-adb android-tools-fastboot img2pdf zathura zathura-pdf-mupdf zathura-ps zathura-djvu zathura-cb obs-studio picom nitrogen xss-lock qalculate-qt libreoffic bluez bluez-utils blueman bat alacritty jpegoptim zip unzip tar p7zip  zstd lz4 xz trash-cli lxrandr
+sudo nala install -y ranger ncdu mpv maven yt-dlp htop fzf git unzip nodejs flameshot xclip ueberzug highlight atool mediainfo fastfetch android-tools-adb android-tools-fastboot img2pdf zathura zathura-pdf-mupdf zathura-ps zathura-djvu zathura-cb obs-studio picom nitrogen xss-lock qalculate-qt libreoffic bluez bluez-utils blueman bat alacritty jpegoptim zip unzip tar p7zip zstd lz4 xz trash-cli lxrandr
 
 # For yt-dlp, if not available directly through nala, you might still need to install it via pip or another method
 # Ensure Python3-pip is installed
