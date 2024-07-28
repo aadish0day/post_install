@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Function to install yay
-install_yay() {
-	echo "yay could not be found, installing..."
+# Function to install paru
+install_paru() {
+	echo "paru could not be found, installing..."
 
 	# Install necessary base-devel package group if not already installed
 	if ! pacman -Qq base-devel &>/dev/null; then
@@ -10,31 +10,31 @@ install_yay() {
 		sudo pacman -S --needed base-devel --noconfirm
 	fi
 
-	# Clone yay repository
-	git clone https://aur.archlinux.org/yay.git
+	# Clone paru repository
+	git clone https://aur.archlinux.org/paru.git
 	if [ $? -ne 0 ]; then
-		echo "Failed to clone yay repository."
+		echo "Failed to clone paru repository."
 		exit 1
 	fi
 
-	# Change directory to yay
-	cd yay || exit
+	# Change directory to paru
+	cd paru || exit
 
-	# Build and install yay without confirmation
+	# Build and install paru without confirmation
 	makepkg -si --noconfirm
 
 	# Clean up
 	cd ..
-	rm -rf yay
+	rm -rf paru
 
-	echo "yay has been successfully installed."
+	echo "paru has been successfully installed."
 }
 
-# Check if yay is installed
-if ! command -v yay &>/dev/null; then
-	install_yay
+# Check if paru is installed
+if ! command -v paru &>/dev/null; then
+	install_paru
 else
-	echo "yay is already installed."
+	echo "paru is already installed."
 fi
 
 # List of general packages to install
@@ -69,7 +69,7 @@ install_packages() {
 				fi
 			fi
 			# Install package
-			yay -S --noconfirm "$package"
+			paru -S --noconfirm "$package"
 		else
 			echo "$package is already installed."
 		fi
@@ -78,7 +78,7 @@ install_packages() {
 		if [[ "$package" == *"-bin" ]]; then
 			debug_package="${package%-bin}-debug"
 			if pacman -Qi "$debug_package" &>/dev/null; then
-				yay -Rns --noconfirm "$debug_package"
+				paru -Rns --noconfirm "$debug_package"
 			fi
 		fi
 	done
@@ -102,3 +102,4 @@ else
 fi
 
 echo "Installation process completed!"
+
