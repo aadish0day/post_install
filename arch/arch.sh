@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-Starting Arch Linux setup...
+echo "Arch Linux setup..."
 
 # Update system and packages
-sudo pacman -Sy --noconfirm
+sudo pacman -Syu --noconfirm
 
 # Install reflector for managing mirror list
 sudo pacman -S --needed reflector --noconfirm
@@ -12,7 +12,7 @@ sudo pacman -S --needed reflector --noconfirm
 # Configure mirrors for India using reflector
 sudo reflector --latest 5 --country India --protocol https --sort rate --save /etc/pacman.d/mirrorlist
 
-# Update system and packages
+# Update system and packages again after setting mirrors
 sudo pacman -Syu --noconfirm
 
 install_if_needed() {
@@ -21,7 +21,7 @@ install_if_needed() {
     local to_install=()
 
     for pkg in "$@"; do
-        if ! pacman -Qi "$pkg" &>/dev/null; then
+        if ! pacman -Q "$pkg" &>/dev/null; then
             to_install+=("$pkg")
         else
             echo "$pkg is already installed. Skipping..."
@@ -33,7 +33,7 @@ install_if_needed() {
         if ! sudo pacman -S "${to_install[@]}" --noconfirm; then
             echo "Some packages failed to install, checking..."
             for pkg in "${to_install[@]}"; do
-                if ! pacman -Qi "$pkg" &>/dev/null; then
+                if ! pacman -Q "$pkg" &>/dev/null; then
                     echo "Failed to install $pkg"
                     failures+=("$pkg")
                 fi
@@ -46,11 +46,11 @@ install_if_needed() {
     fi
 }
 
-# List of packages to install, removing any duplicates
+# List of packages to install
 packages=(neovim ranger ncdu mpv maven yt-dlp fzf git nodejs gcc make ripgrep fd unzip htop gettext libtool doxygen flameshot npm xclip highlight atool mediainfo fastfetch android-tools img2pdf zathura zathura-pdf-mupdf zathura-ps zathura-djvu zathura-cb obs-studio picom nitrogen starship xss-lock qalculate-qt libreoffice-still brightnessctl qbittorrent bluez bluez-utils blueman bat alacritty zsh jpegoptim zip tar p7zip zstd lz4 xz trash-cli lxrandr wine wine-gecko wine-mono winetricks gamemode lib32-gamemode lutris mkinitcpio)
 
 # Ensure unique packages and call install_if_needed
-declare -u packages=( "${packages[@]}" )
+packages=($(printf "%s\n" "${packages[@]}" | sort -u))
 install_if_needed "${packages[@]}"
 
 # Enable Bluetooth and display message
@@ -61,3 +61,4 @@ echo "Bluetooth service has been enabled."
 chsh -s "$(which zsh)" "$USER"
 
 echo "Installation and setup complete on Arch Linux."
+
