@@ -14,7 +14,7 @@ if [[ ! $response =~ ^[yY][eE][sS]$ ]]; then
 fi
 
 # Install Packages
-packages=(virt-manager virt-viewer qemu vde2 ebtables dnsmasq bridge-utils ovmf swtpm iptables-nft nftables)
+packages=(virt-manager virt-viewer qemu vde2 ebtables dnsmasq bridge-utils ovmf swtpm iptables-nft nftables openbsd-netcat libguestfs)
 echo "Installing packages..."
 pacman -S --needed "${packages[@]}" --noconfirm || {
 	echo "Failed to install packages."
