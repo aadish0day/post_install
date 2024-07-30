@@ -16,34 +16,34 @@ sudo reflector --latest 5 --country India --protocol https --sort rate --save /e
 sudo pacman -Syu --noconfirm
 
 install_if_needed() {
-    local pkg
-    local failures=()
-    local to_install=()
+	local pkg
+	local failures=()
+	local to_install=()
 
-    for pkg in "$@"; do
-        if ! pacman -Q "$pkg" &>/dev/null; then
-            to_install+=("$pkg")
-        else
-            echo "$pkg is already installed. Skipping..."
-        fi
-    done
+	for pkg in "$@"; do
+		if ! pacman -Q "$pkg" &>/dev/null; then
+			to_install+=("$pkg")
+		else
+			echo "$pkg is already installed. Skipping..."
+		fi
+	done
 
-    if [ ${#to_install[@]} -gt 0 ]; then
-        echo "Installing: ${to_install[*]}"
-        if ! sudo pacman -S "${to_install[@]}" --noconfirm; then
-            echo "Some packages failed to install, checking..."
-            for pkg in "${to_install[@]}"; do
-                if ! pacman -Q "$pkg" &>/dev/null; then
-                    echo "Failed to install $pkg"
-                    failures+=("$pkg")
-                fi
-            done
-            if [ ${#failures[@]} -gt 0 ]; then
-                echo "Failed to install the following packages: ${failures[*]}"
-                return 1
-            fi
-        fi
-    fi
+	if [ ${#to_install[@]} -gt 0 ]; then
+		echo "Installing: ${to_install[*]}"
+		if ! sudo pacman -S "${to_install[@]}" --noconfirm; then
+			echo "Some packages failed to install, checking..."
+			for pkg in "${to_install[@]}"; do
+				if ! pacman -Q "$pkg" &>/dev/null; then
+					echo "Failed to install $pkg"
+					failures+=("$pkg")
+				fi
+			done
+			if [ ${#failures[@]} -gt 0 ]; then
+				echo "Failed to install the following packages: ${failures[*]}"
+				return 1
+			fi
+		fi
+	fi
 }
 
 # List of packages to install
@@ -61,4 +61,3 @@ echo "Bluetooth service has been enabled."
 chsh -s "$(which zsh)" "$USER"
 
 echo "Installation and setup complete on Arch Linux."
-
