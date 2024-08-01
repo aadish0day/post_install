@@ -72,57 +72,57 @@ install_icon_theme() {
 clone_icon_repo
 install_icon_theme
 
-# Define the directory to store fonts
-FONTS_DIR="${HOME}/.local/share/fonts"
-
-# Create the directory if it does not exist
-if [ ! -d "${FONTS_DIR}" ]; then
-	echo "Creating directory: $FONTS_DIR"
-	mkdir -p "${FONTS_DIR}"
-else
-	echo "Found existing fonts directory: $FONTS_DIR"
-fi
-
-# GitHub repository from which to fetch the latest release
-FONT_REPO="ryanoasis/nerd-fonts"
-
-# Fetch the latest release tag from GitHub API
-echo "Fetching the latest release information..."
-LATEST_RELEASE_JSON=$(curl -s "https://api.github.com/repos/$FONT_REPO/releases/latest")
-
-# Extract the tag name (version) from the JSON response
-LATEST_VERSION=$(echo "$LATEST_RELEASE_JSON" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
-
-# Check if we got a version number
-if [[ -z "$LATEST_VERSION" ]]; then
-	echo "Failed to fetch the latest version number." >&2
-	exit 1
-fi
-
-echo "Latest version is $LATEST_VERSION"
-
-# Define the filename based on expected zip file format
-ZIP="FiraMono.zip"
-
-# Download the zip file using the latest version number
-echo "Downloading Fira Mono Nerd Font version $LATEST_VERSION..."
-if curl --fail --location --show-error -o "${ZIP}" "https://github.com/$FONT_REPO/releases/download/$LATEST_VERSION/$ZIP"; then
-	echo "Download successful."
-else
-	echo "Failed to download the font zip file." >&2
-	exit 1
-fi
-
-# Unzip the font files into the designated directory
-echo "Unzipping the font files..."
-unzip -o -q -d "${FONTS_DIR}" "${ZIP}"
-
-# Clean up by removing the zip file after extraction
-echo "Removing zip file..."
-rm "${ZIP}"
-
-# Update the font cache
-echo "Updating font cache..."
-fc-cache -f
-
-echo "Font installation completed."
+# # Define the directory to store fonts
+# FONTS_DIR="${HOME}/.local/share/fonts"
+#
+# # Create the directory if it does not exist
+# if [ ! -d "${FONTS_DIR}" ]; then
+# 	echo "Creating directory: $FONTS_DIR"
+# 	mkdir -p "${FONTS_DIR}"
+# else
+# 	echo "Found existing fonts directory: $FONTS_DIR"
+# fi
+#
+# # GitHub repository from which to fetch the latest release
+# FONT_REPO="ryanoasis/nerd-fonts"
+#
+# # Fetch the latest release tag from GitHub API
+# echo "Fetching the latest release information..."
+# LATEST_RELEASE_JSON=$(curl -s "https://api.github.com/repos/$FONT_REPO/releases/latest")
+#
+# # Extract the tag name (version) from the JSON response
+# LATEST_VERSION=$(echo "$LATEST_RELEASE_JSON" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+#
+# # Check if we got a version number
+# if [[ -z "$LATEST_VERSION" ]]; then
+# 	echo "Failed to fetch the latest version number." >&2
+# 	exit 1
+# fi
+#
+# echo "Latest version is $LATEST_VERSION"
+#
+# # Define the filename based on expected zip file format
+# ZIP="FiraMono.zip"
+#
+# # Download the zip file using the latest version number
+# echo "Downloading Fira Mono Nerd Font version $LATEST_VERSION..."
+# if curl --fail --location --show-error -o "${ZIP}" "https://github.com/$FONT_REPO/releases/download/$LATEST_VERSION/$ZIP"; then
+# 	echo "Download successful."
+# else
+# 	echo "Failed to download the font zip file." >&2
+# 	exit 1
+# fi
+#
+# # Unzip the font files into the designated directory
+# echo "Unzipping the font files..."
+# unzip -o -q -d "${FONTS_DIR}" "${ZIP}"
+#
+# # Clean up by removing the zip file after extraction
+# echo "Removing zip file..."
+# rm "${ZIP}"
+#
+# # Update the font cache
+# echo "Updating font cache..."
+# fc-cache -f
+#
+# echo "Font installation completed."
