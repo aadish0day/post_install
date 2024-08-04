@@ -18,15 +18,6 @@ clone_neovim_config() {
 	fi
 }
 
-# Define a function to install theme and font
-install_theme_and_font() {
-	echo "Installing the theme and font for the system..."
-	./theme_and_font.sh || {
-		echo "Failed to install theme and font."
-		exit 1
-	}
-}
-
 # Ensure the creation of the Screenshot folder
 mkdir -p "$HOME/Pictures/Screenshots" || {
 	echo "Failed to create $HOME/Pictures/Screenshots directory."
@@ -76,9 +67,6 @@ case $DISTRO_CHOICE in
 	exit 1
 	;;
 esac
-
-# Install theme and font
-install_theme_and_font
 
 # Install fonts, icon themes, and GTK themes
 echo "Setup completed successfully!"
