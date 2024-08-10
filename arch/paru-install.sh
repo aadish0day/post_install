@@ -40,7 +40,7 @@ fi
 # List of general packages to install
 general_packages=(
 	"i3lock-color"
-    "dracula-gtk-theme"
+	"dracula-gtk-theme"
 	"thorium-browser-bin"
 	"vscodium-bin"
 	"github-desktop-bin"
