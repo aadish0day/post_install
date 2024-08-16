@@ -10,7 +10,7 @@ sudo pacman -S --noconfirm xf86-video-amdgpu amd-ucode vulkan-radeon lib32-vulka
 if [ ! -f /etc/X11/xorg.conf.d/20-amdgpu.conf ]; then
 	sudo mkdir -p /etc/X11/xorg.conf.d
 	sudo tee /etc/X11/xorg.conf.d/20-amdgpu.conf >/dev/null <<EOL
-Section "Device"
+    Section "Device"
     Identifier "AMD"
     Driver "amdgpu"
     Option "TearFree" "true"               # Prevent screen tearing
@@ -20,7 +20,7 @@ Section "Device"
     Option "PowerPlay" "true"              # Enable PowerPlay for better power management
     Option "EnablePageFlip" "true"         # Enable page flipping for better performance
     Option "Backlight" "amdgpu_bl0"        # Control backlight
-EndSection
+    EndSection
 EOL
 	echo "Xorg configuration for AMD created at /etc/X11/xorg.conf.d/20-amdgpu.conf."
 else
