@@ -43,7 +43,6 @@ general_packages=(
 	"dracula-gtk-theme"
 	"thorium-browser-bin"
 	"vscodium-bin"
-	"github-desktop-bin"
 	"moc"
 	"ueberzugpp"
 	"ani-cli"
