@@ -8,6 +8,9 @@ log() {
 	echo "$(date '+%Y-%m-%d %H:%M:%S') - $1"
 }
 
+# Update the dnf config
+cp -r ./dnf.conf /etc/dnf/dnf.conf
+
 # Ensure the script is run as root
 if [ "$(id -u)" != "0" ]; then
 	log "This script must be run as root"
@@ -27,16 +30,22 @@ dnf install -y "https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release
 
 # Install essential packages
 log "Installing essential packages..."
-dnf install -y ranger ncdu mpv neovim maven yt-dlp fzf git unzip nodejs gcc make ripgrep fd htop gettext \
-	libtool doxygen flameshot npm xclip highlight atool mediainfo fastfetch android-tools \
-	zathura zathura-pdf-mupdf zathura-ps zathura-djvu zathura-cb obs-studio picom nitrogen \
-	xss-lock qalculate-qt libreoffice brightnessctl qbittorrent bluez bluez-utils blueman \
-	bat alacritty zsh jpegoptim zip tar p7zip zstd lz4 xz trash-cli lxrandr
+dnf install -y neovim ranger ncdu mpv maven yt-dlp fzf git nodejs gcc make ripgrep fd-find unzip htop gettext libtool \
+	doxygen flameshot npm xclip highlight atool mediainfo fastfetch android-tools zathura zathura-pdf-mupdf \
+	zathura-ps zathura-djvu zathura-cb obs-studio picom nitrogen xss-lock qalculate-qt libreoffice brightnessctl \
+	qbittorrent bluez blueman bat alacritty zsh jpegoptim zip tar p7zip zstd lz4 xz trash-cli lxrandr wine winetricks \
+	gamemode lutris papirus-icon-theme tree
+
+# Enable COPR and install starship
+log "Enabling COPR for starship..."
+dnf copr enable atim/starship -y
+log "Installing starship..."
+dnf install -y starship
 
 # Install Python utilities with pip
 log "Installing Python utilities with pip..."
 dnf install -y python3-pip
-pip3 install img2pdf ueberzug
+pip install img2pdf 
 
 # Enable and start Bluetooth service
 log "Enabling Bluetooth service..."
@@ -54,7 +63,7 @@ if [[ "$install_amd" == "y" ]]; then
 	# Install necessary packages for AMD
 	log "Installing AMD drivers..."
 	dnf install -y xorg-x11-server-xorg xorg-x11-xinit xorg-x11-drv-amdgpu vulkan-radeon \
-		lib32-vulkan-radeon linux-firmware radeontop
+		lib32-vulkan-radeon radeontop
 
 	# Create Xorg configuration if it doesn't exist
 	if [ ! -f /etc/X11/xorg.conf.d/20-amdgpu.conf ]; then
@@ -85,3 +94,4 @@ else
 fi
 
 log "Installation and setup complete on Fedora Linux."
+
