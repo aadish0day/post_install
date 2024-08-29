@@ -46,7 +46,7 @@ general_packages=(
 	"moc"
 	"ueberzugpp"
 	"ani-cli"
-	"hakuneko-desktop"
+	"hakuneko-desktop-bin"
 )
 
 # List of ASUS specific packages to install
