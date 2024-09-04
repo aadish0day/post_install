@@ -54,7 +54,10 @@ asus_packages=(
 	"asusctl"
 	"supergfxctl"
 	"rog-control-center"
-	"opencl-amd"
+	"lib32-vulkan-amdgpu-pro"
+    "vulkan-amdgpu-pro"
+    "lib32-amdgpu-pro-oglp"
+    "amdgpu-pro-oglp"
 )
 
 # Function to install packages
