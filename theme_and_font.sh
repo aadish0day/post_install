@@ -71,14 +71,14 @@
 # # Main execution flow for icon theme
 # clone_icon_repo
 # install_icon_theme
-#
+
 # Define the directory to store fonts
 FONTS_DIR="${HOME}/.local/share/fonts"
 
 # Create the directory if it does not exist
-if [ ! -d "${FONTS_DIR}" ]; then
+if [ ! -d "$FONTS_DIR" ]; then
 	echo "Creating directory: $FONTS_DIR"
-	mkdir -p "${FONTS_DIR}"
+	mkdir -p "$FONTS_DIR"
 else
 	echo "Found existing fonts directory: $FONTS_DIR"
 fi
@@ -106,7 +106,7 @@ ZIP="FiraMono.zip"
 
 # Download the zip file using the latest version number
 echo "Downloading Fira Mono Nerd Font version $LATEST_VERSION..."
-if curl --fail --location --show-error -o "${ZIP}" "https://github.com/$FONT_REPO/releases/download/$LATEST_VERSION/$ZIP"; then
+if curl --fail --location --show-error -o "$ZIP" "https://github.com/$FONT_REPO/releases/download/$LATEST_VERSION/$ZIP"; then
 	echo "Download successful."
 else
 	echo "Failed to download the font zip file." >&2
@@ -115,11 +115,11 @@ fi
 
 # Unzip the font files into the designated directory
 echo "Unzipping the font files..."
-unzip -o -q -d "${FONTS_DIR}" "${ZIP}"
+unzip -o -q -d "$FONTS_DIR" "$ZIP"
 
 # Clean up by removing the zip file after extraction
 echo "Removing zip file..."
-rm "${ZIP}"
+rm "$ZIP"
 
 # Update the font cache
 echo "Updating font cache..."
