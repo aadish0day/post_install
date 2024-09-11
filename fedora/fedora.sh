@@ -9,7 +9,7 @@ log() {
 }
 
 # Update the dnf config
-cp -r ./dnf.conf /etc/dnf/dnf.conf
+sudo cp -r ./dnf.conf /etc/dnf/dnf.conf
 
 # Ensure the script is run as root
 if [ "$(id -u)" != "0" ]; then
