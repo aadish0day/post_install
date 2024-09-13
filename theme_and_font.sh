@@ -97,7 +97,7 @@ LATEST_VERSION=$(echo "$LATEST_RELEASE_JSON" | grep '"tag_name":' | sed -E 's/.*
 if [[ -z "$LATEST_VERSION" ]]; then
 	echo "Failed to fetch the latest version number." >&2
 	exit 1
-nerd  fi
+fi
 
 echo "Latest version is $LATEST_VERSION"
 
