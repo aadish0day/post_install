@@ -8,8 +8,12 @@ log() {
 	echo "$(date '+%Y-%m-%d %H:%M:%S') - $1"
 }
 
-# Update the dnf config
-sudo cp -r ./dnf.conf /etc/dnf/dnf.conf
+# Update the dnf config if the file exists
+if [ -f ./dnf.conf ]; then
+	sudo cp -r ./dnf.conf /etc/dnf/dnf.conf
+else
+	log "Warning: dnf.conf not found. Skipping dnf configuration update."
+fi
 
 # Ensure the script is run as root
 if [ "$(id -u)" != "0" ]; then
@@ -45,9 +49,9 @@ dnf install -y starship
 # Install Python utilities with pip
 log "Installing Python utilities with pip..."
 dnf install -y python3-pip
-pip install img2pdf 
+pip install img2pdf
 
-# Enable and start Bluetooth service
+Enable and start Bluetooth service
 log "Enabling Bluetooth service..."
 systemctl enable --now bluetooth.service
 log "Bluetooth service has been enabled."
@@ -62,7 +66,7 @@ read -p "Do you want to install AMD drivers? (y/n): " install_amd
 if [[ "$install_amd" == "y" ]]; then
 	# Install necessary packages for AMD
 	log "Installing AMD drivers..."
-	dnf install -y xorg-x11-server-xorg xorg-x11-xinit xorg-x11-drv-amdgpu vulkan-radeon \
+	dnf install -y xorg-x11-server xorg-x11-drv-amdgpu vulkan-radeon \
 		lib32-vulkan-radeon radeontop
 
 	# Create Xorg configuration if it doesn't exist
@@ -94,4 +98,3 @@ else
 fi
 
 log "Installation and setup complete on Fedora Linux."
-
