@@ -2,7 +2,7 @@
 
 # Function to install paru
 install_paru() {
-	echo "paru could not be found, installing..."
+	echo "Installing paru..."
 
 	# Install necessary base-devel package group if not already installed
 	if ! pacman -Qq base-devel &>/dev/null; then
@@ -30,11 +30,50 @@ install_paru() {
 	echo "paru has been successfully installed."
 }
 
-# Check if paru is installed
-if ! command -v paru &>/dev/null; then
-	install_paru
+# Function to install yay
+install_yay() {
+	echo "Installing yay..."
+
+	# Install necessary base-devel package group if not already installed
+	if ! pacman -Qq base-devel &>/dev/null; then
+		echo "Installing the base-devel package group..."
+		sudo pacman -S --needed base-devel --noconfirm
+	fi
+
+	# Clone yay repository
+	git clone https://aur.archlinux.org/yay.git
+	if [ $? -ne 0 ]; then
+		echo "Failed to clone yay repository."
+		exit 1
+	fi
+
+	# Change directory to yay
+	cd yay || exit
+
+	# Build and install yay without confirmation
+	makepkg -si --noconfirm
+
+	# Clean up
+	cd ..
+	rm -rf yay
+
+	echo "yay has been successfully installed."
+}
+
+# Ask if the user wants to install paru or yay
+read -rp "Do you want to install paru or yay? (p/y): " aur_helper
+
+if ! command -v paru &>/dev/null && ! command -v yay &>/dev/null; then
+	if [[ "$aur_helper" == "p" ]]; then
+		install_paru
+	elif [[ "$aur_helper" == "y" ]]; then
+		install_yay
+	else
+		echo "Invalid choice, exiting..."
+		exit 1
+	fi
 else
-	echo "paru is already installed."
+	echo "An AUR helper is already installed."
 fi
 
 # List of general packages to install
@@ -58,10 +97,6 @@ asus_packages=(
 	"lib32-vulkan-amdgpu-pro"
 	"amdgpu-pro-oglp"
 	"lib32-amdgpu-pro-oglp"
-	"vulkan-amdgpu-pro"
-	"lib32-vulkan-amdgpu-pro"
-	"amdgpu-pro-oglp"
-	"lib32-amdgpu-pro-oglp"
 	"opencl-headers"
 	"amf-amdgpu-pro"
 	"opencl-amd"
@@ -79,7 +114,11 @@ install_packages() {
 				fi
 			fi
 			# Install package
-			paru -S --noconfirm "$package"
+			if command -v paru &>/dev/null; then
+				paru -S --noconfirm "$package"
+			elif command -v yay &>/dev/null; then
+				yay -S --noconfirm "$package"
+			fi
 		else
 			echo "$package is already installed."
 		fi
@@ -88,7 +127,11 @@ install_packages() {
 		if [[ "$package" == *"-bin" ]]; then
 			debug_package="${package%-bin}-debug"
 			if pacman -Qi "$debug_package" &>/dev/null; then
-				paru -Rns --noconfirm "$debug_package"
+				if command -v paru &>/dev/null; then
+					paru -Rns --noconfirm "$debug_package"
+				elif command -v yay &>/dev/null; then
+					yay -Rns --noconfirm "$debug_package"
+				fi
 			fi
 		fi
 	done
