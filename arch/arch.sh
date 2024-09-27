@@ -46,7 +46,7 @@ install_if_needed() {
 
 # List of packages to install, removing any duplicates
 packages=(
-	neovim ranger ncdu mpv maven yt-dlp fzf git nodejs gcc make ripgrep fd unzip htop gettext libtool doxygen flameshot npm xclip highlight atool mediainfo fastfetch android-tools img2pdf zathura zathura-pdf-mupdf zathura-ps zathura-djvu zathura-cb obs-studio picom nitrogen starship xss-lock qalculate-qt libreoffice-still brightnessctl qbittorrent bluez bluez-utils blueman bat alacritty zsh jpegoptim zip tar p7zip zstd lz4 xz trash-cli lxrandr wine wine-gecko wine-mono winetricks gamemode lib32-gamemode lutris mkinitcpio ttf-fira-mono papirus-icon-theme tree otf-firamono-nerd
+	neovim ranger ncdu mpv maven yt-dlp fzf git nodejs gcc make ripgrep fd unzip htop gettext libtool doxygen flameshot npm xclip highlight atool mediainfo fastfetch android-tools img2pdf zathura zathura-pdf-mupdf zathura-ps zathura-djvu zathura-cb obs-studio picom nitrogen starship xss-lock qalculate-qt libreoffice-still brightnessctl qbittorrent bluez bluez-utils blueman bat alacritty zsh jpegoptim zip tar p7zip zstd lz4 xz trash-cli lxrandr wine wine-gecko wine-mono winetricks gamemode lib32-gamemode lutris mkinitcpio ttf-fira-mono papirus-icon-theme tree otf-firamono-nerd zoxide
 )
 
 # Ensure unique packages and call install_if_needed
