@@ -10,22 +10,22 @@ install_paru() {
         sudo pacman -S --needed base-devel --noconfirm
     fi
 
-    # Clone paru repository
-    git clone https://aur.archlinux.org/paru.git
+    # Clone paru-bin repository
+    git clone https://aur.archlinux.org/paru-bin.git
     if [ $? -ne 0 ]; then
-        echo "Failed to clone paru repository."
+        echo "Failed to clone paru-bin repository."
         exit 1
     fi
 
-    # Change directory to paru
-    cd paru || exit
+    # Change directory to paru-bin
+    cd paru-bin || exit
 
     # Build and install paru without confirmation
     makepkg -si --noconfirm
 
     # Clean up
     cd ..
-    rm -rf paru
+    rm -rf paru-bin
 
     echo "paru has been successfully installed."
 }
