@@ -13,11 +13,99 @@ if [[ ! $response =~ ^[yY][eE][sS]$ ]]; then
     exit 0
 fi
 
-# Install Packages
-packages=(virt-manager virt-viewer qemu vde2 ebtables dnsmasq bridge-utils ovmf swtpm iptables-nft nftables openbsd-netcat libguestfs)
-echo "Installing packages..."
-pacman -S --needed "${packages[@]}" --noconfirm || {
-    echo "Failed to install packages."
+# Install KVM and related packages
+kvm_packages=(
+    virt-manager
+    virt-viewer
+    qemu
+    vde2
+    ebtables
+    dnsmasq
+    bridge-utils
+    ovmf
+    swtpm
+    iptables-nft
+    nftables
+    openbsd-netcat
+    libguestfs
+)
+echo "Installing KVM-related packages..."
+pacman -S --needed "${kvm_packages[@]}" --noconfirm || {
+    echo "Failed to install KVM-related packages."
+    exit 1
+}
+
+# Install QEMU packages
+qemu_packages=(
+    qemu-user-static
+    samba
+    qemu-block-gluster
+    qemu-block-iscsi
+    qemu-chardev-baum
+    qemu-docs
+    qemu-emulators-full
+    qemu-full
+    qemu-hw-s390x-virtio-gpu-ccw
+    qemu-pr-helper
+    qemu-system-aarch64
+    qemu-system-alpha
+    qemu-system-arm
+    qemu-system-avr
+    qemu-system-cris
+    qemu-system-hppa
+    qemu-system-m68k
+    qemu-system-microblaze
+    qemu-system-mips
+    qemu-system-or1k
+    qemu-system-ppc
+    qemu-system-riscv
+    qemu-system-rx
+    qemu-system-s390x
+    qemu-system-sh4
+    qemu-system-sparc
+    qemu-system-tricore
+    qemu-system-xtensa
+    qemu-tests
+    qemu-tools
+    qemu-user
+    qemu-vmsr-helper
+    qemu-audio-alsa
+    qemu-audio-dbus
+    qemu-audio-jack
+    qemu-audio-oss
+    qemu-audio-pa
+    qemu-audio-pipewire
+    qemu-audio-sdl
+    qemu-audio-spice
+    qemu-block-curl
+    qemu-block-dmg
+    qemu-block-nfs
+    qemu-block-ssh
+    qemu-chardev-spice
+    qemu-desktop
+    qemu-hw-display-qxl
+    qemu-hw-display-virtio-vga
+    qemu-hw-display-virtio-vga-gl
+    qemu-hw-display-virtio-gpu
+    qemu-hw-display-virtio-gpu-gl
+    qemu-hw-display-virtio-gpu-pci
+    qemu-hw-display-virtio-gpu-pci-gl
+    qemu-hw-usb-host
+    qemu-hw-usb-redirect
+    qemu-hw-usb-smartcard
+    qemu-ui-curses
+    qemu-ui-dbus
+    qemu-ui-egl-headless
+    qemu-ui-gtk
+    qemu-ui-opengl
+    qemu-ui-sdl
+    qemu-ui-spice-app
+    qemu-ui-spice-core
+    qemu-vhost-user-gpu
+)
+echo "Installing QEMU-related packages..."
+pacman -S --needed "${qemu_packages[@]}" --noconfirm || {
+    echo "Failed to install QEMU-related packages."
     exit 1
 }
 
