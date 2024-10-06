@@ -28,7 +28,7 @@ else
 fi
 
 # Edit GRUB configuration
-sudo sed -i 's|^GRUB_CMDLINE_LINUX_DEFAULT=.*|GRUB_CMDLINE_LINUX_DEFAULT="quiet splash nowatchdog nvme_load=YES loglevel=3 amdgpu.dpm=1 amdgpu.audio=0 amdgpu.runpm=1 amdgpu.powersave=1 pcie_aspm=force amdgpu.ppfeaturemask=0xffffffff iommu=pt idle=nomwait"|' /etc/default/grub
+sudo sed -i 's|^GRUB_CMDLINE_LINUX_DEFAULT=.*|GRUB_CMDLINE_LINUX_DEFAULT="quiet splash nowatchdog nvme_load=YES loglevel=3 amdgpu.dpm=1 amdgpu.audio=0 amdgpu.runpm=1 amdgpu.powersave=1 pcie_aspm=force amdgpu.ppfeaturemask=0xffffffff iommu=pt idle=nomwait amd_iommu=on"|' /etc/default/grub
 
 # Update GRUB configuration
 sudo grub-mkconfig -o /boot/grub/grub.cfg
