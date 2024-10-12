@@ -3,30 +3,24 @@
 # Function to install paru
 install_paru() {
     echo "Installing paru..."
-
     # Install necessary base-devel package group if not already installed
     if ! pacman -Qq base-devel &>/dev/null; then
         echo "Installing the base-devel package group..."
         sudo pacman -S --needed base-devel --noconfirm
     fi
-
     # Clone paru-bin repository
     git clone https://aur.archlinux.org/paru-bin.git
     if [ $? -ne 0 ]; then
         echo "Failed to clone paru-bin repository."
         exit 1
     fi
-
     # Change directory to paru-bin
     cd paru-bin || exit
-
     # Build and install paru without confirmation
     makepkg -si --noconfirm
-
     # Clean up
     cd ..
     rm -rf paru-bin
-
     echo "paru has been successfully installed."
 }
 
@@ -51,9 +45,6 @@ general_packages=(
 
 # List of ASUS specific packages to install
 asus_packages=(
-    "asusctl"
-    "supergfxctl"
-    "rog-control-center"
     "vulkan-amdgpu-pro"
     "lib32-vulkan-amdgpu-pro"
     "amdgpu-pro-oglp"
@@ -81,7 +72,6 @@ install_packages() {
         else
             echo "$package is already installed."
         fi
-
         # Remove debug packages for -bin installations
         if [[ "$package" == *"-bin" ]]; then
             debug_package="${package%-bin}-debug"
@@ -98,15 +88,10 @@ echo "Installing general packages..."
 install_packages "${general_packages[@]}"
 
 # Ask if the user wants to install ASUS specific packages
-read -rp "Do you want to install ASUS specific packages (asusctl, supergfxctl, rog-control-center)? (y/n): " install_asus
-
+read -rp "Do you want to install ASUS specific packages ? (y/n): " install_asus
 if [[ "$install_asus" == "y" ]]; then
     echo "Installing ASUS specific packages..."
     install_packages "${asus_packages[@]}"
-
-    # Enable and start supergfxd service
-    echo "Enabling and starting supergfxd service..."
-    sudo systemctl enable --now supergfxd
 else
     echo "Skipping ASUS specific packages."
 fi

@@ -83,13 +83,38 @@ if [[ $install_gaming =~ ^[Yy]$ ]]; then
     install_gaming_packages
 fi
 
+# Prompt user for ASUS-specific applications installation
+read -p "Do you want to install ASUS-specific applications (asusctl, supergfxctl, rog-control-center)? (y/n): " install_asus
+if [[ $install_asus =~ ^[Yy]$ ]]; then
+    # Set up the repository key and add the g14 repo to pacman.conf
+    echo "Adding ASUS Linux repository and installing ASUS-specific applications..."
+
+    sudo pacman-key --recv-keys 8F654886F17D497FEFE3DB448B15A6B0E9A3FA35
+    sudo pacman-key --finger 8F654886F17D497FEFE3DB448B15A6B0E9A3FA35
+    sudo pacman-key --lsign-key 8F654886F17D497FEFE3DB448B15A6B0E9A3FA35
+
+    # Verify key again to ensure it's signed correctly
+    sudo pacman-key --finger 8F654886F17D497FEFE3DB448B15A6B0E9A3FA35
+
+    if ! grep -q "\[g14\]" /etc/pacman.conf; then
+        echo -e "\n[g14]\nServer = https://arch.asus-linux.org" | sudo tee -a /etc/pacman.conf
+    fi
+
+    sudo pacman -Syu --noconfirm
+    install_if_needed asusctl supergfxctl rog-control-center
+
+    # Enable related services
+    sudo systemctl enable power-profiles-daemon.service
+    sudo systemctl enable supergfxd
+    sudo systemctl enable switcheroo-control
+fi
+
 # Restart xdg-desktop-portal services
 systemctl --user restart xdg-desktop-portal xdg-desktop-portal-gtk
 
 # Enable Bluetooth and display message
-sudo systemctl enable --now bluetooth.service
+sudo systemctl enable bluetooth.service
 echo "Bluetooth service has been enabled."
 
 # Change default shell to zsh
 chsh -s "$(which zsh)" "$USER"
-
