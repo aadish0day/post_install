@@ -18,6 +18,7 @@ fi
 # Update system and packages
 sudo pacman -Syu --noconfirm
 
+# Function to install packages if not already installed
 install_if_needed() {
     local pkg
     local failures=()
@@ -64,29 +65,19 @@ gaming_packages=(
     vulkan-icd-loader lib32-vulkan-icd-loader sdl2 lib32-sdl2
 )
 
-# Function to install gaming packages
-install_gaming_packages() {
-    echo "Installing gaming packages..."
-    install_if_needed "${gaming_packages[@]}"
-}
+# Install general packages
+install_if_needed "${packages[@]}"
 
-# Ensure unique packages and call install_if_needed for general packages
-declare -A unique_packages
-for pkg in "${packages[@]}"; do
-    unique_packages["$pkg"]=1
-done
-install_if_needed "${!unique_packages[@]}"
-
-# Prompt user for gaming installation
+# Prompt user for gaming package installation
 read -p "Do you want to install gaming packages? (y/n): " install_gaming
 if [[ $install_gaming =~ ^[Yy]$ ]]; then
-    install_gaming_packages
+    install_if_needed "${gaming_packages[@]}"
 fi
 
 # Restart xdg-desktop-portal services
 systemctl --user restart xdg-desktop-portal xdg-desktop-portal-gtk
 
-# Enable Bluetooth and display message
+# Enable Bluetooth service and display a message
 sudo systemctl enable bluetooth.service
 echo "Bluetooth service has been enabled."
 

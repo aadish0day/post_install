@@ -25,13 +25,13 @@ add_g14_repo() {
     # Verify keyserver configuration if key fetch fails
     if [ ! -f /etc/pacman.d/gnupg/gpg.conf ] || ! grep -q "keyserver" /etc/pacman.d/gnupg/gpg.conf; then
         echo "Configuring keyserver..."
-        echo "keyserver hkp://keyserver.ubuntu.com" >> /etc/pacman.d/gnupg/gpg.conf
+        echo "keyserver hkp://keyserver.ubuntu.com" >>/etc/pacman.d/gnupg/gpg.conf
     fi
 
     # Add the G14 repository to pacman.conf
     if ! grep -q "\[$REPO_NAME\]" /etc/pacman.conf; then
         echo "Adding G14 repository..."
-        echo -e "\n[$REPO_NAME]\nServer = $REPO_URL" >> /etc/pacman.conf
+        echo -e "\n[$REPO_NAME]\nServer = $REPO_URL" >>/etc/pacman.conf
     fi
 }
 
@@ -59,4 +59,3 @@ install_packages
 enable_services
 
 echo "Installation completed successfully. G14 repo added, keys configured, and all necessary packages installed."
-
