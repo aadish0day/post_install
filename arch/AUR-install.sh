@@ -33,9 +33,9 @@ fi
 
 # List of general packages to install
 general_packages=(
+    "thorium-browser-bin"
     "i3lock-color"
     "dracula-gtk-theme"
-    "thorium-browser-bin"
     "vscodium-bin"
     "moc"
     "ueberzugpp"
