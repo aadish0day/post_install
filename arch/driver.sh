@@ -8,8 +8,8 @@ sudo pacman -S --noconfirm xf86-video-amdgpu amd-ucode vulkan-radeon lib32-vulka
 
 # Create Xorg configuration if it doesn't exist
 if [ ! -f /etc/X11/xorg.conf.d/20-amdgpu.conf ]; then
-	sudo mkdir -p /etc/X11/xorg.conf.d
-	sudo tee /etc/X11/xorg.conf.d/20-amdgpu.conf >/dev/null <<EOL
+    sudo mkdir -p /etc/X11/xorg.conf.d
+    sudo tee /etc/X11/xorg.conf.d/20-amdgpu.conf >/dev/null <<EOL
     Section "Device"
     Identifier "AMD"
     Driver "amdgpu"
@@ -22,13 +22,13 @@ if [ ! -f /etc/X11/xorg.conf.d/20-amdgpu.conf ]; then
     Option "Backlight" "amdgpu_bl0"        # Control backlight
     EndSection
 EOL
-	echo "Xorg configuration for AMD created at /etc/X11/xorg.conf.d/20-amdgpu.conf."
+    echo "Xorg configuration for AMD created at /etc/X11/xorg.conf.d/20-amdgpu.conf."
 else
-	echo "Xorg configuration file already exists at /etc/X11/xorg.conf.d/20-amdgpu.conf."
+    echo "Xorg configuration file already exists at /etc/X11/xorg.conf.d/20-amdgpu.conf."
 fi
 
 # Edit GRUB configuration
-sudo sed -i 's|^GRUB_CMDLINE_LINUX_DEFAULT=.*|GRUB_CMDLINE_LINUX_DEFAULT="quiet splash nowatchdog nvme_load=YES loglevel=3 amdgpu.dpm=1 amdgpu.audio=0 amdgpu.runpm=1 amdgpu.powersave=1 pcie_aspm=force amdgpu.ppfeaturemask=0xffffffff iommu=pt idle=nomwait amd_iommu=on"|' /etc/default/grub
+sudo sed -i 's|^GRUB_CMDLINE_LINUX_DEFAULT=.*|GRUB_CMDLINE_LINUX_DEFAULT="quiet splash nowatchdog nvme_load=YES loglevel=3 amdgpu.dpm=1 amdgpu.audio=0 amdgpu.runpm=1 amdgpu.powersave=1 pcie_aspm=force amdgpu.ppfeaturemask=0xffffffff amdgpu.idle_power_save=1 iommu=pt idle=nomwait amdgpu.power_dpm_force_performance_level=default "|' /etc/default/grub
 
 # Update GRUB configuration
 sudo grub-mkconfig -o /boot/grub/grub.cfg
