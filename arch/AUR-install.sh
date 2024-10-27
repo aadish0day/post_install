@@ -88,12 +88,21 @@ echo "Installing general packages..."
 install_packages "${general_packages[@]}"
 
 # Ask if the user wants to install ASUS specific packages
-read -rp "Do you want to install ASUS specific packages ? (y/n): " install_asus
+read -rp "Do you want to install ASUS specific Driver ? (y/n): " install_asus
 if [[ "$install_asus" == "y" ]]; then
     echo "Installing ASUS specific packages..."
     install_packages "${asus_packages[@]}"
 else
     echo "Skipping ASUS specific packages."
 fi
+
+# Set thorium-browser as the default browser
+echo "Setting thorium-browser as the default browser..."
+unset BROWSER
+xdg-settings set default-web-browser thorium-browser.desktop
+
+# Check the current default browser
+current_browser=$(xdg-settings get default-web-browser)
+echo "Current default browser: $current_browser"
 
 echo "Installation process completed!"
