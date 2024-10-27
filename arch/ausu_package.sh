@@ -39,7 +39,7 @@ add_g14_repo() {
 install_packages() {
     echo "Updating system and installing packages..."
     pacman -Syu --noconfirm
-    pacman -S --noconfirm asusctl power-profiles-daemon supergfxctl switcheroo-control rog-control-center
+    pacman -S --noconfirm asusctl power-profiles-daemon supergfxctl rog-control-center
 }
 
 # Enable services without starting them
@@ -49,7 +49,6 @@ enable_services() {
 
     echo "Enabling supergfxctl and switcheroo-control..."
     systemctl enable supergfxd.service
-    systemctl enable switcheroo-control.service
 }
 
 # Run functions
