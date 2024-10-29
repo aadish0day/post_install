@@ -38,7 +38,6 @@ general_packages=(
     "dracula-gtk-theme"
     "vscodium-bin"
     "moc"
-    "ueberzugpp"
     "ani-cli"
     "hakuneko-desktop"
 )
