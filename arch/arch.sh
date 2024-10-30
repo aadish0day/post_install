@@ -52,7 +52,7 @@ install_if_needed() {
 
 # List of general packages to install
 packages=(
-    neovim ranger ncdu mpv maven yt-dlp fzf git nodejs gcc make ripgrep fd unzip htop gettext libtool doxygen flameshot npm xclip highlight atool mediainfo fastfetch android-tools img2pdf zathura zathura-pdf-mupdf zathura-ps zathura-djvu zathura-cb obs-studio picom nitrogen starship xss-lock qalculate-qt libreoffice-still brightnessctl qbittorrent bluez bluez-utils blueman bat alacritty zsh jpegoptim zip tar p7zip zstd lz4 xz trash-cli lxrandr mkinitcpio ttf-fira-mono papirus-icon-theme tree otf-firamono-nerd zoxide xdg-desktop-portal xdg-desktop-portal-gtk zed autotiling ueberzugpp
+    neovim ranger ncdu mpv maven yt-dlp fzf git nodejs gcc make ripgrep fd unzip htop gettext libtool doxygen flameshot npm xclip highlight atool mediainfo fastfetch android-tools img2pdf zathura zathura-pdf-mupdf zathura-ps zathura-djvu zathura-cb obs-studio picom nitrogen starship xss-lock qalculate-qt libreoffice-still brightnessctl qbittorrent bluez bluez-utils blueman bat alacritty zsh jpegoptim zip tar p7zip zstd lz4 xz trash-cli lxrandr mkinitcpio ttf-fira-mono papirus-icon-theme tree otf-firamono-nerd zoxide xdg-desktop-portal xdg-desktop-portal-gtk zed autotiling ueberzugpp qutebrowser
 )
 
 # List of gaming packages to install
@@ -63,7 +63,18 @@ gaming_packages=(
     sqlite lib32-sqlite libxcomposite lib32-libxcomposite ocl-icd lib32-ocl-icd
     libva lib32-libva gtk3 lib32-gtk3 gst-plugins-base-libs lib32-gst-plugins-base-libs
     vulkan-icd-loader lib32-vulkan-icd-loader sdl2 lib32-sdl2
+    innoextract libayatana-appindicator lib32-vkd3d python-protobuf vkd3d
+
 )
+
+# Install general packages
+install_if_needed "${packages[@]}"
+
+# Prompt user for gaming package installation
+read -p "Do you want to install gaming packages? (y/n): " install_gaming
+if [[ $install_gaming =~ ^[Yy]$ ]]; then
+    install_if_needed "${gaming_packages[@]}"
+fi
 
 # Install general packages
 install_if_needed "${packages[@]}"
