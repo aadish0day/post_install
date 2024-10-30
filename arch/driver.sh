@@ -10,17 +10,39 @@ sudo pacman -S --noconfirm xf86-video-amdgpu amd-ucode vulkan-radeon lib32-vulka
 if [ ! -f /etc/X11/xorg.conf.d/20-amdgpu.conf ]; then
     sudo mkdir -p /etc/X11/xorg.conf.d
     sudo tee /etc/X11/xorg.conf.d/20-amdgpu.conf >/dev/null <<EOL
-    Section "Device"
-    Identifier "AMD"
+Section "Device"
+    Identifier "AMD-RX6700S"
     Driver "amdgpu"
     Option "TearFree" "true"               # Prevent screen tearing
     Option "DRI" "3"                       # Enable Direct Rendering Infrastructure 3 for better performance
     Option "AccelMethod" "glamor"          # Use glamor for 2D acceleration
     Option "VariableRefresh" "true"        # Enable variable refresh rate (if supported)
-    Option "PowerPlay" "true"              # Enable PowerPlay for better power management
+    Option "PowerXpress" "true"            # Enable PowerXpress for better power management (if applicable)
     Option "EnablePageFlip" "true"         # Enable page flipping for better performance
-    Option "Backlight" "amdgpu_bl0"        # Control backlight
-    EndSection
+    Option "Backlight" "amdgpu_bl1"        # Control backlight for dedicated GPU (if needed)
+EndSection
+
+Section "Device"
+    Identifier "AMD-680M"
+    Driver "amdgpu"
+    Option "TearFree" "true"               # Prevent screen tearing
+    Option "DRI" "3"                       # Enable Direct Rendering Infrastructure 3
+    Option "AccelMethod" "glamor"          # Use glamor for integrated GPU
+    Option "VariableRefresh" "true"        # Enable variable refresh rate for integrated GPU
+    Option "PowerXpress" "true"            # Enable PowerXpress for better power management
+    Option "EnablePageFlip" "true"         # Enable page flipping for integrated GPU
+    Option "Backlight" "amdgpu_bl0"        # Control backlight for integrated GPU
+EndSection
+
+Section "Screen"
+    Identifier "Screen0"
+    Device "AMD-RX6700S"
+EndSection
+
+Section "Screen"
+    Identifier "Screen1"
+    Device "AMD-680M"
+EndSection
 EOL
     echo "Xorg configuration for AMD created at /etc/X11/xorg.conf.d/20-amdgpu.conf."
 else
