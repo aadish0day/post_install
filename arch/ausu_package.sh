@@ -49,6 +49,7 @@ enable_services() {
 
     echo "Enabling supergfxctl and switcheroo-control..."
     systemctl enable supergfxd.service
+    systemctl start supergfxd.service
 }
 
 # Run functions
