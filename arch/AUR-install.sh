@@ -35,6 +35,7 @@ fi
 general_packages=(
     "thorium-browser-bin"
     "i3lock-color"
+    "brn2-git"
     "rofi-greenclip"
     "dracula-gtk-theme"
     "vscodium-bin"

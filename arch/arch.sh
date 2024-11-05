@@ -3,7 +3,6 @@ set -euo pipefail
 
 # Update system and packages
 sudo pacman -Sy --noconfirm
-
 # Install reflector for managing mirror list
 sudo pacman -S --needed reflector --noconfirm
 
@@ -23,7 +22,6 @@ install_if_needed() {
     local pkg
     local failures=()
     local to_install=()
-
     for pkg in "$@"; do
         if ! pacman -Qi "$pkg" &>/dev/null; then
             to_install+=("$pkg")
@@ -31,7 +29,6 @@ install_if_needed() {
             echo "$pkg is already installed. Skipping..."
         fi
     done
-
     if [ ${#to_install[@]} -gt 0 ]; then
         echo "Installing: ${to_install[*]}"
         if ! sudo pacman -S --noconfirm "${to_install[@]}"; then
@@ -52,7 +49,7 @@ install_if_needed() {
 
 # List of general packages to install
 packages=(
-    neovim ranger ncdu mpv maven yt-dlp fzf git nodejs gcc make ripgrep fd unzip htop gettext libtool doxygen flameshot npm xclip highlight atool mediainfo fastfetch android-tools img2pdf zathura zathura-pdf-mupdf zathura-ps zathura-djvu zathura-cb obs-studio picom nitrogen starship xss-lock qalculate-qt libreoffice-still brightnessctl qbittorrent bluez bluez-utils blueman bat alacritty zsh jpegoptim zip tar p7zip zstd lz4 xz trash-cli lxrandr mkinitcpio ttf-fira-mono papirus-icon-theme tree otf-firamono-nerd zoxide xdg-desktop-portal xdg-desktop-portal-gtk zed autotiling ueberzugpp qutebrowser
+    neovim ranger ncdu mpv maven yt-dlp fzf git nodejs gcc make ripgrep fd unzip htop gettext libtool doxygen flameshot npm xclip highlight atool mediainfo fastfetch android-tools img2pdf zathura zathura-pdf-mupdf zathura-ps zathura-djvu zathura-cb obs-studio picom nitrogen starship xss-lock qalculate-qt libreoffice-still brightnessctl qbittorrent bluez bluez-utils blueman bat alacritty zsh jpegoptim zip tar p7zip zstd lz4 xz trash-cli lxrandr mkinitcpio ttf-fira-mono papirus-icon-theme tree otf-firamono-nerd zoxide xdg-desktop-portal xdg-desktop-portal-gtk zed autotiling ueberzugpp qutebrowser ttf-hack-nerd lsd
 )
 
 # List of gaming packages to install
@@ -64,17 +61,7 @@ gaming_packages=(
     libva lib32-libva gtk3 lib32-gtk3 gst-plugins-base-libs lib32-gst-plugins-base-libs
     vulkan-icd-loader lib32-vulkan-icd-loader sdl2 lib32-sdl2
     innoextract libayatana-appindicator lib32-vkd3d python-protobuf vkd3d
-
 )
-
-# Install general packages
-install_if_needed "${packages[@]}"
-
-# Prompt user for gaming package installation
-read -p "Do you want to install gaming packages? (y/n): " install_gaming
-if [[ $install_gaming =~ ^[Yy]$ ]]; then
-    install_if_needed "${gaming_packages[@]}"
-fi
 
 # Install general packages
 install_if_needed "${packages[@]}"
