@@ -38,6 +38,7 @@ pacman -S --needed "${kvm_packages[@]}" --noconfirm || {
 # Install QEMU packages
 qemu_packages=(
     qemu-user-static
+    spice-vdagent
     samba
     qemu-block-gluster
     qemu-block-iscsi
@@ -102,6 +103,7 @@ qemu_packages=(
     qemu-ui-spice-app
     qemu-ui-spice-core
     qemu-vhost-user-gpu
+    qemu-guest-agent
 )
 echo "Installing QEMU-related packages..."
 pacman -S --needed "${qemu_packages[@]}" --noconfirm || {

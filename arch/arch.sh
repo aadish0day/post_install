@@ -53,7 +53,7 @@ packages=(
     libtool doxygen flameshot npm xclip highlight atool mediainfo fastfetch android-tools img2pdf
     zathura zathura-pdf-mupdf zathura-ps zathura-djvu zathura-cb obs-studio picom nitrogen starship
     xss-lock qalculate-qt libreoffice-still brightnessctl qbittorrent bluez bluez-utils blueman
-    bat alacritty zsh jpegoptim zip tar p7zip zstd lz4 xz trash-cli lxrandr mkinitcpio ttf-fira-mono
+    bat alacritty zsh jpegoptim zip unrar tar p7zip zstd lz4 xz trash-cli lxrandr mkinitcpio ttf-fira-mono
     papirus-icon-theme tree otf-firamono-nerd zoxide xdg-desktop-portal xdg-desktop-portal-gtk zed
     autotiling ueberzugpp qutebrowser ttf-hack-nerd lsd noto-fonts noto-fonts-cjk noto-fonts-emoji noto-fonts-extra
 )
@@ -76,6 +76,7 @@ i3wm_packages=(
     nwg-look mpv network-manager-applet numlockx playerctl polkit-gnome rofi scrot sysstat
     thunar thunar-archive-plugin thunar-volman tumbler unzip xarchiver xbindkeys xdg-user-dirs-gtk
     xed xfce4-terminal xorg-xbacklight xorg-xdpyinfo zip pavucontrol
+
 )
 
 # Install general packages
