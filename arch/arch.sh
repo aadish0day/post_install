@@ -14,7 +14,7 @@ else
     echo "Skipping mirror configuration."
 fi
 
-# Update system and packages
+# Update system and packages after mirror update
 sudo pacman -Syu --noconfirm
 
 # Function to install packages if not already installed
@@ -63,13 +63,32 @@ gaming_packages=(
     innoextract libayatana-appindicator lib32-vkd3d python-protobuf vkd3d
 )
 
+# List of i3wm-specific packages
+i3wm_packages=(
+    acpi arandr archlinux-xdg-menu awesome-terminal-fonts dex dmenu dunst feh galculator
+    gvfs gvfs-afc gvfs-gphoto2 gvfs-mtp gvfs-nfs gvfs-smb i3-wm i3blocks i3status jq
+    nwg-look mpv network-manager-applet numlockx playerctl polkit-gnome rofi scrot sysstat
+    thunar thunar-archive-plugin thunar-volman tumbler unzip xarchiver xbindkeys xdg-user-dirs-gtk
+    xed xfce4-terminal xorg-xbacklight xorg-xdpyinfo zip pavucontrol
+)
+
 # Install general packages
 install_if_needed "${packages[@]}"
 
-# Prompt user for gaming package installation
+# Ask user for gaming package installation
 read -p "Do you want to install gaming packages? (y/n): " install_gaming
 if [[ $install_gaming =~ ^[Yy]$ ]]; then
     install_if_needed "${gaming_packages[@]}"
+else
+    echo "Skipping gaming package installation."
+fi
+
+# Ask user to install i3wm specific packages
+read -p "Do you want to install i3wm specific packages? (y/n): " install_i3wm
+if [[ $install_i3wm =~ ^[Yy]$ ]]; then
+    install_if_needed "${i3wm_packages[@]}"
+else
+    echo "Skipping i3wm package installation."
 fi
 
 # Restart xdg-desktop-portal services
@@ -81,3 +100,5 @@ echo "Bluetooth service has been enabled."
 
 # Change default shell to zsh
 chsh -s "$(which zsh)" "$USER"
+
+
