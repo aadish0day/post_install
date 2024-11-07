@@ -20,7 +20,7 @@ pacman -S --noconfirm xf86-video-amdgpu amd-ucode vulkan-radeon lib32-vulkan-rad
 # Edit GRUB configuration to optimize for AMD
 # Uncomment and modify if needed
 echo "Editing GRUB configuration..."
-sudo sed -i 's|^GRUB_CMDLINE_LINUX_DEFAULT=".*"|GRUB_CMDLINE_LINUX_DEFAULT="quiet splash loglevel=3 amdgpu.dpm=1 amdgpu.audio=0 amdgpu.runpm=1 amdgpu.powersave=1 pcie_aspm=force amdgpu.ppfeaturemask=0xffffffff amdgpu.deep_color=1 amdgpu.hw_i2c=1 amdgpu.idle_power_save=1 amdgpu.gttsize=8192 iommu=pt idle=nomwait amd_pstate=active amd_prefcore=enable amdgpu.power_dpm_force_performance_level=auto radeon.si_support=0 radeon.cik_support=0 amdgpu.gttsize=8192 amdgpu.dcfeaturemask=0xffffffff pci=assign-busses "|' /etc/default/grub
+sudo sed -i 's|^GRUB_CMDLINE_LINUX_DEFAULT=".*"|GRUB_CMDLINE_LINUX_DEFAULT="quiet splash loglevel=3 amdgpu.dpm=1 amdgpu.audio=0 amdgpu.runpm=1 amdgpu.powersave=1 pcie_aspm=force amdgpu.ppfeaturemask=0xffffffff amdgpu.deep_color=1 amdgpu.hw_i2c=1 amdgpu.idle_power_save=1 amdgpu.gttsize=8192 iommu=pt idle=nomwait amd_pstate=active amd_prefcore=enable amdgpu.power_dpm_force_performance_level=auto radeon.si_support=0 radeon.cik_support=0 amdgpu.gttsize=8192 amdgpu.dcfeaturemask=0xffffffff "|' /etc/default/grub
 
 # Regenerate the GRUB configuration
 sudo grub-mkconfig -o /boot/grub/grub.cfg
