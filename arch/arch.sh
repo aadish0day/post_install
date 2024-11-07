@@ -49,34 +49,17 @@ install_if_needed() {
 
 # List of general packages to install
 packages=(
-    neovim ranger ncdu mpv maven yt-dlp fzf git nodejs gcc make ripgrep fd unzip htop gettext
-    libtool doxygen flameshot npm xclip highlight atool mediainfo fastfetch android-tools img2pdf
-    zathura zathura-pdf-mupdf zathura-ps zathura-djvu zathura-cb obs-studio picom nitrogen starship
-    xss-lock qalculate-qt libreoffice-still brightnessctl qbittorrent bluez bluez-utils blueman
-    bat alacritty zsh jpegoptim zip unrar tar p7zip zstd lz4 xz trash-cli lxrandr mkinitcpio ttf-fira-mono
-    papirus-icon-theme tree otf-firamono-nerd zoxide xdg-desktop-portal xdg-desktop-portal-gtk zed
-    autotiling ueberzugpp qutebrowser ttf-hack-nerd lsd noto-fonts noto-fonts-cjk noto-fonts-emoji noto-fonts-extra
+    neovim ranger ncdu mpv maven yt-dlp fzf git nodejs gcc make ripgrep fd unzip htop gettext libtool doxygen flameshot npm xclip highlight atool mediainfo fastfetch android-tools img2pdf zathura zathura-pdf-mupdf zathura-ps zathura-djvu zathura-cb obs-studio picom nitrogen starship xss-lock qalculate-qt libreoffice-still brightnessctl qbittorrent bluez bluez-utils blueman bat alacritty zsh jpegoptim zip unrar tar p7zip zstd lz4 xz trash-cli lxrandr mkinitcpio ttf-fira-mono papirus-icon-theme tree otf-firamono-nerd zoxide xdg-desktop-portal xdg-desktop-portal-gtk zed autotiling ueberzugpp qutebrowser ttf-hack-nerd lsd noto-fonts noto-fonts-cjk noto-fonts-emoji noto-fonts-extra
 )
 
 # List of gaming packages to install
 gaming_packages=(
-    lutris wine wine-gecko wine-mono winetricks gamemode lib32-gamemode
-    giflib lib32-giflib gnutls lib32-gnutls v4l-utils lib32-v4l-utils libpulse
-    lib32-libpulse alsa-plugins lib32-alsa-plugins alsa-lib lib32-alsa-lib
-    sqlite lib32-sqlite libxcomposite lib32-libxcomposite ocl-icd lib32-ocl-icd
-    libva lib32-libva gtk3 lib32-gtk3 gst-plugins-base-libs lib32-gst-plugins-base-libs
-    vulkan-icd-loader lib32-vulkan-icd-loader sdl2 lib32-sdl2
-    innoextract libayatana-appindicator lib32-vkd3d python-protobuf vkd3d
+    lutris wine wine-gecko wine-mono winetricks gamemode lib32-gamemode giflib lib32-giflib gnutls lib32-gnutls v4l-utils lib32-v4l-utils libpulse lib32-libpulse alsa-plugins lib32-alsa-plugins alsa-lib lib32-alsa-lib sqlite lib32-sqlite libxcomposite lib32-libxcomposite ocl-icd lib32-ocl-icd libva lib32-libva gtk3 lib32-gtk3 gst-plugins-base-libs lib32-gst-plugins-base-libs vulkan-icd-loader lib32-vulkan-icd-loader sdl2 lib32-sdl2 innoextract libayatana-appindicator lib32-vkd3d python-protobuf vkd3d
 )
 
 # List of i3wm-specific packages
 i3wm_packages=(
-    acpi arandr archlinux-xdg-menu awesome-terminal-fonts dex dmenu dunst feh galculator
-    gvfs gvfs-afc gvfs-gphoto2 gvfs-mtp gvfs-nfs gvfs-smb i3-wm i3blocks i3status jq
-    nwg-look mpv network-manager-applet numlockx playerctl polkit-gnome rofi scrot sysstat
-    thunar thunar-archive-plugin thunar-volman tumbler unzip xarchiver xbindkeys xdg-user-dirs-gtk
-    xed xfce4-terminal xorg-xbacklight xorg-xdpyinfo zip pavucontrol
-
+    acpi arandr archlinux-xdg-menu awesome-terminal-fonts dex dmenu dunst feh galculator gvfs gvfs-afc gvfs-gphoto2 gvfs-mtp gvfs-nfs gvfs-smb i3-wm i3blocks i3status jq nwg-look mpv network-manager-applet numlockx playerctl polkit-gnome rofi scrot sysstat thunar thunar-archive-plugin thunar-volman tumbler unzip xarchiver xbindkeys xdg-user-dirs-gtk xed xfce4-terminal xorg-xbacklight xorg-xdpyinfo zip pavucontrol a52dec accountsservice alsa-firmware alsa-utils aspell bind chromaprint ding-libs dmidecode dmraid dnssec-anchors dracut duf faac ffmpegthumbnailer fluidsynth fsarchiver glances gssproxy gst-libav gst-plugins-bad gst-plugins-ugly gtksourceview3 haveged hdparm hwdetect hwinfo imagemagick inetutils inxi jemalloc less libavtp libdca libdvdcss libgme libgsf libinstpatch liblqr liblrdf libltc libmaxminddb libmbim libmicrodns libmpeg2 libopenraw libpipeline libqmi libqrtr-glib libwnck3 libx86emu libxres linux-headers logrotate lsb-release man-db man-pages meld mjpegtools modemmanager nano-syntax-highlighting net-tools netctl networkmanager-openconnect networkmanager-openvpn nfs-utils nfsidmap nss-mdns ntp oath-toolkit openconnect openh264 openvpn os-prober pacutils parallel perl-xml-writer pkcs11-helper pkgfile plocate poppler-glib ppp pv python-annotated-types python-defusedxml python-orjson python-pyaml python-pydantic python-pydantic-core python-pyqt5 python-pyqt5-sip python-typing_extensions qemu-guest-agent qrencode rebuild-detector rtmpdump s-nail sd sg3_utils soundtouch spandsp spice-vdagent svt-hevc systemd-resolvconf tcl ttf-bitstream-vera ttf-dejavu ttf-liberation ttf-opensans unrar usb_modeswitch usbutils
 )
 
 # Install general packages
