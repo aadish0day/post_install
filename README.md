@@ -9,7 +9,7 @@ Install "toipe" from GitHub
 Here is all the library you need to wine:
 
 ```bash
-winetricks vcrun2005 vcrun2008 vcrun2010 vcrun2012 vcrun2013 vcrun2015 vcrun2017 vcrun2019 dotnet20 dotnet35 dotnet40 dotnet45 dotnet46 dotnet48
+winetricks vcrun2019 d3dx9 d3dx10 d3dx11_42 d3dx11_43 dxvk corefonts xact d3dcompiler_47 quartz physx vcrun2015 vcrun2017 dotnet20 dotnet35 dotnet40 dotnet45 dotnet46 dotnet48
 
 ```
 
