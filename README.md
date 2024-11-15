@@ -13,3 +13,11 @@ winetricks vcrun2019 d3dx9 d3dx10 d3dx11_42 d3dx11_43 dxvk corefonts xact d3dcom
 
 ```
 
+### Virtual machines
+
+This app improves communication with virtual machines.
+
+```bash
+spice-vdagent qemu-guest-agent
+
+```
