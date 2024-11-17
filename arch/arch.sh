@@ -134,7 +134,7 @@ i3wm_packages=(
     nwg-look mpv network-manager-applet numlockx playerctl rofi scrot
     sysstat thunar thunar-archive-plugin thunar-volman tumbler unzip xarchiver xbindkeys
     xdg-user-dirs-gtk xfce4-terminal xorg-xbacklight xorg-xdpyinfo zip pavucontrol
-    a52dec accountsservice alsa-firmware alsa-utils bind chromaprint ding-libs dmidecode
+    a52dec accountsservice alsa-firmware alsa-utils chromaprint ding-libs dmidecode
     dmraid dnssec-anchors dracut duf faac ffmpegthumbnailer fluidsynth fsarchiver
     gssproxy gst-libav gst-plugins-ugly gtksourceview3 haveged hdparm
     hwdetect hwinfo imagemagick inetutils inxi jemalloc less libavtp libdca libgme
@@ -144,7 +144,7 @@ i3wm_packages=(
     ntp os-prober pacutils parallel perl-xml-writer pkgfile plocate poppler-glib ppp pv
     python-annotated-types python-defusedxml python-orjson python-pyaml
     python-pydantic python-pydantic-core python-pyqt5 python-pyqt5-sip
-    python-typing_extensions rebuild-detector rtmpdump sd sg3_utils soundtouch spandsp
+    python-typing_extensions rtmpdump sd sg3_utils soundtouch spandsp
     svt-hevc systemd-resolvconf tcl ttf-opensans usb_modeswitch usbutils clipmenu tldr
 )
 
