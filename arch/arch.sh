@@ -112,13 +112,13 @@ packages=(
     brightnessctl qbittorrent bluez bluez-utils blueman bat alacritty zsh jpegoptim zip
     tar p7zip zstd lz4 xz trash-cli mkinitcpio ttf-fira-mono papirus-icon-theme tree
     otf-firamono-nerd zoxide xdg-desktop-portal xdg-desktop-portal-gtk autotiling
-    ueberzugpp qutebrowser ttf-hack-nerd lsd noto-fonts noto-fonts-cjk noto-fonts-emoji
+    ueberzugpp ttf-hack-nerd lsd noto-fonts noto-fonts-cjk noto-fonts-emoji
     noto-fonts-extra wezterm ttf-jetbrains-mono ttf-jetbrains-mono-nerd
 )
 
 # List of gaming packages
 gaming_packages=(
-    lutris wine wine-gecko wine-mono winetricks gamemode lib32-gamemode giflib
+    wine-staging lutris wine-gecko wine-mono winetricks gamemode lib32-gamemode giflib
     lib32-giflib gnutls lib32-gnutls v4l-utils lib32-v4l-utils libpulse lib32-libpulse
     alsa-plugins lib32-alsa-plugins alsa-lib lib32-alsa-lib sqlite lib32-sqlite
     libxcomposite lib32-libxcomposite ocl-icd lib32-ocl-icd libva lib32-libva gtk3
@@ -153,6 +153,7 @@ aur_packages=(
     "thorium-browser-bin"
     "i3lock-color"
     "brn2-git"
+    "dxvk-bin"
     # "rofi-greenclip"
     "dracula-gtk-theme"
     "vscodium-bin"
@@ -163,12 +164,12 @@ aur_packages=(
 
 # List of ASUS specific packages
 asus_packages=(
-    # "vulkan-amdgpu-pro"
-    # "lib32-vulkan-amdgpu-pro"
-    # "amdgpu-pro-oglp"
-    # "lib32-amdgpu-pro-oglp"
-    # "opencl-headers"
-    # "amf-amdgpu-pro"
+    "vulkan-amdgpu-pro"
+    "lib32-vulkan-amdgpu-pro"
+    "amdgpu-pro-oglp"
+    "lib32-amdgpu-pro-oglp"
+    "opencl-headers"
+    "amf-amdgpu-pro"
     # "opencl-amd"
 )
 
