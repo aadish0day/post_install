@@ -26,17 +26,6 @@ else
 	echo "Neovim configuration already exists. Skipping clone."
 fi
 
-# Check if tmux plugin manager (tpm) is already installed
-if [ ! -d "$HOME/.tmux/plugins/tpm" ]; then
-	echo "Cloning tmux plugin manager..."
-	git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm || {
-		echo "Failed to clone tmux plugin manager."
-		exit 1
-	}
-else
-	echo "Tmux plugin manager (tpm) already exists. Skipping clone."
-fi
-
 # Ensure the creation of the Screenshot folder
 mkdir -p "$HOME/Pictures/Screenshots" || {
 	echo "Failed to create $HOME/Pictures/Screenshots directory."
