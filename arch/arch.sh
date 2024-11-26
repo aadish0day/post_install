@@ -109,9 +109,9 @@ packages=(
     gettext libtool doxygen flameshot npm xclip highlight atool mediainfo fastfetch
     android-tools img2pdf zathura zathura-pdf-mupdf zathura-ps zathura-djvu zathura-cb
     obs-studio picom nitrogen starship xss-lock qalculate-qt libreoffice-still
-    brightnessctl qbittorrent bluez bluez-utils blueman bat alacritty zsh jpegoptim zip
-    tar p7zip zstd lz4 xz trash-cli mkinitcpio ttf-fira-mono papirus-icon-theme tree
-    otf-firamono-nerd zoxide xdg-desktop-portal xdg-desktop-portal-gtk autotiling
+    brightnessctl qbittorrent bluez bluez-utils blueman bat zsh jpegoptim zip
+    tar p7zip zstd lz4 xz trash-cli mkinitcpio papirus-icon-theme tree
+    zoxide xdg-desktop-portal xdg-desktop-portal-gtk autotiling
     ueberzugpp ttf-hack-nerd lsd noto-fonts noto-fonts-cjk noto-fonts-emoji
     noto-fonts-extra wezterm ttf-jetbrains-mono ttf-jetbrains-mono-nerd
 )
