@@ -102,6 +102,8 @@ qemu_packages=(
     qemu-ui-spice-app
     qemu-ui-spice-core
     qemu-vhost-user-gpu
+    python-pt
+    python-unicorn
 )
 echo "Installing QEMU-related packages..."
 pacman -S --needed "${qemu_packages[@]}" --noconfirm || {
