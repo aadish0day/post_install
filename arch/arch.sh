@@ -108,7 +108,7 @@ packages=(
     neovim ranger ncdu mpv maven yt-dlp fzf git nodejs gcc make ripgrep fd unzip htop
     gettext libtool doxygen flameshot npm xclip highlight atool mediainfo fastfetch
     android-tools img2pdf zathura zathura-pdf-mupdf zathura-ps zathura-djvu zathura-cb
-    obs-studio picom nitrogen starship xss-lock qalculate-qt libreoffice-still
+    obs-studio picom nitrogen starship xss-lock qalculate-qt flatpak
     brightnessctl qbittorrent bluez bluez-utils blueman bat zsh jpegoptim zip
     tar p7zip zstd lz4 xz trash-cli mkinitcpio papirus-icon-theme tree
     zoxide xdg-desktop-portal xdg-desktop-portal-gtk autotiling
@@ -212,6 +212,9 @@ if [[ $install_asus =~ ^[Yy]$ ]]; then
 else
     echo "Skipping ASUS specific packages."
 fi
+
+echo "install flatpak app"
+flatpak install flathub org.libreoffice.LibreOffice
 
 # Enable and restart services
 echo "Enabling and starting services..."
