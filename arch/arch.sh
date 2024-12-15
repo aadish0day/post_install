@@ -110,8 +110,7 @@ packages=(
     android-tools img2pdf zathura zathura-pdf-mupdf zathura-ps zathura-djvu zathura-cb
     obs-studio picom nitrogen starship xss-lock qalculate-qt flatpak
     brightnessctl qbittorrent bluez bluez-utils blueman bat zsh jpegoptim zip
-    tar p7zip zstd lz4 xz trash-cli mkinitcpio papirus-icon-theme tree
-    zoxide xdg-desktop-portal xdg-desktop-portal-gtk 
+    tar p7zip zstd lz4 xz trash-cli mkinitcpio papirus-icon-theme tree zoxide
     ueberzugpp ttf-hack-nerd lsd noto-fonts noto-fonts-cjk noto-fonts-emoji
     noto-fonts-extra wezterm ttf-jetbrains-mono ttf-jetbrains-mono-nerd
 )
@@ -128,9 +127,9 @@ gaming_packages=(
 )
 
 # List of i3wm packages
-i3wm_packages=(
+tilling_depen=(
     acpi arandr archlinux-xdg-menu awesome-terminal-fonts dex dmenu dunst feh gvfs autotiling
-    gvfs-afc gvfs-gphoto2 gvfs-mtp gvfs-nfs gvfs-smb i3-wm i3blocks i3status jq
+    gvfs-afc gvfs-gphoto2 gvfs-mtp gvfs-nfs gvfs-smb jq
     nwg-look mpv network-manager-applet numlockx playerctl rofi scrot
     sysstat thunar thunar-archive-plugin thunar-volman tumbler unzip xarchiver xbindkeys
     xdg-user-dirs-gtk xfce4-terminal xorg-xbacklight xorg-xdpyinfo zip pavucontrol
@@ -138,7 +137,7 @@ i3wm_packages=(
     dmraid dnssec-anchors dracut duf ffmpegthumbnailer fluidsynth fsarchiver
     gssproxy gst-libav gst-plugins-ugly gtksourceview3 haveged hdparm
     hwdetect hwinfo imagemagick inetutils inxi jemalloc less libavtp libdca libgme
-    libgsf libinstpatch liblqr liblrdf libltc libmaxminddb libmbim 
+    libgsf libinstpatch liblqr liblrdf libltc libmaxminddb libmbim
     libopenraw libpipeline libqmi libqrtr-glib libwnck3 libx86emu libxres
     linux-headers logrotate lsb-release man-db man-pages mjpegtools modemmanager netctl
     ntp os-prober pacutils parallel perl-xml-writer pkgfile plocate poppler-glib ppp pv
@@ -146,6 +145,7 @@ i3wm_packages=(
     python-pydantic python-pydantic-core python-pyqt5 python-pyqt5-sip
     python-typing_extensions sd sg3_utils soundtouch spandsp
     svt-hevc systemd-resolvconf tcl ttf-opensans usb_modeswitch usbutils clipmenu tldr
+    polybar xdg-desktop-portal xdg-desktop-portal-gtk
 )
 
 # List of AUR packages
@@ -186,9 +186,9 @@ else
 fi
 
 # Ask user to install i3wm specific packages
-read -rp "Do you want to install i3wm specific packages? (y/n): " install_i3wm
-if [[ $install_i3wm =~ ^[Yy]$ ]]; then
-    install_if_needed "${i3wm_packages[@]}"
+read -rp "Do you want to install tilling specific packages? (y/n): " install_tilling
+if [[ $install_tilling =~ ^[Yy]$ ]]; then
+    install_if_needed "${tilling_depen[@]}"
 else
     echo "Skipping i3wm package installation."
 fi
