@@ -111,7 +111,7 @@ packages=(
     obs-studio picom nitrogen starship xss-lock qalculate-qt flatpak
     brightnessctl qbittorrent bluez bluez-utils blueman bat zsh jpegoptim zip
     tar p7zip zstd lz4 xz trash-cli mkinitcpio papirus-icon-theme tree
-    zoxide xdg-desktop-portal xdg-desktop-portal-gtk autotiling
+    zoxide xdg-desktop-portal xdg-desktop-portal-gtk 
     ueberzugpp ttf-hack-nerd lsd noto-fonts noto-fonts-cjk noto-fonts-emoji
     noto-fonts-extra wezterm ttf-jetbrains-mono ttf-jetbrains-mono-nerd
 )
@@ -129,22 +129,22 @@ gaming_packages=(
 
 # List of i3wm packages
 i3wm_packages=(
-    acpi arandr archlinux-xdg-menu awesome-terminal-fonts dex dmenu dunst feh gvfs
+    acpi arandr archlinux-xdg-menu awesome-terminal-fonts dex dmenu dunst feh gvfs autotiling
     gvfs-afc gvfs-gphoto2 gvfs-mtp gvfs-nfs gvfs-smb i3-wm i3blocks i3status jq
     nwg-look mpv network-manager-applet numlockx playerctl rofi scrot
     sysstat thunar thunar-archive-plugin thunar-volman tumbler unzip xarchiver xbindkeys
     xdg-user-dirs-gtk xfce4-terminal xorg-xbacklight xorg-xdpyinfo zip pavucontrol
-    a52dec accountsservice alsa-firmware alsa-utils chromaprint ding-libs dmidecode
-    dmraid dnssec-anchors dracut duf faac ffmpegthumbnailer fluidsynth fsarchiver
+    accountsservice alsa-firmware alsa-utils chromaprint ding-libs dmidecode
+    dmraid dnssec-anchors dracut duf ffmpegthumbnailer fluidsynth fsarchiver
     gssproxy gst-libav gst-plugins-ugly gtksourceview3 haveged hdparm
     hwdetect hwinfo imagemagick inetutils inxi jemalloc less libavtp libdca libgme
-    libgsf libinstpatch liblqr liblrdf libltc libmaxminddb libmbim
-    libmpeg2 libopenraw libpipeline libqmi libqrtr-glib libwnck3 libx86emu libxres
+    libgsf libinstpatch liblqr liblrdf libltc libmaxminddb libmbim 
+    libopenraw libpipeline libqmi libqrtr-glib libwnck3 libx86emu libxres
     linux-headers logrotate lsb-release man-db man-pages mjpegtools modemmanager netctl
     ntp os-prober pacutils parallel perl-xml-writer pkgfile plocate poppler-glib ppp pv
     python-annotated-types python-defusedxml python-orjson python-pyaml
     python-pydantic python-pydantic-core python-pyqt5 python-pyqt5-sip
-    python-typing_extensions rtmpdump sd sg3_utils soundtouch spandsp
+    python-typing_extensions sd sg3_utils soundtouch spandsp
     svt-hevc systemd-resolvconf tcl ttf-opensans usb_modeswitch usbutils clipmenu tldr
 )
 
