@@ -221,6 +221,9 @@ echo "Enabling and starting services..."
 sudo systemctl enable --now bluetooth.service
 systemctl --user restart xdg-desktop-portal.service xdg-desktop-portal-gtk.service
 
+echo "zathura set to default"
+xdg-mime default org.pwmt.zathura.desktop application/pdf
+
 # Set thorium-browser as default browser if installed
 if command -v thorium-browser &>/dev/null; then
     echo "Setting thorium-browser as the default browser..."
