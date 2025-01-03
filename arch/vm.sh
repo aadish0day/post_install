@@ -51,7 +51,6 @@ qemu_packages=(
     qemu-system-alpha
     qemu-system-arm
     qemu-system-avr
-    qemu-system-cris
     qemu-system-hppa
     qemu-system-m68k
     qemu-system-microblaze
