@@ -19,9 +19,9 @@ sudo nala install -y software-properties-common
 echo "Installing packages..."
 sudo nala install -y \
 	ranger ncdu mpv maven yt-dlp htop fzf git unzip nodejs flameshot \
-	xclip ueberzug highlight atool mediainfo fastfetch android-tools-adb \
+	xclip ueberzug highlight atool mediainfo android-tools-adb \
 	android-tools-fastboot img2pdf zathura zathura-pdf-poppler zathura-ps \
-	zathura-djvu zathura-cb obs-studio picom nitrogen xss-lock qalculate \
+	zathura-djvu zathura-cb obs-studio picom nitrogen xss-lock qalculate-gtk \
 	libreoffice bluez bat alacritty jpegoptim zip unzip tar p7zip zstd lz4 \
 	xz-utils trash-cli lxrandr
 
