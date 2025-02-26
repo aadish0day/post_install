@@ -112,7 +112,7 @@ packages=(
     brightnessctl qbittorrent bluez bluez-utils blueman bat zsh jpegoptim zip
     tar p7zip zstd lz4 xz trash-cli mkinitcpio papirus-icon-theme tree zoxide
     ueberzugpp ttf-hack-nerd lsd noto-fonts noto-fonts-cjk noto-fonts-emoji
-    noto-fonts-extra wezterm ttf-jetbrains-mono ttf-jetbrains-mono-nerd
+    noto-fonts-extra kitty ttf-jetbrains-mono ttf-jetbrains-mono-nerd
 )
 
 # List of gaming packages
