@@ -112,7 +112,7 @@ packages=(
     brightnessctl qbittorrent bluez bluez-utils blueman bat zsh jpegoptim zip
     tar p7zip zstd lz4 xz trash-cli mkinitcpio papirus-icon-theme tree zoxide
     lsd noto-fonts noto-fonts-cjk noto-fonts-emoji noto-fonts-extra kitty 
-    ttf-jetbrains-mono ttf-jetbrains-mono-nerd yazi tmux
+    ttf-jetbrains-mono ttf-jetbrains-mono-nerd yazi tmux aria2
 )
 
 # List of gaming packages
@@ -154,8 +154,9 @@ aur_packages=(
     "i3lock-color"
     # "brn2-git"
     "dxvk-bin"
-    # "rofi-greenclip"
     "dracula-gtk-theme"
+    "visual-studio-code-bin"
+    "cursor-bin"
     "vscodium-bin"
     "moc"
     "ani-cli"
