@@ -105,13 +105,13 @@ install_aur_packages() {
 
 # List of general packages
 packages=(
-    neovim ranger ncdu mpv maven yt-dlp fzf git nodejs gcc make ripgrep fd unzip htop
+    neovim tree-sitter-cli ncdu mpv maven yt-dlp fzf git nodejs gcc make ripgrep fd unzip htop
     gettext libtool doxygen flameshot npm xclip highlight atool mediainfo fastfetch
-    android-tools img2pdf zathura zathura-pdf-mupdf zathura-ps zathura-djvu zathura-cb
-    obs-studio picom nitrogen starship xss-lock qalculate-qt 
+    android-tools img2pdf zathura zathura-pdf-poppler zathura-ps zathura-djvu zathura-cb
+    obs-studio picom nitrogen starship xss-lock qalculate-qt
     brightnessctl qbittorrent bluez bluez-utils blueman bat zsh jpegoptim zip
     tar p7zip zstd lz4 xz trash-cli mkinitcpio papirus-icon-theme tree zoxide
-    lsd noto-fonts noto-fonts-cjk noto-fonts-emoji noto-fonts-extra kitty 
+    lsd noto-fonts noto-fonts-cjk noto-fonts-emoji noto-fonts-extra kitty
     ttf-jetbrains-mono ttf-jetbrains-mono-nerd yazi tmux
 )
 
@@ -128,7 +128,7 @@ gaming_packages=(
 
 # List of bspwm packages
 tilling_depen=(
-    acpi arandr archlinux-xdg-menu awesome-terminal-fonts dex dmenu dunst feh gvfs 
+    acpi arandr archlinux-xdg-menu awesome-terminal-fonts dex dmenu dunst feh gvfs
     gvfs-afc gvfs-gphoto2 gvfs-mtp gvfs-nfs gvfs-smb jq
     nwg-look mpv network-manager-applet numlockx playerctl rofi scrot
     sysstat thunar thunar-archive-plugin thunar-volman tumbler unzip xarchiver xbindkeys
@@ -144,7 +144,7 @@ tilling_depen=(
     python-annotated-types python-defusedxml python-orjson python-pyaml
     python-pydantic python-pydantic-core python-pyqt5 python-pyqt5-sip
     python-typing_extensions sd sg3_utils soundtouch spandsp
-    svt-hevc systemd-resolvconf tcl ttf-opensans usb_modeswitch usbutils clipmenu 
+    svt-hevc systemd-resolvconf tcl ttf-opensans usb_modeswitch usbutils clipmenu
     polybar xdg-desktop-portal xdg-desktop-portal-gtk
 )
 
@@ -152,11 +152,9 @@ tilling_depen=(
 aur_packages=(
     "thorium-browser-bin"
     "i3lock-color"
-    # "brn2-git"
     "dxvk-bin"
-    # "rofi-greenclip"
     "dracula-gtk-theme"
-    "vscodium-bin"
+    "visual-studio-code-bin"
     "moc"
     "ani-cli"
     "hakuneko-desktop"
