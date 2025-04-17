@@ -106,9 +106,9 @@ install_aur_packages() {
 # List of general packages
 packages=(
     neovim tree-sitter-cli ncdu mpv maven yt-dlp fzf git nodejs gcc make ripgrep fd unzip htop
-    gettext libtool doxygen flameshot npm xclip highlight atool mediainfo fastfetch
+    gettext libtool doxygen npm xclip highlight atool mediainfo fastfetch
     android-tools img2pdf zathura zathura-pdf-poppler zathura-ps zathura-djvu zathura-cb
-    obs-studio picom nitrogen starship xss-lock qalculate-qt
+    obs-studio starship xss-lock qalculate-qt
     brightnessctl qbittorrent bluez bluez-utils blueman bat zsh jpegoptim zip
     tar p7zip zstd lz4 xz trash-cli mkinitcpio papirus-icon-theme tree zoxide
     lsd noto-fonts noto-fonts-cjk noto-fonts-emoji noto-fonts-extra kitty
@@ -128,8 +128,8 @@ gaming_packages=(
 
 # List of bspwm packages
 tilling_depen=(
-    acpi arandr archlinux-xdg-menu awesome-terminal-fonts dex dmenu dunst feh gvfs
-    gvfs-afc gvfs-gphoto2 gvfs-mtp gvfs-nfs gvfs-smb jq
+    acpi arandr archlinux-xdg-menu awesome-terminal-fonts dex dmenu dunst feh gvfs flameshot picom nitrogen
+    gvfs-afc gvfs-gphoto2 gvfs-mtp gvfs-nfs gvfs-smb jq polkit-gnome
     nwg-look mpv network-manager-applet numlockx playerctl rofi scrot
     sysstat thunar thunar-archive-plugin thunar-volman tumbler unzip xarchiver xbindkeys
     xdg-user-dirs-gtk xfce4-terminal xorg-xbacklight xorg-xdpyinfo zip pavucontrol
