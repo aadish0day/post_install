@@ -129,7 +129,7 @@ gaming_packages=(
 # List of bspwm packages
 tilling_depen=(
     acpi arandr archlinux-xdg-menu awesome-terminal-fonts dex dmenu dunst feh gvfs flameshot picom nitrogen
-    gvfs-afc gvfs-gphoto2 gvfs-mtp gvfs-nfs gvfs-smb jq polkit-gnome
+    gvfs-afc gvfs-gphoto2 gvfs-mtp gvfs-nfs gvfs-smb jq polkit-gnome gammastep
     nwg-look mpv network-manager-applet numlockx playerctl rofi scrot
     sysstat thunar thunar-archive-plugin thunar-volman tumbler unzip xarchiver xbindkeys
     xdg-user-dirs-gtk xfce4-terminal xorg-xbacklight xorg-xdpyinfo zip pavucontrol
