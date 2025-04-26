@@ -150,10 +150,11 @@ tilling_depen=(
 
 # List of AUR packages
 aur_packages=(
+    "dracula-gtk-theme"
     "thorium-browser-bin"
     "i3lock-color"
+    "vesktop-bin"
     "dxvk-bin"
-    "dracula-gtk-theme"
     "visual-studio-code-bin"
     "moc"
     "ani-cli"
