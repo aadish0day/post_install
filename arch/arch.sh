@@ -215,6 +215,7 @@ fi
 # Enable and restart services
 echo "Enabling and starting services..."
 sudo systemctl enable --now bluetooth.service
+systemctl --user enable --now dbus.service
 systemctl --user restart xdg-desktop-portal.service xdg-desktop-portal-gtk.service
 
 echo "zathura set to default"
