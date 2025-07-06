@@ -40,6 +40,11 @@ It installs communication tools for virtual machines:
 spice-vdagent qemu-guest-agent
 ```
 
+```bash
+sudo systemctl enable --now spice-vdagent
+sudo systemctl enable --now qemu-guest-agent
+```
+
 ### 5. Neovim Configuration
 
 The script clones a personal Neovim configuration if not already present.
