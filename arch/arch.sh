@@ -112,7 +112,7 @@ packages=(
     brightnessctl qbittorrent bluez bluez-utils blueman bat zsh jpegoptim zip
     tar p7zip zstd lz4 xz trash-cli mkinitcpio papirus-icon-theme tree zoxide
     lsd noto-fonts noto-fonts-cjk noto-fonts-emoji noto-fonts-extra kitty
-    ttf-jetbrains-mono ttf-jetbrains-mono-nerd yazi tmux rmpc mpd mpc
+    ttf-jetbrains-mono ttf-jetbrains-mono-nerd yazi tmux 
 )
 
 # List of gaming packages
@@ -155,9 +155,9 @@ aur_packages=(
     "thorium-browser-bin"
     "i3lock-color"
     "vesktop-bin"
-    "dxvk-bin"
+    # "dxvk-bin"
     "visual-studio-code-bin"
-    "moc"
+    # "moc"
     "ani-cli"
     "hakuneko-desktop"
 )
@@ -216,8 +216,8 @@ fi
 # Enable and restart services
 echo "Enabling and starting services..."
 sudo systemctl enable --now bluetooth.service
-systemctl --user enable --now dbus.service
-systemctl --user restart xdg-desktop-portal.service xdg-desktop-portal-gtk.service
+sudo systemctl --user enable --now dbus.service
+sudo systemctl --user restart xdg-desktop-portal.service xdg-desktop-portal-gtk.service
 
 echo "zathura set to default"
 xdg-mime default org.pwmt.zathura.desktop application/pdf
