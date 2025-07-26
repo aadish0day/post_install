@@ -21,9 +21,10 @@ if [ -d ~/dotfile ]; then
 else
     echo "Cloning dotfiles..."
     git clone https://github.com/aadish0day/dotfile.git ~/dotfile
-    cd ~/dotfile
-    ./link.sh
 fi
+
+cd ~/dotfile
+./link.sh
 
 # Prompt user to choose a Kali metapackage to install
 echo
