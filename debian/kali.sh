@@ -5,7 +5,7 @@ sudo apt install nala -y
 sudo nala update && sudo nala upgrade -y
 
 # Install necessary packages
-sudo nala install git stow zsh tmux curl wget vim neovim fzf starship zoxide -y
+sudo nala install git stow zsh tmux curl wget vim neovim fzf starship zoxide lsd trash-cli -y
 
 # Remove existing .zshrc if it exists
 if [ -f ~/.zshrc ]; then
@@ -21,8 +21,7 @@ if [ -d ~/dotfile ]; then
 else
 	echo "Cloning dotfiles..."
 	git clone https://github.com/aadish0day/dotfile.git ~/dotfile
+    cd ~/dotfile
+    ./link.sh
 fi
 
-# Navigate and link
-cd ~/dotfile
-./link.sh
