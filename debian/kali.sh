@@ -10,7 +10,7 @@ else
     echo ".zshrc file does not exist, nothing to remove."
 fi
 
-git clone git@github.com:aadish0day/dotfile.git ~/dotfile
+git clone https://github.com/aadish0day/dotfile.git ~/dotfile
 
 cd ~/dotfile 
 
