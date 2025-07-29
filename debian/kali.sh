@@ -2,7 +2,7 @@
 
 # Install nala and update/upgrade system
 sudo apt install nala -y
-sudo nala update && sudo nala upgrade -y
+sudo nala update && sudo nala full-upgrade -y
 
 # Install necessary packages
 sudo nala install git stow zsh tmux curl wget vim neovim fzf starship zoxide lsd trash-cli -y
