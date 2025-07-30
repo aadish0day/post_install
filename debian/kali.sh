@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # Install nala and update/upgrade system
+sudo apt update 
 sudo apt install nala -y
 sudo nala update && sudo nala full-upgrade -y
 
