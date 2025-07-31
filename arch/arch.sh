@@ -113,6 +113,7 @@ packages=(
     tar p7zip zstd lz4 xz trash-cli mkinitcpio papirus-icon-theme tree zoxide
     lsd noto-fonts noto-fonts-cjk noto-fonts-emoji noto-fonts-extra kitty
     ttf-jetbrains-mono ttf-jetbrains-mono-nerd yazi tmux
+    pulseaudio pulseaudio-alsa alsa-utils pavucontrol
 )
 
 # List of gaming packages
