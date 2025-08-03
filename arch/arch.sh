@@ -53,7 +53,7 @@ install_if_needed() {
 # Function to install paru
 install_paru() {
     echo "Installing paru..."
-    if ! pacman -Qq base-devel &>/dev/null; then1
+    if ! pacman -Qq base-devel &>/dev/null; then
         echo "Installing base-devel package group..."
         sudo pacman -S --needed base-devel git --noconfirm
     fi
@@ -103,12 +103,12 @@ packages=(
     neovim tree-sitter-cli ncdu mpv maven yt-dlp fzf git nodejs gcc make ripgrep fd unzip htop
     gettext libtool doxygen npm xclip highlight atool mediainfo fastfetch
     android-tools img2pdf zathura zathura-pdf-poppler zathura-ps zathura-djvu zathura-cb
-    obs-studio starship xss-lock qalculate-qt
+    obs-studio starship xss-lock qalculate-qt mpv-mpris 
     brightnessctl qbittorrent bluez bluez-utils blueman bat zsh jpegoptim zip
     tar p7zip zstd lz4 xz trash-cli mkinitcpio papirus-icon-theme tree zoxide
     lsd noto-fonts noto-fonts-cjk noto-fonts-emoji noto-fonts-extra kitty
     ttf-jetbrains-mono ttf-jetbrains-mono-nerd yazi tmux
-    pulseaudio pulseaudio-alsa alsa-utils pavucontrol
+    pavucontrol aria2
 )
 
 # List of gaming packages
@@ -213,7 +213,8 @@ fi
 echo "Enabling and starting services..."
 # systemctl enable --now bluetooth.service
 systemctl --user enable --now dbus.service
-systemctl --user enable --now xdg-desktop-portal.service xdg-desktop-portal-gtk.service
+systemctl --user start xdg-desktop-portal.service
+systemctl --user start xdg-desktop-portal-gtk.service
 
 echo "zathura set to default"
 xdg-mime default org.pwmt.zathura.desktop application/pdf
