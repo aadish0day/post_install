@@ -53,38 +53,33 @@ install_if_needed() {
 # Function to install paru
 install_paru() {
     echo "Installing paru..."
-    if ! pacman -Qq base-devel &>/dev/null; then
+    if ! pacman -Qq base-devel &>/dev/null; then1
         echo "Installing base-devel package group..."
         sudo pacman -S --needed base-devel git --noconfirm
     fi
 
-    local temp_dir
-    temp_dir=$(mktemp -d)
-    cd "$temp_dir" || exit 1
+    cd /tmp || exit 1
 
     if ! git clone https://aur.archlinux.org/paru-bin.git; then
         echo "Failed to clone paru-bin repository."
         cd - || exit 1
-        rm -rf "$temp_dir"
         return 1
     fi
 
     cd paru-bin || {
         echo "Failed to enter paru-bin directory."
         cd - || exit 1
-        rm -rf "$temp_dir"
         return 1
     }
 
     makepkg -si --noconfirm || {
         echo "Failed to build and install paru."
         cd - || exit 1
-        rm -rf "$temp_dir"
         return 1
     }
 
     cd - || exit 1
-    rm -rf "$temp_dir"
+    rm -rf /tmp/paru-bin
     echo "paru has been successfully installed."
 }
 
@@ -131,10 +126,10 @@ gaming_packages=(
 tilling_depen=(
     acpi arandr archlinux-xdg-menu awesome-terminal-fonts dex dmenu dunst feh gvfs flameshot picom nitrogen
     gvfs-afc gvfs-gphoto2 gvfs-mtp gvfs-nfs gvfs-smb jq polkit-gnome gammastep
-    nwg-look mpv network-manager-applet numlockx playerctl rofi scrot
-    sysstat thunar thunar-archive-plugin thunar-volman tumbler unzip xarchiver xbindkeys
-    xdg-user-dirs-gtk xfce4-terminal xorg-xbacklight xorg-xdpyinfo zip pavucontrol
-    accountsservice alsa-firmware alsa-utils chromaprint ding-libs dmidecode
+    nwg-look network-manager-applet numlockx playerctl rofi scrot
+    sysstat thunar thunar-archive-plugin thunar-volman tumbler xarchiver xbindkeys
+    xdg-user-dirs-gtk xfce4-terminal xorg-xbacklight xorg-xdpyinfo
+    accountsservice alsa-firmware chromaprint ding-libs dmidecode
     dmraid dnssec-anchors dracut duf ffmpegthumbnailer fluidsynth fsarchiver
     gssproxy gst-libav gst-plugins-ugly gtksourceview3 haveged hdparm
     hwdetect hwinfo imagemagick inetutils inxi jemalloc less libavtp libdca libgme
@@ -216,9 +211,9 @@ fi
 
 # Enable and restart services
 echo "Enabling and starting services..."
-sudo systemctl enable --now bluetooth.service
-sudo systemctl --user enable --now dbus.service
-sudo systemctl --user restart xdg-desktop-portal.service xdg-desktop-portal-gtk.service
+# systemctl enable --now bluetooth.service
+systemctl --user enable --now dbus.service
+systemctl --user enable --now xdg-desktop-portal.service xdg-desktop-portal-gtk.service
 
 echo "zathura set to default"
 xdg-mime default org.pwmt.zathura.desktop application/pdf
