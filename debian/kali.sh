@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # Install nala and update/upgrade system
 sudo apt update 
@@ -27,31 +28,36 @@ fi
 cd ~/dotfile
 ./link.sh
 
-# Prompt user to choose a Kali metapackage to install
+# Prompt user to choose Kali metapackages
 echo
-echo "Choose a Kali metapackage to install:"
+echo "Choose Kali metapackages to install (you can select multiple by separating with space):"
 echo "1) kali-linux-everything  - All Kali tools (large download, ~10GB+)"
 echo "2) kali-linux-large       - Extended default toolset"
 echo "3) kali-linux-labs        - Vulnerable lab environments"
 echo "4) Skip this step"
 
-read -p "Enter your choice [1-4]: " choice
+read -rp "Enter your choices [1-4], separated by spaces: " -a choices
 
-case $choice in
-    1)
-        sudo nala install kali-linux-everything -y
-        ;;
-    2)
-        sudo nala install kali-linux-large -y
-        ;;
-    3)
-        sudo nala install kali-linux-labs -y
-        ;;
-    4)
-        echo "Skipping metapackage installation."
-        ;;
-    *)
-        echo "Invalid choice. Skipping metapackage installation."
-        ;;
-esac
+for choice in "${choices[@]}"; do
+    case $choice in
+        1)
+            echo "Installing kali-linux-everything..."
+            sudo nala install kali-linux-everything -y
+            ;;
+        2)
+            echo "Installing kali-linux-large..."
+            sudo nala install kali-linux-large -y
+            ;;
+        3)
+            echo "Installing kali-linux-labs..."
+            sudo nala install kali-linux-labs -y
+            ;;
+        4)
+            echo "Skipping metapackage installation."
+            ;;
+        *)
+            echo "Invalid choice: $choice"
+            ;;
+    esac
+done
 
