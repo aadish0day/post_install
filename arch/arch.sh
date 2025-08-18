@@ -141,7 +141,7 @@ tilling_depen=(
     python-pydantic python-pydantic-core python-pyqt5 python-pyqt5-sip
     python-typing_extensions sd sg3_utils soundtouch spandsp
     svt-hevc systemd-resolvconf tcl ttf-opensans usb_modeswitch usbutils clipmenu
-    polybar xdg-desktop-portal xdg-desktop-portal-gtk
+    polybar xdg-desktop-portal xdg-desktop-portal-gtk wmname
 )
 
 # List of AUR packages
