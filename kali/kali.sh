@@ -54,36 +54,9 @@ base_packages=(
 )
 
 
-security_tools=(
-    nmap masscan zmap
-    wireshark tcpdump netcat-openbsd
-    john hashcat hydra
-    sqlmap nikto dirb gobuster
-    burpsuite zaproxy
-    metasploit-framework
-    aircrack-ng reaver
-    wifite kismet
-    ettercap-text-only
-    dnsenum dnsrecon
-    enum4linux smbclient
-    rdesktop freerdp2-x11
-    openvpn
-)
-
-
 # Install base packages
 log "Installing base packages..."
 install_if_needed "${base_packages[@]}"
-
-
-# Ask user for additional security tools installation
-read -rp "Do you want to install additional security tools? (y/n): " install_security
-if [[ $install_security =~ ^[Yy]$ ]]; then
-    log "Installing security tools..."
-    install_if_needed "${security_tools[@]}"
-else
-    log "Skipping security tools installation."
-fi
 
 
 # Setup dotfiles
