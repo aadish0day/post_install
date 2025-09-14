@@ -15,29 +15,29 @@ command_exists() {
 # Function to install packages if not already installed
 install_if_needed() {
     local pkg
-    local failures=()
-    local to_install=()
+    local failures=""
+    local to_install=""
 
     for pkg in "$@"; do
         if ! dpkg -l | grep -q "^ii  $pkg "; then
-            to_install+=("$pkg")
+            to_install="$to_install $pkg"
         else
             log "$pkg is already installed. Skipping..."
         fi
     done
 
-    if [ ${#to_install[@]} -gt 0 ]; then
-        log "Installing: ${to_install[*]}"
-        if ! sudo apt-get install -y "${to_install[@]}"; then
+    if [ -n "$to_install" ]; then
+        log "Installing:$to_install"
+        if ! sudo apt-get install -y $to_install; then
             log "Some packages failed to install, checking..."
-            for pkg in "${to_install[@]}"; do
+            for pkg in $to_install; do
                 if ! dpkg -l | grep -q "^ii  $pkg "; then
                     log "Failed to install $pkg"
-                    failures+=("$pkg")
+                    failures="$failures $pkg"
                 fi
             done
-            if [ ${#failures[@]} -gt 0 ]; then
-                log "Failed to install the following packages: ${failures[*]}"
+            if [ -n "$failures" ]; then
+                log "Failed to install the following packages:$failures"
                 return 1
             fi
         fi
@@ -64,17 +64,7 @@ sudo apt-get update
 
 # Install required packages
 log "Installing required packages..."
-required_packages=(
-    dkms
-    bc
-    mokutil
-    build-essential
-    libelf-dev
-    "linux-headers-$(uname -r)"
-    git
-)
-
-install_if_needed "${required_packages[@]}"
+install_if_needed dkms bc mokutil build-essential libelf-dev "linux-headers-$(uname -r)" git
 
 # Check if kernel headers are available
 if ! dpkg -l | grep -q "linux-headers-$(uname -r)"; then
