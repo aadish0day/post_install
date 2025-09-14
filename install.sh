@@ -5,7 +5,8 @@ echo "Select your distribution:"
 echo "1) Debian/Ubuntu"
 echo "2) Arch Linux"
 echo "3) Fedora"
-read -p "Distribution (1/2/3): " DISTRO_CHOICE
+echo "4) Kali Linux"
+read -p "Distribution (1/2/3/4): " DISTRO_CHOICE
 
 # Define a function to clone Neovim configuration
 clone_neovim_config() {
@@ -64,6 +65,17 @@ case $DISTRO_CHOICE in
 		}
 	else
 		echo "Fedora script not found."
+		exit 1
+	fi
+	;;
+4)
+	if [ -d "./kali" ] && [ -f "./kali/kali.sh" ]; then
+		(cd kali && ./kali.sh) || {
+			echo "Failed to run distribution-specific script for Kali Linux."
+			exit 1
+		}
+	else
+		echo "Kali Linux script not found."
 		exit 1
 	fi
 	;;
