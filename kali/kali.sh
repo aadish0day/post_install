@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Function to log script actions
 log() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1"
+    echo "$1"
 }
 
 # Function to install packages if not already installed
