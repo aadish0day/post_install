@@ -15,11 +15,17 @@ sudo apt-get install -y dkms bc mokutil build-essential libelf-dev "linux-header
 
 # Clone and install driver
 log "Cloning RTL8812AU driver repository..."
+TEMP_DIR=$(mktemp -d)
+cd "$TEMP_DIR"
 git clone -b v5.6.4.2 https://github.com/aircrack-ng/rtl8812au.git
 cd rtl8812au
 
 log "Installing driver..."
 sudo make dkms_install
+
+log "Cleaning up..."
+cd /
+rm -rf "$TEMP_DIR"
 
 # Load module
 log "Loading driver module..."
