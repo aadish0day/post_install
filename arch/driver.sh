@@ -1,10 +1,9 @@
 #!/bin/bash
 
-# Check if the script is run as root
-# This check ensures that the script has the necessary privileges to perform system-wide changes
+# Check if the script is run as root (auto-elevate if needed)
 if [ "$(id -u)" -ne 0 ]; then
-    echo "This script needs to be run as root."
-    exit 1
+    echo "Re-running with sudo..."
+    exec sudo -E "$0" "$@"
 fi
 
 # Update system

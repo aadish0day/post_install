@@ -2,10 +2,10 @@
 
 # Simple WiFi driver installer for Kali Linux
 
-# Check if running as root
+# Check if running as root (auto-elevate if needed)
 if [ "$(id -u)" -ne 0 ]; then
-    echo "Run with sudo: sudo ./wifi-driver.sh"
-    exit 1
+    echo "Re-running with sudo..."
+    exec sudo -E "$0" "$@"
 fi
 
 echo "Installing WiFi drivers..."

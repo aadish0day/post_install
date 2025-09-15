@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Check if the script is run as root
+# Check if the script is run as root (auto-elevate if needed)
 if [ "$(id -u)" -ne 0 ]; then
-    echo "This script must be run as root. Please use sudo."
-    exit 1
+    echo "Re-running with sudo..."
+    exec sudo -E "$0" "$@"
 fi
 
 echo "START KVM/QEMU/VIRT MANAGER INSTALLATION..."
@@ -89,9 +89,6 @@ qemu_packages=(
     qemu-hw-display-virtio-gpu-gl
     qemu-hw-display-virtio-gpu-pci
     qemu-hw-display-virtio-gpu-pci-gl
-    qemu-hw-usb-host
-    qemu-hw-usb-redirect
-    qemu-hw-usb-smartcard
     qemu-ui-curses
     qemu-ui-dbus
     qemu-ui-egl-headless

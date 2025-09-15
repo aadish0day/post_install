@@ -15,10 +15,10 @@ else
     log "Warning: dnf.conf not found. Skipping dnf configuration update."
 fi
 
-# Ensure the script is run as root
+# Ensure the script is run as root (auto-elevate if needed)
 if [ "$(id -u)" != "0" ]; then
-    log "This script must be run as root"
-    exit 1
+    log "Re-running with sudo..."
+    exec sudo -E "$0" "$@"
 fi
 
 log "Starting Fedora setup..."
