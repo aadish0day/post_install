@@ -11,8 +11,9 @@ fi
 echo "Installing WiFi drivers..."
 
 # Update and install packages
-apt update
-apt install -y dkms git build-essential bc libelf-dev linux-headers-$(uname -r) iw rfkill
+apt update -y
+nala upgrade -y
+nala install -y dkms git build-essential bc libelf-dev linux-headers-$(uname -r) iw rfkill
 
 
 # Create temporary directory and install driver
