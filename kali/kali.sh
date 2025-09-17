@@ -50,14 +50,12 @@ sudo nala update && sudo nala full-upgrade -y
 
 # Define package lists
 base_packages=(
-    git stow zsh tmux curl wget vim neovim fzf starship zoxide lsd trash-cli
+    git stow zsh tmux curl wget vim neovim fzf starship zoxide lsd trash-cli htop
 )
-
 
 # Install base packages
 log "Installing base packages..."
 install_if_needed "${base_packages[@]}"
-
 
 # Setup dotfiles
 log "Setting up dotfiles..."
@@ -91,7 +89,7 @@ if [ -d ~/dotfile ] && [ -f ~/dotfile/link.sh ]; then
     else
         log "Failed to link dotfiles."
     fi
-    cd - > /dev/null
+    cd - >/dev/null
 else
     log "Dotfiles directory or link.sh not found. Skipping dotfiles setup."
 fi
@@ -142,7 +140,6 @@ for choice in "${choices[@]}"; do
     esac
 done
 
-
 # Change default shell to zsh
 if command -v zsh &>/dev/null; then
     log "Changing default shell to zsh..."
@@ -154,7 +151,6 @@ if command -v zsh &>/dev/null; then
 else
     log "zsh not found, skipping shell change."
 fi
-
 
 # Clean up
 log "Cleaning up package cache..."
