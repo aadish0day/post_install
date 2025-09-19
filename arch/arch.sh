@@ -212,7 +212,13 @@ fi
 # Enable and restart services
 echo "Enabling and starting services..."
 # systemctl enable --now bluetooth.service
-systemctl --user enable --now dbus.service
+if systemctl list-unit-files | grep -q "dbus-broker.service"; then
+    systemctl --user enable --now dbus-broker.service
+elif systemctl list-unit-files | grep -q "dbus-daemon.service"; then
+    systemctl --user enable --now dbus-daemon.service
+else
+    echo "No dbus backend service found, skipping..."
+fi
 systemctl --user start xdg-desktop-portal.service
 systemctl --user start xdg-desktop-portal-gtk.service
 
