@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Simple WiFi driver installer for Kali Linux
 

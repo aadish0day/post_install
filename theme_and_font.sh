@@ -1,4 +1,4 @@
-# #!/bin/bash
+#!/usr/bin/env bash
 #
 # # Define the URL and destination directory for the GTK theme
 # GTK_URL="https://github.com/dracula/gtk/archive/master.zip"

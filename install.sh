@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Prompt user to select their distribution
 echo "Select your distribution:"
