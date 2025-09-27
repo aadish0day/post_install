@@ -6,7 +6,8 @@ echo "1) Debian/Ubuntu"
 echo "2) Arch Linux"
 echo "3) Fedora"
 echo "4) Kali Linux"
-read -p "Distribution (1/2/3/4): " DISTRO_CHOICE
+echo "5) Termux"
+read -p "Distribution (1/2/3/4/5): " DISTRO_CHOICE
 
 # Define a function to clone Neovim configuration
 clone_neovim_config() {
@@ -76,6 +77,17 @@ case $DISTRO_CHOICE in
 		}
 	else
 		echo "Kali Linux script not found."
+		exit 1
+	fi
+	;;
+5)
+	if [ -d "./termux" ] && [ -f "./termux/termux.sh" ]; then
+		(cd termux && ./termux.sh) || {
+			echo "Failed to run distribution-specific script for Termux."
+			exit 1
+		}
+	else
+		echo "Termux script not found."
 		exit 1
 	fi
 	;;
