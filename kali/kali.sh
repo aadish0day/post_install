@@ -11,7 +11,6 @@ install_if_needed() {
     local pkg
     local failures=()
     local to_install=()
-
     for pkg in "$@"; do
         if ! dpkg -l | grep -q "^ii  $pkg "; then
             to_install+=("$pkg")
@@ -19,7 +18,6 @@ install_if_needed() {
             log "$pkg is already installed. Skipping..."
         fi
     done
-
     if [ ${#to_install[@]} -gt 0 ]; then
         log "Installing: ${to_install[*]}"
         if ! sudo nala install -y "${to_install[@]}"; then
@@ -46,7 +44,6 @@ mkdir -p ~/cybersec/
 # Install nala and update/upgrade system
 sudo apt update
 sudo apt install nala -y
-
 sudo nala update && sudo nala full-upgrade -y
 
 # Define package lists
@@ -58,7 +55,6 @@ base_packages=(
 install_if_needed "${base_packages[@]}"
 
 # Setup dotfiles
-
 # Remove existing .zshrc if it exists
 if [ -f ~/.zshrc ]; then
     rm ~/.zshrc
@@ -87,28 +83,35 @@ echo "1) kali-linux-everything  - All Kali tools (large download, ~10GB+)"
 echo "2) kali-linux-large       - Extended default toolset"
 echo "3) kali-linux-labs        - Vulnerable lab environments"
 echo "4) Skip this step"
-
 read -rp "Enter your choices [1-4], separated by spaces: " -a choices
-
 for choice in "${choices[@]}"; do
     case $choice in
-    1)
-        sudo nala install kali-linux-everything -y
-        ;;
-    2)
-        sudo nala install kali-linux-large -y
-        ;;
-    3)
-        sudo nala install kali-linux-labs -y
-        ;;
-    4)
-        echo "Skipping metapackage installation."
-        ;;
-    *)
-        echo "Invalid choice: $choice"
-        ;;
+        1)
+            sudo nala install kali-linux-everything -y
+            ;;
+        2)
+            sudo nala install kali-linux-large -y
+            ;;
+        3)
+            sudo nala install kali-linux-labs -y
+            ;;
+        4)
+            echo "Skipping metapackage installation."
+            ;;
+        *)
+            echo "Invalid choice: $choice"
+            ;;
     esac
 done
+
+# Update searchsploit database
+log "Updating searchsploit exploit database..."
+if command -v searchsploit &>/dev/null; then
+    searchsploit -u
+    log "Searchsploit database updated successfully."
+else
+    log "Searchsploit not found. It will be available after installing Kali metapackages."
+fi
 
 # Change default shell to zsh
 if command -v zsh &>/dev/null; then
@@ -117,6 +120,5 @@ fi
 
 # Clean up
 sudo nala clean
-
 log "Kali Linux setup completed successfully!"
 log "Please reboot your system to ensure all changes take effect."
