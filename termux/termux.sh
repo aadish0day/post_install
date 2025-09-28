@@ -9,7 +9,7 @@ pkg update && pkg upgrade -y
 
 # Install required packages
 echo "Installing packages..."
-pkg install -y git python vim neovim tmux zsh curl wget fzf lsd bat zoxide startship ani-cli git-lfs
+pkg install -y git python vim neovim tmux zsh curl wget fzf lsd bat zoxide starship ani-cli git-lfs
 
 # Initialize Git LFS for the current user (Termux)
 if command -v git &>/dev/null && command -v git-lfs &>/dev/null; then
