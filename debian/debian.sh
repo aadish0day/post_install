@@ -17,7 +17,13 @@ sudo nala install -y software-properties-common
 
 # Install required packages
 echo "Installing packages..."
-sudo nala install -y ranger ncdu mpv maven yt-dlp htop fzf git unzip nodejs flameshot xclip ueberzug highlight atool mediainfo android-tools-adb android-tools-fastboot img2pdf zathura zathura-pdf-poppler zathura-ps zathura-djvu zathura-cb obs-studio picom nitrogen xss-lock qalculate-gtk libreoffice bluez bat alacritty jpegoptim zip unzip tar p7zip zstd lz4 xz-utils trash-cli lxrandr
+sudo nala install -y ranger ncdu mpv maven yt-dlp htop fzf git git-lfs unzip nodejs flameshot xclip ueberzug highlight atool mediainfo android-tools-adb android-tools-fastboot img2pdf zathura zathura-pdf-poppler zathura-ps zathura-djvu zathura-cb obs-studio picom nitrogen xss-lock qalculate-gtk libreoffice bluez bat alacritty jpegoptim zip unzip tar p7zip zstd lz4 xz-utils trash-cli lxrandr
+
+# Initialize Git LFS for the current user
+if command -v git &>/dev/null && command -v git-lfs &>/dev/null; then
+	echo "Initializing Git LFS..."
+	git lfs install --skip-repo
+fi
 
 # Install Python3-pip if not already installed
 echo "Installing Python3-pip..."
