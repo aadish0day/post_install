@@ -108,7 +108,10 @@ packages=(
 	tar p7zip zstd lz4 xz trash-cli mkinitcpio papirus-icon-theme tree zoxide
 	lsd noto-fonts noto-fonts-cjk noto-fonts-emoji noto-fonts-extra kitty
 	ttf-jetbrains-mono ttf-jetbrains-mono-nerd yazi tmux
-	pavucontrol aria2 git-lfs
+	pavucontrol aria2 git-lfs pipewire pipewire-alsa pipewire-audio
+    pipewire-pulse pipewire-jack pipewire-zeroconf wireplumber
+    cantarell-fonts
+
 )
 
 # List of gaming packages
@@ -122,8 +125,8 @@ gaming_packages=(
 	lib32-vkd3d python-protobuf vkd3d
 )
 
-# List of bspwm packages
-tilling_depen=(
+# List of X11/desktop essentials
+x11_depen=(
 	acpi arandr archlinux-xdg-menu awesome-terminal-fonts dex dmenu dunst feh gvfs flameshot picom nitrogen
 	gvfs-afc gvfs-gphoto2 gvfs-mtp gvfs-nfs gvfs-smb jq polkit-gnome gammastep
 	nwg-look network-manager-applet numlockx playerctl rofi scrot
@@ -144,6 +147,13 @@ tilling_depen=(
 	polybar xdg-desktop-portal xdg-desktop-portal-gtk wmname
 )
 
+# List of Wayland/desktop essentials
+wayland_depen=(
+	sway swaybg swayidle swaylock waybar wofi mako wl-clipboard grim slurp
+	wf-recorder kanshi xdg-desktop-portal xdg-desktop-portal-wlr
+	seatd foot cliphist nm-connection-editor
+)
+
 # List of AUR packages
 aur_packages=(
 	"advcpmv"
@@ -156,6 +166,7 @@ aur_packages=(
 	# "moc"
 	"ani-cli"
 	"hakuneko-desktop"
+	"wlogout"
 )
 
 # List of ASUS specific packages
@@ -187,12 +198,20 @@ else
 	echo "Skipping gaming package installation."
 fi
 
-# Ask user to install bspwm specific packages
-read -rp "Do you want to install tilling specific packages? (y/n): " install_tilling
-if [[ $install_tilling =~ ^[Yy]$ ]]; then
-	install_if_needed "${tilling_depen[@]}"
+# Ask user to install X11 specific packages
+read -rp "Do you want to install X11 specific packages? (y/n): " install_x11
+if [[ $install_x11 =~ ^[Yy]$ ]]; then
+	install_if_needed "${x11_depen[@]}"
 else
-	echo "Skipping bspwm package installation."
+	echo "Skipping X11 package installation."
+fi
+
+# Ask user to install Wayland specific packages
+read -rp "Do you want to install Wayland specific packages? (y/n): " install_wayland
+if [[ $install_wayland =~ ^[Yy]$ ]]; then
+	install_if_needed "${wayland_depen[@]}"
+else
+	echo "Skipping Wayland package installation."
 fi
 
 # Install paru if not present
@@ -225,8 +244,15 @@ elif systemctl list-unit-files | grep -q "dbus-daemon.service"; then
 else
 	echo "No dbus backend service found, skipping..."
 fi
-systemctl --user start xdg-desktop-portal.service
-systemctl --user start xdg-desktop-portal-gtk.service
+if systemctl --user list-unit-files | grep -q "xdg-desktop-portal.service"; then
+	systemctl --user start xdg-desktop-portal.service
+fi
+if systemctl --user list-unit-files | grep -q "xdg-desktop-portal-gtk.service"; then
+	systemctl --user start xdg-desktop-portal-gtk.service
+fi
+if systemctl --user list-unit-files | grep -q "xdg-desktop-portal-wlr.service"; then
+	systemctl --user start xdg-desktop-portal-wlr.service
+fi
 
 echo "zathura set to default"
 xdg-mime default org.pwmt.zathura.desktop application/pdf
