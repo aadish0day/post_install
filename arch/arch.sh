@@ -100,73 +100,62 @@ install_aur_packages() {
 
 # List of general packages
 packages=(
-	neovim tree-sitter-cli ncdu mpv maven yt-dlp fzf git nodejs gcc make ripgrep fd unzip htop
-	gettext libtool doxygen npm xclip highlight atool mediainfo fastfetch
-	android-tools img2pdf zathura zathura-pdf-poppler zathura-ps zathura-djvu zathura-cb
-	obs-studio starship xss-lock qalculate-qt mpv-mpris
-	brightnessctl qbittorrent bluez bluez-utils blueman bat zsh jpegoptim zip
-	tar p7zip zstd lz4 xz trash-cli mkinitcpio papirus-icon-theme tree zoxide
-	lsd noto-fonts noto-fonts-cjk noto-fonts-emoji noto-fonts-extra kitty
-	ttf-jetbrains-mono ttf-jetbrains-mono-nerd yazi tmux
-	pavucontrol aria2 git-lfs pipewire pipewire-alsa pipewire-audio
-    pipewire-pulse pipewire-jack pipewire-zeroconf wireplumber
-    cantarell-fonts
-
+	android-tools aria2 atool bat cantarell-fonts chromaprint doxygen duf fastfetch fd ffmpegthumbnailer
+	fluidsynth fzf gcc gettext git git-lfs gst-libav gst-plugins-ugly gvfs gvfs-afc gvfs-gphoto2 gvfs-mtp gvfs-nfs
+	gvfs-smb highlight htop img2pdf imagemagick inxi jq jpegoptim kitty less libavtp libdca libgme liblrdf libltc
+	libtool linux-headers lsd lz4 make man-db man-pages maven mediainfo mjpegtools mkinitcpio mpv mpv-mpris ncdu
+	neovim nodejs noto-fonts noto-fonts-cjk noto-fonts-emoji noto-fonts-extra npm obs-studio p7zip pacman-contrib pacutils
+	papirus-icon-theme parallel pipewire pipewire-alsa pipewire-audio pipewire-jack pipewire-pulse pipewire-zeroconf
+	pkgfile plocate playerctl pv qalculate-qt qbittorrent ripgrep sd spandsp starship soundtouch svt-hevc tar
+	tree tree-sitter-cli trash-cli tmux ttf-jetbrains-mono ttf-jetbrains-mono-nerd tumbler unzip wireplumber xz
+	yazi yt-dlp zathura zathura-cb zathura-djvu zathura-pdf-poppler zathura-ps zip zoxide zsh zstd
 )
 
 # List of gaming packages
 gaming_packages=(
-	wine-staging lutris wine-gecko wine-mono winetricks gamemode lib32-gamemode giflib
-	lib32-giflib gnutls lib32-gnutls v4l-utils lib32-v4l-utils libpulse lib32-libpulse
-	alsa-plugins lib32-alsa-plugins alsa-lib lib32-alsa-lib sqlite lib32-sqlite
-	libxcomposite lib32-libxcomposite ocl-icd lib32-ocl-icd libva lib32-libva gtk3
-	lib32-gtk3 gst-plugins-base-libs lib32-gst-plugins-base-libs vulkan-icd-loader
-	lib32-vulkan-icd-loader sdl2 lib32-sdl2 innoextract libayatana-appindicator
-	lib32-vkd3d python-protobuf vkd3d
+	alsa-lib alsa-plugins gamemode giflib gnutls gst-plugins-base-libs gtk3 innoextract
+	lib32-alsa-lib lib32-alsa-plugins lib32-gamemode lib32-giflib lib32-gnutls
+	lib32-gst-plugins-base-libs lib32-gtk3 lib32-libpulse lib32-libva lib32-libxcomposite
+	lib32-ocl-icd lib32-sdl2 lib32-sqlite lib32-v4l-utils lib32-vkd3d lib32-vulkan-icd-loader
+	libayatana-appindicator libpulse libva libxcomposite ocl-icd python-protobuf sdl2 sqlite
+	v4l-utils vkd3d vulkan-icd-loader wine-gecko wine-mono wine-staging winetricks
 )
 
-# List of X11/desktop essentials
-x11_depen=(
-	acpi arandr archlinux-xdg-menu awesome-terminal-fonts dex dmenu dunst feh gvfs flameshot picom nitrogen
-	gvfs-afc gvfs-gphoto2 gvfs-mtp gvfs-nfs gvfs-smb jq polkit-gnome gammastep
-	nwg-look network-manager-applet numlockx playerctl rofi scrot
-	sysstat thunar thunar-archive-plugin thunar-volman tumbler xarchiver xbindkeys
-	xdg-user-dirs-gtk xfce4-terminal xorg-xbacklight xorg-xdpyinfo
-	accountsservice alsa-firmware chromaprint ding-libs dmidecode
-	dmraid dnssec-anchors dracut duf ffmpegthumbnailer fluidsynth fsarchiver
-	gssproxy gst-libav gst-plugins-ugly gtksourceview3 haveged hdparm
-	hwdetect hwinfo imagemagick inetutils inxi jemalloc less libavtp libdca libgme
-	libgsf libinstpatch liblqr liblrdf libltc libmaxminddb libmbim
-	libopenraw libpipeline libqmi libqrtr-glib libwnck3 libx86emu libxres
-	linux-headers logrotate lsb-release man-db man-pages mjpegtools modemmanager netctl
-	ntp os-prober pacutils parallel perl-xml-writer pkgfile plocate poppler-glib ppp pv
-	python-annotated-types python-defusedxml python-orjson python-pyaml
-	python-pydantic python-pydantic-core python-pyqt5 python-pyqt5-sip
-	python-typing_extensions sd sg3_utils soundtouch spandsp
-	svt-hevc systemd-resolvconf tcl ttf-opensans usb_modeswitch usbutils clipmenu
-	polybar xdg-desktop-portal xdg-desktop-portal-gtk wmname
+# List of X11 tiling desktop essentials
+x11_tilling_depen=(
+	accountsservice acpi alsa-firmware archlinux-xdg-menu arandr awesome-terminal-fonts
+	bluez bluez-utils blueman brightnessctl clipmenu dex ding-libs dmidecode dmraid dmenu
+	dnssec-anchors dracut dunst feh flameshot fsarchiver gammastep gssproxy gtksourceview3
+	haveged hdparm hwdetect hwinfo inetutils jemalloc libgsf libinstpatch liblqr
+	libmaxminddb libmbim libopenraw libpipeline libqmi libqrtr-glib libwnck3 libx86emu
+	libxres logrotate lsb-release modemmanager netctl network-manager-applet nitrogen ntp
+	numlockx nwg-look os-prober perl-xml-writer picom polkit-gnome polybar poppler-glib
+	ppp python-annotated-types python-defusedxml python-orjson python-pyaml python-pydantic
+	python-pydantic-core python-pyqt5 python-pyqt5-sip python-typing_extensions rofi scrot
+	sg3_utils sysstat systemd-resolvconf tcl thunar thunar-archive-plugin thunar-volman
+	ttf-opensans usb_modeswitch usbutils wmname xarchiver xbindkeys xclip xdg-desktop-portal
+	xdg-desktop-portal-gtk xdg-user-dirs-gtk xfce4-terminal xorg-xbacklight xorg-xdpyinfo xss-lock
 )
 
-# List of Wayland/desktop essentials
-wayland_depen=(
-	sway swaybg swayidle swaylock waybar wofi mako wl-clipboard grim slurp
-	wf-recorder kanshi xdg-desktop-portal xdg-desktop-portal-wlr
-	seatd foot cliphist nm-connection-editor
+# List of Wayland tiling desktop essentials
+wayland_tilling_depen=(
+	cliphist foot grim kanshi mako nm-connection-editor seatd slurp sway swaybg swayidle swaylock waybar
+	wf-recorder wl-clipboard wofi xdg-desktop-portal xdg-desktop-portal-wlr
 )
 
 # List of AUR packages
 aur_packages=(
 	"advcpmv"
-	"dracula-gtk-theme"
-	"thorium-browser-bin"
-	"i3lock-color"
-	"vesktop-bin"
-	# "dxvk-bin"
-	"visual-studio-code-bin"
-	# "moc"
 	"ani-cli"
+	"dracula-gtk-theme"
 	"hakuneko-desktop"
-	"wlogout"
+	"i3lock-color"
+	"thorium-browser-bin"
+	"vesktop-bin"
+	"visual-studio-code-bin"
+	# "wlogout"
+	# "dxvk-bin"
+	# "moc"
 )
 
 # List of ASUS specific packages
@@ -198,20 +187,20 @@ else
 	echo "Skipping gaming package installation."
 fi
 
-# Ask user to install X11 specific packages
-read -rp "Do you want to install X11 specific packages? (y/n): " install_x11
+# Ask user to install X11 tiling-specific packages
+read -rp "Do you want to install X11 tiling-specific packages? (y/n): " install_x11
 if [[ $install_x11 =~ ^[Yy]$ ]]; then
-	install_if_needed "${x11_depen[@]}"
+	install_if_needed "${x11_tilling_depen[@]}"
 else
-	echo "Skipping X11 package installation."
+	echo "Skipping X11 tiling package installation."
 fi
 
-# Ask user to install Wayland specific packages
-read -rp "Do you want to install Wayland specific packages? (y/n): " install_wayland
+# Ask user to install Wayland tiling-specific packages
+read -rp "Do you want to install Wayland tiling-specific packages? (y/n): " install_wayland
 if [[ $install_wayland =~ ^[Yy]$ ]]; then
-	install_if_needed "${wayland_depen[@]}"
+	install_if_needed "${wayland_tilling_depen[@]}"
 else
-	echo "Skipping Wayland package installation."
+	echo "Skipping Wayland tiling package installation."
 fi
 
 # Install paru if not present
