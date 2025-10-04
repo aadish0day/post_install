@@ -143,6 +143,11 @@ wayland_tilling_depen=(
 	wf-recorder wl-clipboard wofi xdg-desktop-portal xdg-desktop-portal-wlr
 )
 
+# List of KDE Plasma desktop environment packages
+kde_plasma_packages=(
+
+)
+
 # List of AUR packages
 aur_packages=(
 	"advcpmv"
@@ -203,6 +208,14 @@ else
 	echo "Skipping Wayland tiling package installation."
 fi
 
+# Ask user to install KDE Plasma desktop environment
+read -rp "Do you want to install KDE Plasma desktop environment? (y/n): " install_kde
+if [[ $install_kde =~ ^[Yy]$ ]]; then
+	install_if_needed "${kde_plasma_packages[@]}"
+else
+	echo "Skipping KDE Plasma desktop environment installation."
+fi
+
 # Install paru if not present
 if ! command -v paru &>/dev/null; then
 	install_paru || {
@@ -233,6 +246,13 @@ elif systemctl list-unit-files | grep -q "dbus-daemon.service"; then
 else
 	echo "No dbus backend service found, skipping..."
 fi
+
+# Enable SDDM if KDE Plasma is installed
+if pacman -Qi sddm &>/dev/null; then
+	echo "Enabling SDDM display manager..."
+	sudo systemctl enable --now sddm.service
+fi
+
 if systemctl --user list-unit-files | grep -q "xdg-desktop-portal.service"; then
 	systemctl --user start xdg-desktop-portal.service
 fi
