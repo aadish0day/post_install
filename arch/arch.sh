@@ -263,8 +263,18 @@ if systemctl --user list-unit-files | grep -q "xdg-desktop-portal-wlr.service"; 
 	systemctl --user start xdg-desktop-portal-wlr.service
 fi
 
-echo "zathura set to default"
-xdg-mime default org.pwmt.zathura.desktop application/pdf
+# Ask to set Zathura as default PDF viewer
+read -rp "Do you want to set Zathura as the default PDF viewer? (y/n): " set_pdf_default
+if [[ $set_pdf_default =~ ^[Yy]$ ]]; then
+	if command -v zathura &>/dev/null; then
+		echo "Setting Zathura as the default PDF viewer..."
+		xdg-mime default org.pwmt.zathura.desktop application/pdf
+	else
+		echo "Zathura is not installed; skipping default PDF assignment."
+	fi
+else
+	echo "Skipping setting default PDF viewer."
+fi
 
 # Set thorium-browser as default browser if installed
 if command -v thorium-browser &>/dev/null; then
