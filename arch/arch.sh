@@ -18,6 +18,89 @@ fi
 # Update system and packages after mirror update
 sudo pacman -Syu --noconfirm
 
+# ============================================================================
+# ASK USER PREFERENCES UPFRONT
+# ============================================================================
+
+echo ""
+echo "=========================================="
+echo "Desktop Environment Selection"
+echo "=========================================="
+echo "1) KDE Plasma"
+echo "2) X11 Tiling Window Manager"
+echo "3) None (Skip desktop environment)"
+echo ""
+read -rp "Select desktop environment (1-3): " de_choice
+
+install_kde=false
+install_x11=false
+
+case $de_choice in
+	1)
+		install_kde=true
+		echo "KDE Plasma will be installed."
+		;;
+	2)
+		install_x11=true
+		echo "X11 tiling window manager packages will be installed."
+		;;
+	3)
+		echo "Skipping desktop environment installation."
+		;;
+	*)
+		echo "Invalid choice. Skipping desktop environment installation."
+		;;
+esac
+
+# Ask about gaming packages
+echo ""
+read -rp "Do you want to install gaming packages? (y/n): " install_gaming_input
+install_gaming=false
+if [[ $install_gaming_input =~ ^[Yy]$ ]]; then
+	install_gaming=true
+	echo "Gaming packages will be installed."
+else
+	echo "Skipping gaming packages."
+fi
+
+# Ask about ASUS specific packages
+echo ""
+read -rp "Do you want to install ASUS specific drivers? (y/n): " install_asus_input
+install_asus=false
+if [[ $install_asus_input =~ ^[Yy]$ ]]; then
+	install_asus=true
+	echo "ASUS specific drivers will be installed."
+else
+	echo "Skipping ASUS specific drivers."
+fi
+
+echo ""
+echo "=========================================="
+echo "Installation Summary"
+echo "=========================================="
+# Determine which desktop environment was selected
+de_name="None"
+if [ "$install_kde" = true ]; then
+	de_name="KDE Plasma"
+elif [ "$install_x11" = true ]; then
+	de_name="X11 Tiling"
+fi
+
+echo "Desktop Environment: $de_name"
+echo "Gaming Packages: $([ "$install_gaming" = true ] && echo "Yes" || echo "No")"
+echo "ASUS Drivers: $([ "$install_asus" = true ] && echo "Yes" || echo "No")"
+echo "=========================================="
+echo ""
+read -rp "Continue with installation? (y/n): " continue_install
+if [[ ! $continue_install =~ ^[Yy]$ ]]; then
+	echo "Installation cancelled."
+	exit 0
+fi
+
+# ============================================================================
+# FUNCTIONS
+# ============================================================================
+
 # Function to install packages if not already installed
 install_if_needed() {
 	local pkg
@@ -60,6 +143,11 @@ install_paru() {
 
 	cd /tmp || exit 1
 
+	if [ -d "/tmp/paru-bin" ]; then
+		echo "Removing existing paru-bin directory..."
+		rm -rf /tmp/paru-bin
+	fi
+
 	if ! git clone https://aur.archlinux.org/paru-bin.git; then
 		echo "Failed to clone paru-bin repository."
 		cd - || exit 1
@@ -97,6 +185,10 @@ install_aur_packages() {
 		fi
 	done
 }
+
+# ============================================================================
+# PACKAGE LISTS
+# ============================================================================
 
 # List of general packages
 packages=(
@@ -137,30 +229,30 @@ x11_tilling_depen=(
 	xdg-desktop-portal-gtk xdg-user-dirs-gtk xfce4-terminal xorg-xbacklight xorg-xdpyinfo xss-lock
 )
 
-# List of Wayland tiling desktop essentials
-wayland_tilling_depen=(
-	cliphist foot grim kanshi mako nm-connection-editor seatd slurp sway swaybg swayidle swaylock waybar
-	wf-recorder wl-clipboard wofi xdg-desktop-portal xdg-desktop-portal-wlr
-)
-
 # List of KDE Plasma desktop environment packages
 kde_plasma_packages=(
-
+	rsync obsidian elisa gwenview kamoso okular libreoffice-fresh wl-clipboard qt6-tools
 )
 
 # List of AUR packages
 aur_packages=(
+	"thorium-browser-bin"
 	"advcpmv"
 	"ani-cli"
 	"dracula-gtk-theme"
 	"hakuneko-desktop"
-	"i3lock-color"
-	"thorium-browser-bin"
 	"vesktop-bin"
 	"visual-studio-code-bin"
-	# "wlogout"
-	# "dxvk-bin"
-	# "moc"
+)
+
+# List of X11-specific AUR packages
+x11_aur_packages=(
+	"i3lock-color"
+)
+
+# List of gaming-specific AUR packages
+gaming_aur_packages=(
+	"dxvk-bin"
 )
 
 # List of ASUS specific packages
@@ -171,10 +263,14 @@ asus_packages=(
 	"lib32-amdgpu-pro-oglp"
 	"opencl-headers"
 	"amf-amdgpu-pro"
-	# "opencl-amd"
 )
 
+# ============================================================================
+# INSTALLATION
+# ============================================================================
+
 # Install base packages
+echo ""
 echo "Installing base packages..."
 install_if_needed "${packages[@]}"
 
@@ -184,40 +280,30 @@ if command -v git &>/dev/null && command -v git-lfs &>/dev/null; then
 	git lfs install --skip-repo
 fi
 
-# Ask user for gaming package installation
-read -rp "Do you want to install gaming packages? (y/n): " install_gaming
-if [[ $install_gaming =~ ^[Yy]$ ]]; then
+# Install gaming packages if selected
+if [ "$install_gaming" = true ]; then
+	echo ""
+	echo "Installing gaming packages..."
 	install_if_needed "${gaming_packages[@]}"
-else
-	echo "Skipping gaming package installation."
 fi
 
-# Ask user to install X11 tiling-specific packages
-read -rp "Do you want to install X11 tiling-specific packages? (y/n): " install_x11
-if [[ $install_x11 =~ ^[Yy]$ ]]; then
+# Install X11 tiling-specific packages if selected
+if [ "$install_x11" = true ]; then
+	echo ""
+	echo "Installing X11 tiling-specific packages..."
 	install_if_needed "${x11_tilling_depen[@]}"
-else
-	echo "Skipping X11 tiling package installation."
 fi
 
-# Ask user to install Wayland tiling-specific packages
-read -rp "Do you want to install Wayland tiling-specific packages? (y/n): " install_wayland
-if [[ $install_wayland =~ ^[Yy]$ ]]; then
-	install_if_needed "${wayland_tilling_depen[@]}"
-else
-	echo "Skipping Wayland tiling package installation."
-fi
-
-# Ask user to install KDE Plasma desktop environment
-read -rp "Do you want to install KDE Plasma desktop environment? (y/n): " install_kde
-if [[ $install_kde =~ ^[Yy]$ ]]; then
+# Install KDE Plasma desktop environment if selected
+if [ "$install_kde" = true ]; then
+	echo ""
+	echo "Installing KDE Plasma desktop environment..."
 	install_if_needed "${kde_plasma_packages[@]}"
-else
-	echo "Skipping KDE Plasma desktop environment installation."
 fi
 
 # Install paru if not present
 if ! command -v paru &>/dev/null; then
+	echo ""
 	install_paru || {
 		echo "Failed to install paru. AUR packages will not be installed."
 		exit 1
@@ -225,43 +311,88 @@ if ! command -v paru &>/dev/null; then
 fi
 
 # Install AUR packages
+echo ""
 echo "Installing AUR packages..."
 install_aur_packages "${aur_packages[@]}"
 
-# Ask if the user wants to install ASUS specific packages
-read -rp "Do you want to install ASUS specific drivers? (y/n): " install_asus
-if [[ $install_asus =~ ^[Yy]$ ]]; then
-	install_aur_packages "${asus_packages[@]}"
-else
-	echo "Skipping ASUS specific packages."
+# Install X11-specific AUR packages if selected
+if [ "$install_x11" = true ]; then
+	echo ""
+	echo "Installing X11-specific AUR packages..."
+	install_aur_packages "${x11_aur_packages[@]}"
 fi
 
-# Enable and restart services
-echo "Enabling and starting services..."
-# systemctl enable --now bluetooth.service
-if systemctl list-unit-files | grep -q "dbus-broker.service"; then
-	systemctl --user enable --now dbus-broker.service
-elif systemctl list-unit-files | grep -q "dbus-daemon.service"; then
-	systemctl --user enable --now dbus-daemon.service
-else
-	echo "No dbus backend service found, skipping..."
+# Install gaming-specific AUR packages if selected
+if [ "$install_gaming" = true ]; then
+	echo ""
+	echo "Installing gaming-specific AUR packages..."
+	install_aur_packages "${gaming_aur_packages[@]}"
+fi
+
+# Install ASUS specific packages if selected
+if [ "$install_asus" = true ]; then
+	echo ""
+	echo "Installing ASUS specific drivers..."
+	install_aur_packages "${asus_packages[@]}"
+fi
+
+# ============================================================================
+# SERVICE CONFIGURATION
+# ============================================================================
+
+echo ""
+echo "Configuring services..."
+
+# Enable Bluetooth if X11 tiling is installed (KDE manages its own Bluetooth)
+if [ "$install_x11" = true ]; then
+	read -rp "Do you want to enable Bluetooth? (y/n): " enable_bluetooth
+	if [[ $enable_bluetooth =~ ^[Yy]$ ]]; then
+		sudo systemctl enable --now bluetooth.service
+		echo "Bluetooth service enabled."
+	fi
+fi
+
+# Enable dbus (skip for KDE as it handles this)
+if [ "$install_kde" = false ]; then
+	if systemctl list-unit-files | grep -q "dbus-broker.service"; then
+		systemctl --user enable --now dbus-broker.service
+	elif systemctl list-unit-files | grep -q "dbus-daemon.service"; then
+		systemctl --user enable --now dbus-daemon.service
+	else
+		echo "No dbus backend service found, skipping..."
+	fi
 fi
 
 # Enable SDDM if KDE Plasma is installed
-if pacman -Qi sddm &>/dev/null; then
-	echo "Enabling SDDM display manager..."
-	sudo systemctl enable --now sddm.service
+if [ "$install_kde" = true ] && pacman -Qi sddm &>/dev/null; then
+	if ! systemctl is-enabled sddm.service &>/dev/null; then
+		echo "Enabling SDDM display manager..."
+		sudo systemctl enable sddm.service
+	else
+		echo "SDDM is already enabled."
+	fi
 fi
 
-if systemctl --user list-unit-files | grep -q "xdg-desktop-portal.service"; then
-	systemctl --user start xdg-desktop-portal.service
-fi
-if systemctl --user list-unit-files | grep -q "xdg-desktop-portal-gtk.service"; then
-	systemctl --user start xdg-desktop-portal-gtk.service
-fi
-if systemctl --user list-unit-files | grep -q "xdg-desktop-portal-wlr.service"; then
-	systemctl --user start xdg-desktop-portal-wlr.service
-fi
+# Start xdg-desktop-portal services (don't enable, they're socket-activated)
+systemctl_user_services=(
+	"xdg-desktop-portal.service"
+	"xdg-desktop-portal-gtk.service"
+)
+
+for service in "${systemctl_user_services[@]}"; do
+	if systemctl --user list-unit-files | grep -q "$service"; then
+		if ! systemctl --user is-active --quiet "$service"; then
+			systemctl --user start "$service" 2>/dev/null && echo "Started $service" || true
+		fi
+	fi
+done
+
+# ============================================================================
+# DEFAULT APPLICATIONS
+# ============================================================================
+
+echo ""
+echo "Configuring default applications..."
 
 # Ask to set Zathura as default PDF viewer
 read -rp "Do you want to set Zathura as the default PDF viewer? (y/n): " set_pdf_default
@@ -272,22 +403,30 @@ if [[ $set_pdf_default =~ ^[Yy]$ ]]; then
 	else
 		echo "Zathura is not installed; skipping default PDF assignment."
 	fi
-else
-	echo "Skipping setting default PDF viewer."
 fi
 
 # Set thorium-browser as default browser if installed
 if command -v thorium-browser &>/dev/null; then
 	echo "Setting thorium-browser as the default browser..."
-	xdg-settings set default-web-browser thorium-browser.desktop
-	current_browser=$(xdg-settings get default-web-browser)
-	echo "Current default browser: $current_browser"
+	xdg-settings set default-web-browser thorium-browser.desktop 2>/dev/null || true
+	current_browser=$(xdg-settings get default-web-browser 2>/dev/null)
+	if [ -n "$current_browser" ]; then
+		echo "Current default browser: $current_browser"
+	fi
 fi
 
 # Change default shell to zsh if installed
 if command -v zsh &>/dev/null; then
-	echo "Changing default shell to zsh..."
-	chsh -s "$(command -v zsh)" "$USER"
+	read -rp "Do you want to change your default shell to zsh? (y/n): " change_shell
+	if [[ $change_shell =~ ^[Yy]$ ]]; then
+		echo "Changing default shell to zsh..."
+		chsh -s "$(command -v zsh)" "$USER"
+		echo "Default shell changed to zsh. Please log out and log back in for changes to take effect."
+	fi
 fi
 
-echo "Installation process completed! Please reboot your system."
+echo ""
+echo "=========================================="
+echo "Installation completed successfully!"
+echo "=========================================="
+echo "Please reboot your system for all changes to take effect."
