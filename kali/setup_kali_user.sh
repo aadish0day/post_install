@@ -67,11 +67,6 @@ for group in $GROUPS; do
     fi
 done
 
-# Copy shell configuration
-cp /etc/skel/.bashrc /home/"$NEW_USER"/ 2>/dev/null
-cp /etc/skel/.profile /home/"$NEW_USER"/ 2>/dev/null
-cp /etc/skel/.bash_logout /home/"$NEW_USER"/ 2>/dev/null
-
 # Set proper ownership
 chown -R "$NEW_USER":"$NEW_USER" /home/"$NEW_USER"
 
