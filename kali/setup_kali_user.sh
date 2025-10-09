@@ -45,9 +45,21 @@ if [[ $? -ne 0 ]]; then
     exit 1
 fi
 
-# Add user to all required groups
-echo "Adding user to groups..."
-GROUPS="sudo dialout wireshark bluetooth netdev kaboxer vboxsf docker"
+# Add user to sudo group first (most important)
+echo "Adding user to sudo group..."
+usermod -aG sudo "$NEW_USER"
+
+# Verify sudo group was added
+if groups "$NEW_USER" | grep -q "\bsudo\b"; then
+    echo "Successfully added to sudo group"
+else
+    echo "Warning: Failed to add to sudo group"
+    exit 1
+fi
+
+# Add user to other required groups
+echo "Adding user to additional groups..."
+GROUPS="dialout wireshark bluetooth netdev kaboxer vboxsf docker"
 
 for group in $GROUPS; do
     if getent group "$group" > /dev/null 2>&1; then
@@ -97,6 +109,11 @@ if [[ "$AUTO_LOGIN" == "yes" || "$AUTO_LOGIN" == "y" ]]; then
     fi
 fi
 
+# Verify sudo group membership
+echo
+echo "Verifying group membership..."
+groups "$NEW_USER"
+
 # Summary
 echo
 echo "============================="
@@ -104,8 +121,20 @@ echo "Setup Complete!"
 echo "============================="
 echo "New user: $NEW_USER"
 echo
-echo "Next steps:"
-echo "1. Logout and login as $NEW_USER"
-echo "2. Test sudo access: sudo -v"
+echo "IMPORTANT - REQUIRED STEPS:"
+echo "=============================="
+echo "1. LOGOUT of the current session"
+echo "2. LOGIN as $NEW_USER"
+echo "3. Group changes only apply after re-login!"
+echo
+echo "After logging in as $NEW_USER, verify with:"
+echo "  groups"
+echo "  sudo -v"
+echo
+echo "If sudo doesn't work, run as root:"
+echo "  su -"
+echo "  usermod -aG sudo $NEW_USER"
+echo "  exit"
+echo "  Then logout and login again"
 echo
 echo "Done!"
