@@ -44,7 +44,7 @@ mkdir -p ~/cybersec/
 # Install nala and update/upgrade system
 sudo apt update
 sudo apt install nala -y
-sudo nala update && sudo nala full-upgrade -y
+sudo nala update && sudo nala upgrade -y
 
 # Define package lists
 base_packages=(
