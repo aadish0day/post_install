@@ -52,10 +52,31 @@ enable_services() {
     systemctl start supergfxd.service
 }
 
+# Configure asusctl settings
+configure_asusctl() {
+    echo "Configuring asusctl settings..."
+    
+    # Set battery charge limit to 85%
+    echo "Setting battery charge limit to 85%..."
+    asusctl -c 85
+    
+    # Enable custom fan curves for all modes
+    echo "Enabling custom fan curves..."
+    asusctl fan-curve -m Quiet -f cpu -e true
+    asusctl fan-curve -m Quiet -f gpu -e true
+    asusctl fan-curve -m Performance -f cpu -e true
+    asusctl fan-curve -m Performance -f gpu -e true
+    asusctl fan-curve -m Balanced -f cpu -e true
+    asusctl fan-curve -m Balanced -f gpu -e true
+    
+    echo "Asusctl configuration completed."
+}
+
 # Run functions
 require_root
 add_g14_repo
 install_packages
 enable_services
+configure_asusctl
 
-echo "Installation completed successfully. G14 repo added, keys configured, and all necessary packages installed."
+echo "Installation completed successfully. G14 repo added, keys configured, packages installed, and asusctl configured."
