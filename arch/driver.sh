@@ -14,7 +14,7 @@ pacman -Syu --noconfirm
 # Install necessary packages for AMD
 # Installing the required packages for AMD GPU support, Vulkan, and other dependencies
 echo "Installing necessary AMD packages..."
-sudo pacman -S --noconfirm xf86-video-amdgpu amd-ucode vulkan-radeon lib32-vulkan-radeon radeontop mesa lib32-mesa lib32-mesa-vdpau mesa-vdpau amdvlk lib32-amdvlk lib32-libva-mesa-driver libva-mesa-driver dkms rocm-opencl-runtime rocm-opencl-sdk  opencl-headers libclc ocl-icd lib32-ocl-icd   glu mesa-utils mesa-demos vulkan-mesa-layers lib32-glu lib32-mesa-utils lib32-mesa-demos lib32-vulkan-mesa-layers mesa-vdpau lib32-mesa-vdpau
+sudo pacman -S --noconfirm xf86-video-amdgpu amd-ucode mesa lib32-mesa vulkan-radeon lib32-vulkan-radeon radeontop libva-mesa-driver lib32-libva-mesa-driver mesa-utils mesa-demos vulkan-mesa-layers lib32-mesa-utils lib32-mesa-demos lib32-vulkan-mesa-layers rocm-opencl-runtime rocm-opencl-sdk opencl-headers libclc ocl-icd glu lib32-glu mesa-vdpau lib32-mesa-vdpau
 
 # Edit GRUB configuration to optimize for AMD
 # Uncomment and modify if needed
