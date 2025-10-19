@@ -201,6 +201,7 @@ packages=(
     pkgfile plocate playerctl pv qalculate-qt qbittorrent ripgrep sd spandsp starship soundtouch svt-hevc tar
     tree tree-sitter-cli trash-cli tmux ttf-jetbrains-mono ttf-jetbrains-mono-nerd tumbler unzip wireplumber xz
     yazi yt-dlp zathura zathura-cb zathura-djvu zathura-pdf-poppler zathura-ps zip zoxide zsh zstd dosfstools
+    usbutils
 )
 
 # List of gaming packages
@@ -225,14 +226,14 @@ x11_tilling_depen=(
     ppp python-annotated-types python-defusedxml python-orjson python-pyaml python-pydantic
     python-pydantic-core python-pyqt5 python-pyqt5-sip python-typing_extensions rofi scrot
     sg3_utils sysstat systemd-resolvconf tcl thunar thunar-archive-plugin thunar-volman
-    ttf-opensans usb_modeswitch usbutils wmname xarchiver xbindkeys xclip xdg-desktop-portal
+    ttf-opensans usb_modeswitch wmname xarchiver xbindkeys xclip xdg-desktop-portal
     xdg-desktop-portal-gtk xdg-user-dirs-gtk xfce4-terminal xorg-xbacklight xorg-xdpyinfo xss-lock
 )
 
 # List of KDE Plasma desktop environment packages
 kde_plasma_packages=(
     rsync obsidian elisa gwenview kamoso okular libreoffice-fresh wl-clipboard qt6-tools
-    mesa libva-mesa-driver libva-utils vulkan-radeon vulkan-tools dosfstools
+    mesa libva-mesa-driver libva-utils vulkan-radeon vulkan-tools dosfstools sshfs
 )
 
 # List of AUR packages
