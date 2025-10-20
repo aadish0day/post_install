@@ -74,6 +74,17 @@ else
     echo "Skipping ASUS specific drivers."
 fi
 
+# Ask about virtualization packages
+echo ""
+read -rp "Do you want to install virtualization packages (VMware Workstation and Open VM Tools)? (y/n): " install_virt_input
+install_virt=false
+if [[ $install_virt_input =~ ^[Yy]$ ]]; then
+    install_virt=true
+    echo "Virtualization packages will be installed."
+else
+    echo "Skipping virtualization packages."
+fi
+
 echo ""
 echo "=========================================="
 echo "Installation Summary"
@@ -89,6 +100,7 @@ fi
 echo "Desktop Environment: $de_name"
 echo "Gaming Packages: $([ "$install_gaming" = true ] && echo "Yes" || echo "No")"
 echo "ASUS Drivers: $([ "$install_asus" = true ] && echo "Yes" || echo "No")"
+echo "Virtualization Packages: $([ "$install_virt" = true ] && echo "Yes" || echo "No")"
 echo "=========================================="
 echo ""
 read -rp "Continue with installation? (y/n): " continue_install
@@ -268,6 +280,12 @@ asus_packages=(
     "amf-amdgpu-pro"
 )
 
+# List of virtualization packages
+virt_packages=(
+    "vmware-workstation"
+    "open-vm-tools"
+)
+
 # ============================================================================
 # INSTALLATION
 # ============================================================================
@@ -337,6 +355,13 @@ if [ "$install_asus" = true ]; then
     echo ""
     echo "Installing ASUS specific drivers..."
     install_aur_packages "${asus_packages[@]}"
+fi
+
+# Install virtualization packages if selected
+if [ "$install_virt" = true ]; then
+    echo ""
+    echo "Installing virtualization packages..."
+    install_aur_packages "${virt_packages[@]}"
 fi
 
 # ============================================================================
