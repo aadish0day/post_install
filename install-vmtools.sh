@@ -31,7 +31,7 @@ install_arch() {
     sudo systemctl start vmware-vmblock-fuse.service
     
     echo "Adding user to vmware group..."
-    sudo usermod -aG vmware $USER
+    # sudo usermod -aG vmware $USER
     
     echo ""
     echo "✓ Installation complete for Arch Linux!"
