@@ -13,18 +13,18 @@ pacman -Syu --noconfirm
 
 # Install necessary packages for AMD
 # Installing the required packages for AMD GPU support, Vulkan, and other dependencies
-echo "Installing necessary AMD packages..."
-sudo pacman -S --noconfirm xf86-video-amdgpu amd-ucode mesa lib32-mesa vulkan-radeon lib32-vulkan-radeon radeontop libva-mesa-driver lib32-libva-mesa-driver mesa-utils mesa-demos vulkan-mesa-layers lib32-mesa-utils lib32-mesa-demos lib32-vulkan-mesa-layers rocm-opencl-runtime rocm-opencl-sdk opencl-headers libclc ocl-icd glu lib32-glu mesa-vdpau lib32-mesa-vdpau
-
-# Edit GRUB configuration to optimize for AMD
-# Uncomment and modify if needed
-echo "Editing GRUB configuration..."
-sudo sed -i 's|^GRUB_CMDLINE_LINUX_DEFAULT=".*"|GRUB_CMDLINE_LINUX_DEFAULT="quiet splash loglevel=3 amd_pstate=active amd_prefcore=enable"|' /etc/default/grub
-
-# Regenerate the GRUB configuration
-sudo grub-mkconfig -o /boot/grub/grub.cfg
-
-echo "AMD drivers installed and GRUB configuration updated."
+# echo "Installing necessary AMD packages..."
+# sudo pacman -S --noconfirm xf86-video-amdgpu amd-ucode mesa lib32-mesa vulkan-radeon lib32-vulkan-radeon radeontop libva-mesa-driver lib32-libva-mesa-driver mesa-utils mesa-demos vulkan-mesa-layers lib32-mesa-utils lib32-mesa-demos lib32-vulkan-mesa-layers rocm-opencl-runtime rocm-opencl-sdk opencl-headers libclc ocl-icd glu lib32-glu mesa-vdpau lib32-mesa-vdpau
+#
+# # Edit GRUB configuration to optimize for AMD
+# # Uncomment and modify if needed
+# echo "Editing GRUB configuration..."
+# sudo sed -i 's|^GRUB_CMDLINE_LINUX_DEFAULT=".*"|GRUB_CMDLINE_LINUX_DEFAULT="quiet splash loglevel=3 amd_pstate=active amd_prefcore=enable"|' /etc/default/grub
+#
+# # Regenerate the GRUB configuration
+# sudo grub-mkconfig -o /boot/grub/grub.cfg
+#
+# echo "AMD drivers installed and GRUB configuration updated."
 
 # Define the target configuration file path for touchpad
 # The configuration file for touchpad settings will be created/overwritten here

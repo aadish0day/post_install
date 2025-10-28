@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Keep sudo alive during long operations (e.g., AUR builds)
+if sudo -v; then
+    sudo -n true
+    keep_sudo_alive() { while true; do sleep 60; sudo -n true; done; }
+    keep_sudo_alive &
+    SUDO_KEEP_ALIVE_PID=$!
+    trap 'kill ${SUDO_KEEP_ALIVE_PID} 2>/dev/null || true' EXIT
+fi
+
 # Update system and packages
 echo "Updating system and packages..."
 sudo pacman -Sy --noconfirm
@@ -85,6 +94,17 @@ else
     echo "Skipping virtualization packages."
 fi
 
+# Ask about AMD GPU drivers and related runtimes
+echo ""
+read -rp "Do you want to install AMD GPU drivers and runtimes (Vulkan/OpenCL/VA-API/VDPAU)? (y/n): " install_amd_input
+install_amd=false
+if [[ $install_amd_input =~ ^[Yy]$ ]]; then
+    install_amd=true
+    echo "AMD GPU drivers and runtimes will be installed."
+else
+    echo "Skipping AMD GPU drivers and runtimes."
+fi
+
 echo ""
 echo "=========================================="
 echo "Installation Summary"
@@ -101,6 +121,7 @@ echo "Desktop Environment: $de_name"
 echo "Gaming Packages: $([ "$install_gaming" = true ] && echo "Yes" || echo "No")"
 echo "ASUS Drivers: $([ "$install_asus" = true ] && echo "Yes" || echo "No")"
 echo "Virtualization Packages: $([ "$install_virt" = true ] && echo "Yes" || echo "No")"
+echo "AMD Drivers: $([ "$install_amd" = true ] && echo "Yes" || echo "No")"
 echo "=========================================="
 echo ""
 read -rp "Continue with installation? (y/n): " continue_install
@@ -280,10 +301,19 @@ asus_packages=(
     "amf-amdgpu-pro"
 )
 
+# List of AMD GPU and related runtime packages
+amd_packages=(
+    xf86-video-amdgpu amd-ucode mesa lib32-mesa vulkan-radeon lib32-vulkan-radeon
+    radeontop libva-mesa-driver lib32-libva-mesa-driver mesa-utils mesa-demos
+    vulkan-mesa-layers lib32-mesa-utils lib32-mesa-demos lib32-vulkan-mesa-layers
+    rocm-opencl-runtime rocm-opencl-sdk opencl-headers libclc ocl-icd glu lib32-glu
+    mesa-vdpau lib32-mesa-vdpau
+)
+
 # List of virtualization packages
 virt_packages=(
     "vmware-workstation"
-    "open-vm-tools"
+#    "open-vm-tools"
 )
 
 # ============================================================================
@@ -299,6 +329,19 @@ install_if_needed "${packages[@]}"
 if command -v git &>/dev/null && command -v git-lfs &>/dev/null; then
     echo "Initializing Git LFS..."
     git lfs install --skip-repo
+fi
+
+if [ "$install_amd" = true ]; then
+    echo ""
+    echo "Installing AMD GPU drivers and runtimes..."
+    install_if_needed "${amd_packages[@]}"
+
+    # Edit GRUB configuration to optimize for AMD
+    echo "Editing GRUB configuration..."
+    sudo sed -i 's|^GRUB_CMDLINE_LINUX_DEFAULT=".*"|GRUB_CMDLINE_LINUX_DEFAULT="quiet splash loglevel=3 amd_pstate=active amd_prefcore=enable"|' /etc/default/grub
+
+    # Regenerate the GRUB configuration
+    sudo grub-mkconfig -o /boot/grub/grub.cfg
 fi
 
 # Install gaming packages if selected
