@@ -4,7 +4,10 @@ set -euo pipefail
 # Keep sudo alive during long operations (e.g., AUR builds)
 if sudo -v; then
     sudo -n true
-    keep_sudo_alive() { while true; do sleep 60; sudo -n true; done; }
+    keep_sudo_alive() { while true; do
+        sleep 60
+        sudo -n true
+    done; }
     keep_sudo_alive &
     SUDO_KEEP_ALIVE_PID=$!
     trap 'kill ${SUDO_KEEP_ALIVE_PID} 2>/dev/null || true' EXIT
@@ -312,8 +315,9 @@ amd_packages=(
 
 # List of virtualization packages
 virt_packages=(
+    "libx11-mr293"
     "vmware-workstation"
-#    "open-vm-tools"
+    #    "open-vm-tools"
 )
 
 # ============================================================================
