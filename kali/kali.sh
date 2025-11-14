@@ -48,7 +48,7 @@ sudo nala update && sudo nala upgrade -y
 
 # Define package lists
 base_packages=(
-	git git-lfs stow zsh tmux curl wget vim neovim fzf starship zoxide lsd trash-cli htop open-vm-tools
+	git git-lfs stow zsh tmux curl wget vim neovim fzf zoxide lsd trash-cli htop open-vm-tools
 )
 
 # Install base packages
