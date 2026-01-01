@@ -270,6 +270,7 @@ x11_tilling_depen=(
 kde_plasma_packages=(
     rsync obsidian elisa gwenview kamoso okular libreoffice-fresh wl-clipboard qt6-tools
     mesa libva-mesa-driver libva-utils vulkan-radeon vulkan-tools dosfstools sshfs kdeconnect
+    kclock docker-compose docker docker-compose
 )
 
 # List of AUR packages
