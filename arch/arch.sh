@@ -233,11 +233,10 @@ packages=(
     gvfs-smb highlight htop img2pdf imagemagick inxi jq jpegoptim kitty less libavtp libdca libgme liblrdf libltc
     libtool linux-headers lsd lz4 make man-db man-pages maven mediainfo mjpegtools mkinitcpio mpv mpv-mpris ncdu
     neovim nodejs noto-fonts noto-fonts-cjk noto-fonts-emoji noto-fonts-extra npm obs-studio p7zip pacman-contrib pacutils
-    papirus-icon-theme parallel pipewire pipewire-alsa pipewire-audio pipewire-jack pipewire-pulse pipewire-zeroconf
+    papirus-icon-theme parallel pipewire pipewire-alsa pipewire-audio pipewire-jack pipewire-pulse pipewire-zeroconf pipewire-libcamera
     pkgfile plocate playerctl pv qalculate-qt qbittorrent ripgrep sd spandsp starship soundtouch svt-hevc tar
     tree tree-sitter-cli trash-cli tmux ttf-jetbrains-mono ttf-jetbrains-mono-nerd tumbler unzip wireplumber xz
-    yazi yt-dlp zathura zathura-cb zathura-djvu zathura-pdf-poppler zathura-ps zip zoxide zsh zstd dosfstools
-    usbutils
+    yazi yt-dlp zip zoxide zsh zstd dosfstools usbutils
 )
 
 # List of gaming packages
@@ -264,13 +263,14 @@ x11_tilling_depen=(
     sg3_utils sysstat systemd-resolvconf tcl thunar thunar-archive-plugin thunar-volman
     ttf-opensans usb_modeswitch wmname xarchiver xbindkeys xclip xdg-desktop-portal
     xdg-desktop-portal-gtk xdg-user-dirs-gtk xfce4-terminal xorg-xbacklight xorg-xdpyinfo xss-lock
+    zathura zathura-cb zathura-djvu zathura-pdf-poppler zathura-ps 
 )
 
 # List of KDE Plasma desktop environment packages
 kde_plasma_packages=(
     rsync obsidian elisa gwenview kamoso okular libreoffice-fresh wl-clipboard qt6-tools
     mesa libva-mesa-driver libva-utils vulkan-radeon vulkan-tools dosfstools sshfs kdeconnect
-    kclock docker-compose docker docker-compose
+    kclock docker-compose docker docker-compose 
 )
 
 # List of AUR packages
@@ -282,6 +282,7 @@ aur_packages=(
     "vesktop-bin"
     "visual-studio-code-bin"
     "spotify"
+    "timeshift-autosnap"
 )
 
 # List of X11-specific AUR packages
@@ -311,7 +312,7 @@ amd_packages=(
     radeontop libva-mesa-driver lib32-libva-mesa-driver mesa-utils mesa-demos
     vulkan-mesa-layers lib32-mesa-utils lib32-mesa-demos lib32-vulkan-mesa-layers
     rocm-opencl-runtime rocm-opencl-sdk opencl-headers libclc ocl-icd glu lib32-glu
-    mesa-vdpau lib32-mesa-vdpau
+    # mesa-vdpau lib32-mesa-vdpau
 )
 
 # List of virtualization packages
@@ -480,8 +481,8 @@ if [ "$install_x11" = true ]; then
     fi
 fi
 
-# Set thorium-browser as default browser if installed
-if command -v thorium-browser &>/dev/null; then
+# Set thorium-browser as default browser if X11 is installed and thorium is present
+if [ "$install_x11" = true ] && command -v thorium-browser &>/dev/null; then
     echo "Setting thorium-browser as the default browser..."
     xdg-settings set default-web-browser thorium-browser.desktop 2>/dev/null || true
     current_browser=$(xdg-settings get default-web-browser 2>/dev/null)
