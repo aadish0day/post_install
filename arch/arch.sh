@@ -247,6 +247,7 @@ gaming_packages=(
     lib32-ocl-icd lib32-sdl2 lib32-sqlite lib32-v4l-utils lib32-vkd3d lib32-vulkan-icd-loader
     libayatana-appindicator libpulse libva libxcomposite ocl-icd python-protobuf sdl2 sqlite
     v4l-utils vkd3d vulkan-icd-loader wine-gecko wine-mono wine-staging winetricks
+    umu-launcher python-pefile vulkan-tools lutris
 )
 
 # List of X11 tiling desktop essentials
@@ -293,7 +294,8 @@ x11_aur_packages=(
 
 # List of gaming-specific AUR packages
 gaming_aur_packages=(
-    "dxvk-bin"
+    # "dxvk-bin"
+    "dxvk-gplasync-bin"
 )
 
 # List of ASUS specific packages
