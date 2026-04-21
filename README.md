@@ -84,13 +84,11 @@ Before running the scripts, you need to have `git` installed to clone the reposi
 ### Distribution-Specific Scripts
 
 #### Arch Linux (`arch/`)
-
-- `arch.sh`: The main script for Arch Linux. It handles system updates, installs a wide range of packages from official repositories and the AUR, and allows the user to optionally install:
-  - A desktop environment (KDE Plasma or X11 Tiling WMs).
-  - Gaming packages.
-  - ASUS-specific drivers.
-  - Virtualization packages.
+- `arch.sh`: The main script for Arch Linux. It handles system updates, installs base packages, and orchestrates the installation of optional components.
+- `kde.sh`: Installs and configures the KDE Plasma desktop environment.
+- `tiling.sh`: Installs and configures an X11 tiling window manager environment (Awesome, i3, etc.).
 - `asus_package.sh`: Installs and configures `asusctl` and other utilities for ASUS laptops running Arch Linux.
+
 - `driver.sh`: Installs AMD GPU drivers (`xf86-video-amdgpu`) and configures touchpad settings.
 - `vm.sh`: Installs and configures a KVM/QEMU/Virt-Manager virtualization environment.
 

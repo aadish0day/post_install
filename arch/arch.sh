@@ -224,9 +224,6 @@ install_aur_packages() {
     local pkg
     for pkg in "$@"; do
         if ! pacman -Qi "$pkg" &>/dev/null; then
-            if [[ "$pkg" == "i3lock-color" ]] && pacman -Qq "i3lock" &>/dev/null; then
-                sudo pacman -Rns --noconfirm "i3lock"
-            fi
             paru -S --noconfirm --needed "$pkg" || echo "Failed to install $pkg"
         else
             echo "$pkg is already installed."
@@ -262,30 +259,6 @@ gaming_packages=(
     umu-launcher python-pefile vulkan-tools lutris lib32-vkd3d vkd3d
 )
 
-# List of X11 tiling desktop essentials
-x11_tilling_depen=(
-    accountsservice acpi alsa-firmware archlinux-xdg-menu arandr awesome-terminal-fonts
-    bluez bluez-utils blueman brightnessctl clipmenu dex ding-libs dmidecode dmraid dmenu
-    dnssec-anchors dracut dunst feh flameshot fsarchiver gammastep gssproxy gtksourceview3
-    haveged hdparm hwdetect hwinfo inetutils jemalloc libgsf libinstpatch liblqr
-    libmaxminddb libmbim libopenraw libpipeline libqmi libqrtr-glib libwnck3 libx86emu
-    libxres logrotate lsb-release modemmanager netctl network-manager-applet nitrogen ntp
-    numlockx nwg-look os-prober perl-xml-writer picom polkit-gnome polybar poppler-glib
-    ppp python-annotated-types python-defusedxml python-orjson python-pyaml python-pydantic
-    python-pydantic-core python-pyqt5 python-pyqt5-sip python-typing_extensions rofi scrot
-    sg3_utils sysstat systemd-resolvconf tcl thunar thunar-archive-plugin thunar-volman
-    ttf-opensans usb_modeswitch wmname xarchiver xbindkeys xclip xdg-desktop-portal
-    xdg-desktop-portal-gtk xdg-user-dirs-gtk xfce4-terminal xorg-xbacklight xorg-xdpyinfo xss-lock
-    zathura zathura-cb zathura-djvu zathura-pdf-poppler zathura-ps
-)
-
-# List of KDE Plasma desktop environment packages
-kde_plasma_packages=(
-    rsync obsidian elisa gwenview kamoso okular libreoffice-fresh wl-clipboard qt6-tools
-    mesa libva-mesa-driver libva-utils vulkan-radeon vulkan-tools dosfstools sshfs kdeconnect
-    kclock
-)
-
 # List of AUR packages
 aur_packages=(
     "thorium-browser-bin"
@@ -296,12 +269,6 @@ aur_packages=(
     "visual-studio-code-bin"
     "spotify"
     "timeshift-autosnap"
-)
-
-# List of X11-specific AUR packages
-x11_aur_packages=(
-    "i3lock-color"
-    "dracula-gtk-theme"
 )
 
 # List of gaming-specific AUR packages
@@ -375,14 +342,26 @@ fi
 if [ "$install_x11" = true ]; then
     echo ""
     echo "Installing X11 tiling-specific packages..."
-    install_if_needed "${x11_tilling_depen[@]}"
+    if [ -f "./arch/tiling.sh" ]; then
+        bash ./arch/tiling.sh
+    elif [ -f "./tiling.sh" ]; then
+        bash ./tiling.sh
+    else
+        echo "Error: tiling.sh not found."
+    fi
 fi
 
 # Install KDE Plasma desktop environment if selected
 if [ "$install_kde" = true ]; then
     echo ""
     echo "Installing KDE Plasma desktop environment..."
-    install_if_needed "${kde_plasma_packages[@]}"
+    if [ -f "./arch/kde.sh" ]; then
+        bash ./arch/kde.sh
+    elif [ -f "./kde.sh" ]; then
+        bash ./kde.sh
+    else
+        echo "Error: kde.sh not found."
+    fi
 fi
 
 # Install paru if not present
@@ -398,13 +377,6 @@ fi
 echo ""
 echo "Installing AUR packages..."
 install_aur_packages "${aur_packages[@]}"
-
-# Install X11-specific AUR packages if selected
-if [ "$install_x11" = true ]; then
-    echo ""
-    echo "Installing X11-specific AUR packages..."
-    install_aur_packages "${x11_aur_packages[@]}"
-fi
 
 # Install gaming-specific AUR packages if selected
 if [ "$install_gaming" = true ]; then
@@ -447,15 +419,6 @@ fi
 echo ""
 echo "Configuring services..."
 
-# Enable Bluetooth if X11 tiling is installed (KDE manages its own Bluetooth)
-if [ "$install_x11" = true ]; then
-    read -rp "Do you want to enable Bluetooth? (y/n): " enable_bluetooth
-    if [[ $enable_bluetooth =~ ^[Yy]$ ]]; then
-        sudo systemctl enable --now bluetooth.service
-        echo "Bluetooth service enabled."
-    fi
-fi
-
 # Enable dbus (skip for KDE as it handles this)
 if [ "$install_kde" = false ]; then
     if systemctl list-unit-files | grep -q "dbus-broker.service"; then
@@ -464,16 +427,6 @@ if [ "$install_kde" = false ]; then
         systemctl --user enable --now dbus-daemon.service
     else
         echo "No dbus backend service found, skipping..."
-    fi
-fi
-
-# Enable SDDM if KDE Plasma is installed
-if [ "$install_kde" = true ] && pacman -Qi sddm &>/dev/null; then
-    if ! systemctl is-enabled sddm.service &>/dev/null; then
-        echo "Enabling SDDM display manager..."
-        sudo systemctl enable sddm.service
-    else
-        echo "SDDM is already enabled."
     fi
 fi
 
@@ -494,29 +447,6 @@ done
 # ============================================================================
 # DEFAULT APPLICATIONS
 # ============================================================================
-
-echo ""
-echo "Configuring default applications..."
-
-# Set Zathura as default PDF viewer for X11
-if [ "$install_x11" = true ]; then
-    if command -v zathura &>/dev/null; then
-        echo "Setting Zathura as the default PDF viewer..."
-        xdg-mime default org.pwmt.zathura.desktop application/pdf
-    else
-        echo "Zathura is not installed; skipping default PDF assignment."
-    fi
-fi
-
-# Set thorium-browser as default browser if X11 is installed and thorium is present
-if [ "$install_x11" = true ] && command -v thorium-browser &>/dev/null; then
-    echo "Setting thorium-browser as the default browser..."
-    xdg-settings set default-web-browser thorium-browser.desktop 2>/dev/null || true
-    current_browser=$(xdg-settings get default-web-browser 2>/dev/null)
-    if [ -n "$current_browser" ]; then
-        echo "Current default browser: $current_browser"
-    fi
-fi
 
 # Change default shell to zsh if installed
 if command -v zsh &>/dev/null; then
