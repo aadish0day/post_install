@@ -224,6 +224,9 @@ install_aur_packages() {
     local pkg
     for pkg in "$@"; do
         if ! pacman -Qi "$pkg" &>/dev/null; then
+            if [[ "$pkg" == "i3lock-color" ]] && pacman -Qq "i3lock" &>/dev/null; then
+                sudo pacman -Rns --noconfirm "i3lock"
+            fi
             paru -S --noconfirm --needed "$pkg" || echo "Failed to install $pkg"
         else
             echo "$pkg is already installed."
@@ -343,11 +346,39 @@ if [ "$install_x11" = true ]; then
     echo ""
     echo "Installing X11 tiling-specific packages..."
     if [ -f "./arch/environment/tiling.sh" ]; then
-        bash ./arch/environment/tiling.sh
+        source ./arch/environment/tiling.sh
     elif [ -f "./environment/tiling.sh" ]; then
-        bash ./environment/tiling.sh
+        source ./environment/tiling.sh
     else
         echo "Error: tiling.sh not found."
+        exit 1
+    fi
+    install_if_needed "${x11_tilling_depen[@]}"
+
+    # Install X11-specific AUR packages
+    if command -v paru &>/dev/null; then
+        echo "Installing X11-specific AUR packages..."
+        install_aur_packages "${x11_aur_packages[@]}"
+    fi
+
+    # Service Configuration
+    echo "Configuring services for X11 tiling..."
+    read -rp "Do you want to enable Bluetooth? (y/n): " enable_bluetooth
+    if [[ $enable_bluetooth =~ ^[Yy]$ ]]; then
+        sudo systemctl enable --now bluetooth.service
+        echo "Bluetooth service enabled."
+    fi
+
+    # Set default applications
+    echo "Configuring default applications..."
+    if command -v zathura &>/dev/null; then
+        echo "Setting Zathura as the default PDF viewer..."
+        xdg-mime default org.pwmt.zathura.desktop application/pdf
+    fi
+
+    if command -v thorium-browser &>/dev/null; then
+        echo "Setting thorium-browser as the default browser..."
+        xdg-settings set default-web-browser thorium-browser.desktop 2>/dev/null || true
     fi
 fi
 
@@ -356,12 +387,14 @@ if [ "$install_kde" = true ]; then
     echo ""
     echo "Installing KDE Plasma desktop environment..."
     if [ -f "./arch/environment/kde.sh" ]; then
-        bash ./arch/environment/kde.sh
+        source ./arch/environment/kde.sh
     elif [ -f "./environment/kde.sh" ]; then
-        bash ./environment/kde.sh
+        source ./environment/kde.sh
     else
         echo "Error: kde.sh not found."
+        exit 1
     fi
+    install_if_needed "${kde_plasma_packages[@]}"
 fi
 
 # Install paru if not present
@@ -427,6 +460,16 @@ if [ "$install_kde" = false ]; then
         systemctl --user enable --now dbus-daemon.service
     else
         echo "No dbus backend service found, skipping..."
+    fi
+fi
+
+# Enable SDDM if KDE Plasma is installed
+if [ "$install_kde" = true ] && pacman -Qi sddm &>/dev/null; then
+    if ! systemctl is-enabled sddm.service &>/dev/null; then
+        echo "Enabling SDDM display manager..."
+        sudo systemctl enable sddm.service
+    else
+        echo "SDDM is already enabled."
     fi
 fi
 
