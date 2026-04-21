@@ -342,10 +342,10 @@ fi
 if [ "$install_x11" = true ]; then
     echo ""
     echo "Installing X11 tiling-specific packages..."
-    if [ -f "./arch/tiling.sh" ]; then
-        bash ./arch/tiling.sh
-    elif [ -f "./tiling.sh" ]; then
-        bash ./tiling.sh
+    if [ -f "./arch/environment/tiling.sh" ]; then
+        bash ./arch/environment/tiling.sh
+    elif [ -f "./environment/tiling.sh" ]; then
+        bash ./environment/tiling.sh
     else
         echo "Error: tiling.sh not found."
     fi
@@ -355,10 +355,10 @@ fi
 if [ "$install_kde" = true ]; then
     echo ""
     echo "Installing KDE Plasma desktop environment..."
-    if [ -f "./arch/kde.sh" ]; then
-        bash ./arch/kde.sh
-    elif [ -f "./kde.sh" ]; then
-        bash ./kde.sh
+    if [ -f "./arch/environment/kde.sh" ]; then
+        bash ./arch/environment/kde.sh
+    elif [ -f "./environment/kde.sh" ]; then
+        bash ./environment/kde.sh
     else
         echo "Error: kde.sh not found."
     fi
