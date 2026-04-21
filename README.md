@@ -77,41 +77,42 @@ Before running the scripts, you need to have `git` installed to clone the reposi
 
 ### Core Scripts
 
--   `install.sh`: The main entry point for the installation process. It prompts the user to select their distribution, clones the Neovim configuration, and then executes the corresponding distribution-specific script.
--   `theme_and_font.sh`: Installs the Fira Mono Nerd Font for a consistent and pleasant terminal experience.
--   `vmtools.sh`: Installs VMware guest tools (`open-vm-tools`) for Arch, Debian, and Fedora-based systems, enabling features like clipboard sharing and screen resizing when running in a VMware virtual machine.
+- `install.sh`: The main entry point for the installation process. It prompts the user to select their distribution, clones the Neovim configuration, and then executes the corresponding distribution-specific script.
+- `theme_and_font.sh`: Installs the Fira Mono Nerd Font for a consistent and pleasant terminal experience.
+- `vmtools.sh`: Installs VMware guest tools (`open-vm-tools`) for Arch, Debian, and Fedora-based systems, enabling features like clipboard sharing and screen resizing when running in a VMware virtual machine.
 
 ### Distribution-Specific Scripts
 
 #### Arch Linux (`arch/`)
 
--   `arch.sh`: The main script for Arch Linux. It handles system updates, installs a wide range of packages from official repositories and the AUR, and allows the user to optionally install:
-    -   A desktop environment (KDE Plasma or X11 Tiling WMs).
-    -   Gaming packages.
-    -   ASUS-specific drivers.
-    -   Virtualization packages.
--   `asus_package.sh`: Installs and configures `asusctl` and other utilities for ASUS laptops running Arch Linux.
--   `driver.sh`: Installs AMD GPU drivers (`xf86-video-amdgpu`) and configures touchpad settings.
--   `vm.sh`: Installs and configures a KVM/QEMU/Virt-Manager virtualization environment.
+- `arch.sh`: The main script for Arch Linux. It handles system updates, installs a wide range of packages from official repositories and the AUR, and allows the user to optionally install:
+  - A desktop environment (KDE Plasma or X11 Tiling WMs).
+  - Gaming packages.
+  - ASUS-specific drivers.
+  - Virtualization packages.
+- `asus_package.sh`: Installs and configures `asusctl` and other utilities for ASUS laptops running Arch Linux.
+- `driver.sh`: Installs AMD GPU drivers (`xf86-video-amdgpu`) and configures touchpad settings.
+- `vm.sh`: Installs and configures a KVM/QEMU/Virt-Manager virtualization environment.
 
 #### Debian / Ubuntu (`debian/`)
 
--   `debian.sh`: The primary script for Debian/Ubuntu systems. It updates the system and installs a comprehensive set of packages using `nala` for a faster and more user-friendly experience.
--   `compile_neovim.sh`: Downloads the Neovim source code, compiles it, and installs the latest version, ensuring you have the most up-to-date features.
+- `debian.sh`: The primary script for Debian/Ubuntu systems. It updates the system and installs a comprehensive set of packages using `nala` for a faster and more user-friendly experience.
+- `compile_neovim.sh`: Downloads the Neovim source code, compiles it, and installs the latest version, ensuring you have the most up-to-date features.
 
 #### Fedora (`fedora/`)
 
--   `fedora.sh`: The main installation script for Fedora. It configures `dnf` for faster downloads, enables the RPM Fusion and Flathub repositories for a wider range of software, and installs a curated list of packages.
+- `fedora.sh`: The main installation script for Fedora. It configures `dnf` for faster downloads, enables the RPM Fusion and Flathub repositories for a wider range of software, and installs a curated list of packages.
 
 #### Kali Linux (`kali/`)
 
--   `kali.sh`: The main script for Kali Linux. It installs essential packages, sets up dotfiles, and provides an option to install various Kali metapackages for different pentesting toolsets.
--   `setup_kali_user.sh`: A utility script to create a new user with appropriate pentesting permissions and optionally remove the default `kali` user for better security.
--   `wifi-driver.sh`: Installs drivers for the Realtek 8821au wireless chipset, a common requirement for external Wi-Fi adapters.
+- `kali.sh`: The main script for Kali Linux. It installs essential packages, sets up dotfiles, and provides an option to install various Kali metapackages for different pentesting toolsets.
+- `setup_kali_user.sh`: A utility script to create a new user with appropriate pentesting permissions and optionally remove the default `kali` user for better security.
+- `wifi-driver.sh`: Installs drivers for the Realtek 8821au wireless chipset, a common requirement for external Wi-Fi adapters.
+- `docker.sh`: Installs Docker and Docker Compose via Kali repositories and sets up user groups.
 
 #### Termux (`termux/`)
 
--   `termux.sh`: A setup script for the Termux environment on Android. It installs essential packages, configures storage access, and sets up the Zsh shell with plugins for an enhanced mobile terminal experience.
+- `termux.sh`: A setup script for the Termux environment on Android. It installs essential packages, configures storage access, and sets up the Zsh shell with plugins for an enhanced mobile terminal experience.
 
 ## Contributing
 
@@ -120,3 +121,8 @@ Contributions are welcome! If you would like to add support for a new distributi
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+tails.
+
+r details.
+

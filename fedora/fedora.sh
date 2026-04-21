@@ -63,3 +63,17 @@ log "Bluetooth service has been enabled."
 # Change default shell to zsh
 log "Changing default shell to zsh..."
 chsh -s "$(which zsh)" "$USER"
+
+# Ask about Docker
+echo ""
+read -rp "Do you want to install Docker? (y/n): " install_docker_input
+if [[ $install_docker_input =~ ^[Yy]$ ]]; then
+    log "Installing Docker..."
+    if [ -f "./fedora/docker.sh" ]; then
+        bash ./fedora/docker.sh
+    elif [ -f "./docker.sh" ]; then
+        bash ./docker.sh
+    else
+        log "Error: docker.sh not found."
+    fi
+fi

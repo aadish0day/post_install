@@ -37,4 +37,18 @@ else
 	echo "Starship is already installed."
 fi
 
+# Ask about Docker
+echo ""
+read -rp "Do you want to install Docker? (y/n): " install_docker_input
+if [[ $install_docker_input =~ ^[Yy]$ ]]; then
+    echo "Installing Docker..."
+    if [ -f "./debian/docker.sh" ]; then
+        bash ./debian/docker.sh
+    elif [ -f "./docker.sh" ]; then
+        bash ./docker.sh
+    else
+        echo "Error: docker.sh not found."
+    fi
+fi
+
 echo "Installation and setup complete on Debian Linux."

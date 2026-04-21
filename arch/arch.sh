@@ -97,6 +97,17 @@ else
     echo "Skipping virtualization packages."
 fi
 
+# Ask about Docker
+echo ""
+read -rp "Do you want to install Docker? (y/n): " install_docker_input
+install_docker=false
+if [[ $install_docker_input =~ ^[Yy]$ ]]; then
+    install_docker=true
+    echo "Docker will be installed."
+else
+    echo "Skipping Docker installation."
+fi
+
 # Ask about AMD GPU drivers and related runtimes
 echo ""
 read -rp "Do you want to install AMD GPU drivers and runtimes (Vulkan/OpenCL/VA-API/VDPAU)? (y/n): " install_amd_input
@@ -124,6 +135,7 @@ echo "Desktop Environment: $de_name"
 echo "Gaming Packages: $([ "$install_gaming" = true ] && echo "Yes" || echo "No")"
 echo "ASUS Drivers: $([ "$install_asus" = true ] && echo "Yes" || echo "No")"
 echo "Virtualization Packages: $([ "$install_virt" = true ] && echo "Yes" || echo "No")"
+echo "Docker: $([ "$install_docker" = true ] && echo "Yes" || echo "No")"
 echo "AMD Drivers: $([ "$install_amd" = true ] && echo "Yes" || echo "No")"
 echo "=========================================="
 echo ""
@@ -264,14 +276,14 @@ x11_tilling_depen=(
     sg3_utils sysstat systemd-resolvconf tcl thunar thunar-archive-plugin thunar-volman
     ttf-opensans usb_modeswitch wmname xarchiver xbindkeys xclip xdg-desktop-portal
     xdg-desktop-portal-gtk xdg-user-dirs-gtk xfce4-terminal xorg-xbacklight xorg-xdpyinfo xss-lock
-    zathura zathura-cb zathura-djvu zathura-pdf-poppler zathura-ps 
+    zathura zathura-cb zathura-djvu zathura-pdf-poppler zathura-ps
 )
 
 # List of KDE Plasma desktop environment packages
 kde_plasma_packages=(
     rsync obsidian elisa gwenview kamoso okular libreoffice-fresh wl-clipboard qt6-tools
     mesa libva-mesa-driver libva-utils vulkan-radeon vulkan-tools dosfstools sshfs kdeconnect
-    kclock docker-compose docker docker-compose 
+    kclock
 )
 
 # List of AUR packages
@@ -413,6 +425,19 @@ if [ "$install_virt" = true ]; then
     echo ""
     echo "Installing virtualization packages..."
     install_aur_packages "${virt_packages[@]}"
+fi
+
+# Install Docker if selected
+if [ "$install_docker" = true ]; then
+    echo ""
+    echo "Installing Docker..."
+    if [ -f "./arch/docker.sh" ]; then
+        bash ./arch/docker.sh
+    elif [ -f "./docker.sh" ]; then
+        bash ./docker.sh
+    else
+        echo "Error: docker.sh not found."
+    fi
 fi
 
 # ============================================================================

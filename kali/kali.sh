@@ -118,6 +118,20 @@ if command -v zsh &>/dev/null; then
 	chsh -s "$(command -v zsh)" "$USER"
 fi
 
+# Ask about Docker
+echo ""
+read -rp "Do you want to install Docker? (y/n): " install_docker_input
+if [[ $install_docker_input =~ ^[Yy]$ ]]; then
+    log "Installing Docker..."
+    if [ -f "./kali/docker.sh" ]; then
+        bash ./kali/docker.sh
+    elif [ -f "./docker.sh" ]; then
+        bash ./docker.sh
+    else
+        log "Error: docker.sh not found."
+    fi
+fi
+
 # Clean up
 sudo nala clean
 log "Kali Linux setup completed successfully!"
