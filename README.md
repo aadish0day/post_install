@@ -2,125 +2,208 @@
 
 ![Shell Script](https://img.shields.io/badge/Shell_Script-121011?style=for-the-badge&logo=gnu-bash&logoColor=white)
 ![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)
+![Arch](https://img.shields.io/badge/Arch_Linux-1793D1?style=for-the-badge&logo=arch-linux&logoColor=white)
+![Debian](https://img.shields.io/badge/Debian-A81D33?style=for-the-badge&logo=debian&logoColor=white)
+![Fedora](https://img.shields.io/badge/Fedora-294172?style=for-the-badge&logo=fedora&logoColor=white)
+![Kali](https://img.shields.io/badge/Kali_Linux-557C94?style=for-the-badge&logo=kali-linux&logoColor=white)
+![Termux](https://img.shields.io/badge/Termux-000000?style=for-the-badge&logo=terminal&logoColor=white)
 
-A collection of scripts to automate the setup and configuration of various Linux distributions and Termux, streamlining the installation of essential applications, development tools, drivers, and personal configurations.
-
-## Table of Contents
-
-- [Key Features](#key-features)
-- [Supported Distributions](#supported-distributions)
-- [Prerequisites](#prerequisites)
-- [Usage](#usage)
-- [Scripts Overview](#scripts-overview)
-  - [Core Scripts](#core-scripts)
-  - [Distribution-Specific Scripts](#distribution-specific-scripts)
-    - [Arch Linux](#arch-linux)
-    - [Debian / Ubuntu](#debian--ubuntu)
-    - [Fedora](#fedora)
-    - [Kali Linux](#kali-linux)
-    - [Termux](#termux)
-- [Contributing](#contributing)
-- [License](#license)
-
-## Key Features
-
-- **Distribution-Specific Setups**: Tailored installation scripts for Debian/Ubuntu, Arch Linux, Fedora, Kali Linux, and Termux.
-- **Automated Application Installation**: Installs a wide range of software, including development tools, system utilities, and multimedia applications.
-- **Driver Installation**: Includes scripts for installing graphics drivers and other necessary hardware drivers.
-- **Desktop Environment Configuration**: Sets up desktop environments like KDE Plasma and X11 tiling window managers.
-- **Gaming Ready**: Installs necessary libraries and tools for gaming on Linux, including Wine and Winetricks.
-- **Virtualization Support**: Installs and configures virtualization tools like QEMU/KVM and VMware.
-- **Neovim Configuration**: Automatically clones and sets up a pre-configured Neovim environment from [Aadishx07/neovim_config](https://github.com/Aadishx07/neovim_config).
-- **Theming and Fonts**: Installs custom fonts and themes to enhance the user interface.
+A collection of modular shell scripts to automate the setup and configuration of various Linux distributions and Termux after a fresh install. Streamlines installation of essential applications, development tools, drivers, desktop environments, gaming runtimes, and personal configurations.
 
 ## Supported Distributions
 
-- Debian / Ubuntu
-- Arch Linux
-- Fedora
-- Kali Linux
-- Termux
+| Distribution | Status | Scripts |
+|---|---|---|
+| Arch Linux | Fully featured | `arch/` |
+| Debian / Ubuntu | Comprehensive | `debian/` |
+| Fedora | Comprehensive | `fedora/` |
+| Kali Linux | Pentesting-focused | `kali/` |
+| Termux (Android) | Mobile terminal setup | `termux/` |
 
-## Prerequisites
+## Quick Start
 
-Before running the scripts, you need to have `git` installed to clone the repository.
+```bash
+git clone https://github.com/Aadishx07/post_install.git
+cd post_install
+./install.sh
+```
 
-- **Debian/Ubuntu**: `sudo apt install git`
-- **Arch Linux**: `sudo pacman -S git`
-- **Fedora**: `sudo dnf install git`
-- **Kali Linux**: `sudo apt install git`
-- **Termux**: `pkg install git`
+The main `install.sh` will:
+1. Prompt you to select your distribution
+2. Clone your [Neovim configuration](https://github.com/Aadishx07/neovim_config) (if not present)
+3. Create `~/Pictures/Screenshots`
+4. Execute the corresponding distribution-specific script
 
-## Usage
+### Prerequisites
 
-1.  **Clone the Repository**
+```bash
+# Debian/Ubuntu/Kali
+sudo apt install git
 
-    Open your terminal and run the following command to clone the repository to your local machine:
+# Arch Linux
+sudo pacman -S git
 
-    ```bash
-    git clone https://github.com/Aadishx07/post_install.git
-    cd post_install
-    ```
+# Fedora
+sudo dnf install git
 
-2.  **Run the Main Installer**
-
-    Make the main installation script executable and run it with `sudo` if required by the sub-scripts:
-
-    ```bash
-    chmod +x install.sh
-    ./install.sh
-    ```
-
-    The script will prompt you to select your distribution. Based on your selection, it will execute the appropriate setup script from the corresponding directory.
+# Termux
+pkg install git
+```
 
 ## Scripts Overview
 
 ### Core Scripts
 
-- `install.sh`: The main entry point for the installation process. It prompts the user to select their distribution, clones the Neovim configuration, and then executes the corresponding distribution-specific script.
-- `theme_and_font.sh`: Installs the Fira Mono Nerd Font for a consistent and pleasant terminal experience.
-- `vmtools.sh`: Installs VMware guest tools (`open-vm-tools`) for Arch, Debian, and Fedora-based systems, enabling features like clipboard sharing and screen resizing when running in a VMware virtual machine.
+| Script | Description |
+|---|---|
+| `install.sh` | Main entry point — distribution selector, Neovim config clone, orchestrator |
+| `theme_and_font.sh` | Downloads and installs [Fira Mono Nerd Font](https://www.nerdfonts.com/) system-wide (also has commented-out Dracula GTK theme and Papirus icon theme installers) |
+| `vmtools.sh` | Installs and enables `open-vm-tools` with auto-detection and manual selection for Arch, Debian, Fedora |
 
-### Distribution-Specific Scripts
+---
 
-#### Arch Linux (`arch/`)
-- `arch.sh`: The main script for Arch Linux. It handles system updates, installs base packages, and orchestrates the installation of optional components.
-- `environment/kde.sh`: Installs and configures the KDE Plasma desktop environment.
-- `environment/tiling.sh`: Installs and configures an X11 tiling window manager environment (Awesome, i3, etc.).
-- `asus_package.sh`: Installs and configures `asusctl` and other utilities for ASUS laptops running Arch Linux.
+### Arch Linux (`arch/`)
 
-- `driver.sh`: Installs AMD GPU drivers (`xf86-video-amdgpu`) and configures touchpad settings.
-- `vm.sh`: Installs and configures a KVM/QEMU/Virt-Manager virtualization environment.
+**Main script** — `arch.sh`
+- System update, optional reflector mirror configuration (India)
+- Interactive prompts for optional components before any installs
+- Summary screen before confirmation
+- Smart package installation (skips already-installed packages)
+- AUR support via `paru` (auto-installed if missing)
 
-#### Debian / Ubuntu (`debian/`)
+| Script | Description |
+|---|---|
+| `environment/kde.sh` | KDE Plasma desktop environment with apps (Elisa, Gwenview, Okular, LibreOffice, KDE Connect, etc.) |
+| `environment/tiling.sh` | X11 tiling WM stack (Awesome/i3) with polybar, rofi, dunst, feh, picom, thunar, network-manager-applet, zathura, and more |
+| `ausu_package.sh` | **ASUS laptop support** — adds the G14 repository, installs `asusctl`, `power-profiles-daemon`, `supergfxctl`, `rog-control-center`, configures battery charge limit (85%) and fan curves |
+| `driver.sh` | Touchpad configuration (libinput, tap-to-click, natural scrolling, clickfinger method, disable-while-typing) — AMD GPU drivers are handled inline in `arch.sh` |
+| `vm.sh` | Full KVM/QEMU/Virt-Manager stack with libvirt, all QEMU system emulators, audio backends, bridge networking, user groups, and service enablement |
+| `docker.sh` | Docker & Docker Compose installation, service enablement, user group addition |
 
-- `debian.sh`: The primary script for Debian/Ubuntu systems. It updates the system and installs a comprehensive set of packages using `nala` for a faster and more user-friendly experience.
-- `compile_neovim.sh`: Downloads the Neovim source code, compiles it, and installs the latest version, ensuring you have the most up-to-date features.
+**Arch Linux installs:**
+- **General packages** (90+): neovim, yazi, zsh, starship, pipewire, kitty, mpv, obs-studio, qbittorrent, zoxide, yt-dlp, android-tools, noto-fonts, papirus-icon-theme, and more
+- **AUR packages**: thorium-browser, ani-cli, vesktop, visual-studio-code-bin, spotify, timeshift-autosnap, advcpmv
+- **Gaming** (optional): wine-staging, winetricks, gamemode, lutris, vkd3d, dxvk-gplasync-bin, umu-launcher, 32-bit libraries
+- **AMD GPUs** (optional): xf86-video-amdgpu, vulkan-radeon, rocm-opencl-runtime, mesa, GRUB cmdline optimization
+- **ASUS** (optional): asusctl, rog-control-center, supergfxctl, amdgpu-pro drivers
+- **Virtualization** (optional): VMware Workstation via AUR
 
-#### Fedora (`fedora/`)
+---
 
-- `fedora.sh`: The main installation script for Fedora. It configures `dnf` for faster downloads, enables the RPM Fusion and Flathub repositories for a wider range of software, and installs a curated list of packages.
+### Debian / Ubuntu (`debian/`)
 
-#### Kali Linux (`kali/`)
+**Main script** — `debian.sh`
+- Installs `nala` (apt wrapper with faster downloads and prettier output)
+- System update via nala
+- Installs 50+ packages including: ranger, neovim, mpv, flameshot, obs-studio, libreoffice, bluez, alacritty, android-tools, zathura (with PDF/PS/Djvu/CB plugins), bat, picom, nitrogen, yt-dlp, qalculate-gtk
+- Optional: Docker installer prompt
 
-- `kali.sh`: The main script for Kali Linux. It installs essential packages, sets up dotfiles, and provides an option to install various Kali metapackages for different pentesting toolsets.
-- `setup_kali_user.sh`: A utility script to create a new user with appropriate pentesting permissions and optionally remove the default `kali` user for better security.
-- `wifi-driver.sh`: Installs drivers for the Realtek 8821au wireless chipset, a common requirement for external Wi-Fi adapters.
-- `docker.sh`: Installs Docker and Docker Compose via Kali repositories and sets up user groups.
+| Script | Description |
+|---|---|
+| `compile_neovim.sh` | Builds Neovim from source (latest release) with ninja, cmake, doxygen; auto-cleans up after install |
+| `docker.sh` | Official Docker CE installation via Docker's apt repository, service enablement, user group |
 
-#### Termux (`termux/`)
+---
 
-- `termux.sh`: A setup script for the Termux environment on Android. It installs essential packages, configures storage access, and sets up the Zsh shell with plugins for an enhanced mobile terminal experience.
+### Fedora (`fedora/`)
+
+**Main script** — `fedora.sh`
+- Custom `dnf.conf` with parallel downloads, fastest mirror, default yes
+- RPM Fusion (free & non-free) repository enablement
+- COPR repos for starship and i3lock-color
+- 60+ packages including: neovim, zsh, starship, kitty, mpv, obs-studio, qbittorrent, android-tools, zathura, picom, wine, winetricks, gamemode, lutris, papirus-icon-theme, i3lock-color
+- Bluetooth service enablement
+- Default shell changed to zsh
+- Optional: Docker installer prompt
+
+| Script | Description |
+|---|---|
+| `docker.sh` | Official Docker CE for Fedora, service enablement, user group |
+| `dnf.conf` | Pre-tuned DNF configuration (fastest mirror, parallel downloads, etc.) |
+
+---
+
+### Kali Linux (`kali/`)
+
+**Main script** — `kali.sh`
+- Creates `~/cybersec/` directory structure
+- Installs nala and upgrades system
+- Base packages: git, stow, zsh, tmux, neovim, fzf, zoxide, lsd, starship, open-vm-tools
+- Clones and links [dotfiles](https://github.com/aadish0day/dotfile)
+- Interactive Kali metapackage installer (everything/large/labs)
+- Updates searchsploit database
+- Default shell changed to zsh
+- Optional: Docker installer prompt
+
+| Script | Description |
+|---|---|
+| `setup_kali_user.sh` | Creates a new pentesting user with sudo/dialout/wireshark/bluetooth/netdev/kaboxer/vboxsf/docker groups; optionally removes default `kali` user; optional auto-login via LightDM |
+| `wifi-driver.sh` | Installs Realtek 8821au WiFi driver from [morrownr/8821au-20210708](https://github.com/morrownr/8821au-20210708) using DKMS |
+| `docker.sh` | Docker & Docker Compose via Kali repos (`docker.io` / `docker-compose`) |
+
+---
+
+### Termux (`termux/`)
+
+**Main script** — `termux.sh`
+- System update and package install: git, neovim, tmux, zsh, fzf, lsd, bat, zoxide, starship, ani-cli, git-lfs
+- Sets up Termux storage access
+- Clones and links [dotfiles](https://github.com/aadish0day/dotfile)
+- Default shell changed to zsh
+
+| Script | Description |
+|---|---|
+| `install_nerd_font.sh` | Downloads and applies JetBrainsMono Nerd Font to Termux via `termux-reload-settings` |
+
+## Interactive Prompts
+
+Many scripts prompt for your preferences before making changes:
+
+- **Arch Linux**: Desktop environment (KDE / Tiling WM / None), gaming packages, ASUS drivers, virtualization, Docker, AMD GPU drivers, mirror configuration, default shell
+- **Debian / Fedora / Kali**: Docker installation prompt
+- **Kali**: Metapackage selection (everything/large/labs)
+- **vmtools.sh**: Auto-detection or manual distribution selection
+
+## File Structure
+
+```
+post_install/
+├── install.sh              # Main entry point
+├── theme_and_font.sh       # Nerd Font installer
+├── vmtools.sh              # VMware guest tools
+├── arch/
+│   ├── arch.sh             # Arch main setup
+│   ├── docker.sh           # Docker for Arch
+│   ├── driver.sh           # Touchpad & AMD config
+│   ├── ausu_package.sh     # ASUS laptop tools
+│   ├── vm.sh               # KVM/QEMU setup
+│   └── environment/
+│       ├── kde.sh          # KDE Plasma packages
+│       └── tiling.sh       # X11 tiling WM packages
+├── debian/
+│   ├── debian.sh           # Debian/Ubuntu main setup
+│   ├── docker.sh           # Docker for Debian
+│   └── compile_neovim.sh   # Build Neovim from source
+├── fedora/
+│   ├── fedora.sh           # Fedora main setup
+│   ├── docker.sh           # Docker for Fedora
+│   └── dnf.conf            # Pre-tuned DNF config
+├── kali/
+│   ├── kali.sh             # Kali main setup
+│   ├── docker.sh           # Docker for Kali
+│   ├── setup_kali_user.sh  # User creation & management
+│   └── wifi-driver.sh      # Realtek 8821au driver
+├── termux/
+│   ├── termux.sh           # Termux main setup
+│   └── install_nerd_font.sh# JetBrainsMono Nerd Font
+└── LICENSE                 # MIT License
+```
 
 ## Contributing
 
-Contributions are welcome! If you would like to add support for a new distribution, improve an existing script, or add new features, please feel free to open an issue or submit a pull request.
+Contributions are welcome! If you'd like to add support for a new distribution, improve an existing script, or add new features, feel free to open an issue or submit a pull request.
 
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
-tails.
-
-r details.
 
