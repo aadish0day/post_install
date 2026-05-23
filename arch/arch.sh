@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Get the directory where the script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Keep sudo alive during long operations (e.g., AUR builds)
 if sudo -v; then
     sudo -n true
@@ -16,7 +19,7 @@ fi
 # Update system and packages
 echo "Updating system and packages..."
 sudo pacman -Sy --noconfirm
-sudo pacman -S --needed reflector --noconfirm
+sudo pacman -S --needed reflector --noconfirm --overwrite '*'
 
 # Prompt user to configure mirrors
 read -rp "Do you want to configure the mirror list for India using reflector? (y/n): " configure_mirrors
@@ -28,7 +31,7 @@ else
 fi
 
 # Update system and packages after mirror update
-sudo pacman -Syu --noconfirm
+sudo pacman -Syu --noconfirm --overwrite '*'
 
 # ============================================================================
 # ASK USER PREFERENCES UPFRONT
@@ -165,7 +168,7 @@ install_if_needed() {
 
     if [ ${#to_install[@]} -gt 0 ]; then
         echo "Installing: ${to_install[*]}"
-        if ! sudo pacman -S --noconfirm --needed "${to_install[@]}"; then
+        if ! sudo pacman -S --noconfirm --needed --overwrite '*' "${to_install[@]}"; then
             echo "Some packages failed to install, checking..."
             for pkg in "${to_install[@]}"; do
                 if ! pacman -Qi "$pkg" &>/dev/null; then
@@ -181,42 +184,42 @@ install_if_needed() {
     fi
 }
 
-# Function to install paru
-install_paru() {
-    echo "Installing paru..."
+# Function to install yay
+install_yay() {
+    echo "Installing yay..."
     if ! pacman -Qq base-devel &>/dev/null; then
         echo "Installing base-devel package group..."
-        sudo pacman -S --needed base-devel git --noconfirm
+        sudo pacman -S --needed base-devel git --noconfirm --overwrite '*'
     fi
 
     cd /tmp || exit 1
 
-    if [ -d "/tmp/paru-bin" ]; then
-        echo "Removing existing paru-bin directory..."
-        rm -rf /tmp/paru-bin
+    if [ -d "/tmp/yay-bin" ]; then
+        echo "Removing existing yay-bin directory..."
+        rm -rf /tmp/yay-bin
     fi
 
-    if ! git clone https://aur.archlinux.org/paru-bin.git; then
-        echo "Failed to clone paru-bin repository."
+    if ! git clone https://aur.archlinux.org/yay-bin.git; then
+        echo "Failed to clone yay-bin repository."
         cd - || exit 1
         return 1
     fi
 
-    cd paru-bin || {
-        echo "Failed to enter paru-bin directory."
+    cd yay-bin || {
+        echo "Failed to enter yay-bin directory."
         cd - || exit 1
         return 1
     }
 
     makepkg -si --noconfirm || {
-        echo "Failed to build and install paru."
+        echo "Failed to build and install yay."
         cd - || exit 1
         return 1
     }
 
     cd - || exit 1
-    rm -rf /tmp/paru-bin
-    echo "paru has been successfully installed."
+    rm -rf /tmp/yay-bin
+    echo "yay has been successfully installed."
 }
 
 # Function to install AUR packages
@@ -227,7 +230,7 @@ install_aur_packages() {
             if [[ "$pkg" == "i3lock-color" ]] && pacman -Qq "i3lock" &>/dev/null; then
                 sudo pacman -Rns --noconfirm "i3lock"
             fi
-            paru -S --noconfirm --needed "$pkg" || echo "Failed to install $pkg"
+            yay -S --noconfirm --needed "$pkg" || echo "Failed to install $pkg"
         else
             echo "$pkg is already installed."
         fi
@@ -345,10 +348,8 @@ fi
 if [ "$install_x11" = true ]; then
     echo ""
     echo "Installing X11 tiling-specific packages..."
-    if [ -f "./arch/environment/tiling.sh" ]; then
-        source ./arch/environment/tiling.sh
-    elif [ -f "./environment/tiling.sh" ]; then
-        source ./environment/tiling.sh
+    if [ -f "$SCRIPT_DIR/environment/tiling.sh" ]; then
+        source "$SCRIPT_DIR/environment/tiling.sh"
     else
         echo "Error: tiling.sh not found."
         exit 1
@@ -356,7 +357,7 @@ if [ "$install_x11" = true ]; then
     install_if_needed "${x11_tilling_depen[@]}"
 
     # Install X11-specific AUR packages
-    if command -v paru &>/dev/null; then
+    if command -v yay &>/dev/null; then
         echo "Installing X11-specific AUR packages..."
         install_aur_packages "${x11_aur_packages[@]}"
     fi
@@ -386,10 +387,8 @@ fi
 if [ "$install_kde" = true ]; then
     echo ""
     echo "Installing KDE Plasma desktop environment..."
-    if [ -f "./arch/environment/kde.sh" ]; then
-        source ./arch/environment/kde.sh
-    elif [ -f "./environment/kde.sh" ]; then
-        source ./environment/kde.sh
+    if [ -f "$SCRIPT_DIR/environment/kde.sh" ]; then
+        source "$SCRIPT_DIR/environment/kde.sh"
     else
         echo "Error: kde.sh not found."
         exit 1
@@ -397,11 +396,11 @@ if [ "$install_kde" = true ]; then
     install_if_needed "${kde_plasma_packages[@]}"
 fi
 
-# Install paru if not present
-if ! command -v paru &>/dev/null; then
+# Install yay if not present
+if ! command -v yay &>/dev/null; then
     echo ""
-    install_paru || {
-        echo "Failed to install paru. AUR packages will not be installed."
+    install_yay || {
+        echo "Failed to install yay. AUR packages will not be installed."
         exit 1
     }
 fi
@@ -436,10 +435,8 @@ fi
 if [ "$install_docker" = true ]; then
     echo ""
     echo "Installing Docker..."
-    if [ -f "./arch/docker.sh" ]; then
-        bash ./arch/docker.sh
-    elif [ -f "./docker.sh" ]; then
-        bash ./docker.sh
+    if [ -f "$SCRIPT_DIR/docker.sh" ]; then
+        bash "$SCRIPT_DIR/docker.sh"
     else
         echo "Error: docker.sh not found."
     fi
