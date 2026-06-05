@@ -251,7 +251,7 @@ packages=(
     papirus-icon-theme parallel pipewire pipewire-alsa pipewire-audio pipewire-jack pipewire-pulse pipewire-zeroconf pipewire-libcamera
     pkgfile plocate playerctl pv qalculate-qt qbittorrent ripgrep sd spandsp starship soundtouch svt-hevc tar
     tree tree-sitter-cli trash-cli tmux ttf-jetbrains-mono ttf-jetbrains-mono-nerd tumbler unzip wireplumber xz
-    yazi yt-dlp zip zoxide zsh zstd dosfstools usbutils
+    yazi yt-dlp zip zoxide zsh zstd dosfstools usbutils lazydocker
 )
 
 # List of gaming packages
@@ -262,7 +262,7 @@ gaming_packages=(
     lib32-ocl-icd lib32-sdl2 lib32-sqlite lib32-v4l-utils lib32-vkd3d lib32-vulkan-icd-loader
     libayatana-appindicator libpulse libva libxcomposite ocl-icd python-protobuf sdl2 sqlite
     v4l-utils vkd3d vulkan-icd-loader wine-gecko wine-mono wine-staging winetricks
-    umu-launcher python-pefile vulkan-tools lutris lib32-vkd3d vkd3d
+    umu-launcher python-pefile vulkan-tools lutris
 )
 
 # List of AUR packages
@@ -270,10 +270,9 @@ aur_packages=(
     "thorium-browser-bin"
     "advcpmv"
     "ani-cli"
-    "hakuneko-desktop"
+    "gallery-dl-bin"
     "vesktop-bin"
     "visual-studio-code-bin"
-    "spotify"
     "timeshift-autosnap"
 )
 
