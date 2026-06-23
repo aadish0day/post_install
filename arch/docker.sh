@@ -9,7 +9,7 @@ log() {
 log "Installing Docker on Arch Linux..."
 
 # Install Docker, Docker Compose, and Buildx
-sudo pacman -S --needed docker docker-compose --noconfirm --overwrite '*'
+sudo pacman -S --needed docker docker-compose docker-buildx --noconfirm --overwrite '*'
 
 # Enable and start Docker service
 log "Enabling and starting Docker service..."
