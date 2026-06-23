@@ -122,6 +122,17 @@ else
     echo "Skipping AMD GPU drivers and runtimes."
 fi
 
+# Ask about coding packages
+echo ""
+read -rp "Do you want to install coding packages (VS Code, Android Studio, Flutter, etc.)? (y/n): " install_coding_input
+install_coding=false
+if [[ $install_coding_input =~ ^[Yy]$ ]]; then
+    install_coding=true
+    echo "Coding packages will be installed."
+else
+    echo "Skipping coding packages."
+fi
+
 echo ""
 echo "=========================================="
 echo "Installation Summary"
@@ -140,6 +151,7 @@ echo "ASUS Drivers: $([ "$install_asus" = true ] && echo "Yes" || echo "No")"
 echo "Virtualization Packages: $([ "$install_virt" = true ] && echo "Yes" || echo "No")"
 echo "Docker: $([ "$install_docker" = true ] && echo "Yes" || echo "No")"
 echo "AMD Drivers: $([ "$install_amd" = true ] && echo "Yes" || echo "No")"
+echo "Coding Packages: $([ "$install_coding" = true ] && echo "Yes" || echo "No")"
 echo "=========================================="
 echo ""
 read -rp "Continue with installation? (y/n): " continue_install
@@ -251,7 +263,7 @@ packages=(
     papirus-icon-theme parallel pipewire pipewire-alsa pipewire-audio pipewire-jack pipewire-pulse pipewire-zeroconf pipewire-libcamera
     pkgfile plocate playerctl pv qalculate-qt qbittorrent ripgrep sd spandsp starship soundtouch svt-hevc tar
     tree tree-sitter-cli trash-cli tmux ttf-jetbrains-mono ttf-jetbrains-mono-nerd tumbler unzip wireplumber xz
-    yazi yt-dlp zip zoxide zsh zstd dosfstools usbutils lazydocker
+    yazi yt-dlp zip zoxide zsh zstd dosfstools usbutils lazydocker opencode
 )
 
 # List of gaming packages
@@ -267,13 +279,31 @@ gaming_packages=(
 
 # List of AUR packages
 aur_packages=(
-    "thorium-browser-bin"
     "advcpmv"
     "ani-cli"
+    "antigravity"
+    "antigravity-ide"
+    "anydesk-bin"
     "gallery-dl-bin"
-    "vesktop-bin"
-    "visual-studio-code-bin"
+    "hakuneko-desktop-bin"
+    "lib32-gst-plugins-base-libs"
+    "lib32-gstreamer"
+    "localsend-bin"
+    "slack-desktop-wayland"
+    "thorium-browser-bin"
     "timeshift-autosnap"
+    "vesktop-bin"
+    "xdman"
+    "zen-browser-bin"
+)
+
+# List of coding-specific AUR packages
+aur_coding_packages=(
+    "android-studio"
+    "claude-desktop-bin"
+    "cursor-bin"
+    "flutter-bin"
+    "visual-studio-code-bin"
 )
 
 # List of gaming-specific AUR packages
@@ -305,7 +335,8 @@ amd_packages=(
 virt_packages=(
     "libx11-mr293"
     "vmware-workstation"
-    #    "open-vm-tools"
+    "bridge-utils"
+    "vmware-keymaps"
 )
 
 # ============================================================================
@@ -408,6 +439,13 @@ fi
 echo ""
 echo "Installing AUR packages..."
 install_aur_packages "${aur_packages[@]}"
+
+# Install coding-specific AUR packages if selected
+if [ "$install_coding" = true ]; then
+    echo ""
+    echo "Installing coding-specific AUR packages..."
+    install_aur_packages "${aur_coding_packages[@]}"
+fi
 
 # Install gaming-specific AUR packages if selected
 if [ "$install_gaming" = true ]; then
