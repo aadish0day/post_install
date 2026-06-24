@@ -281,11 +281,8 @@ gaming_packages=(
 aur_packages=(
     "advcpmv"
     "ani-cli"
-    "antigravity"
-    "antigravity-ide"
     "anydesk-bin"
     "gallery-dl-bin"
-    "hakuneko-desktop-bin"
     "lib32-gst-plugins-base-libs"
     "lib32-gstreamer"
     "localsend-bin"
@@ -299,6 +296,8 @@ aur_packages=(
 
 # List of coding-specific AUR packages
 aur_coding_packages=(
+    "antigravity"
+    "antigravity-ide"
     "android-studio"
     "claude-desktop-bin"
     "cursor-bin"
