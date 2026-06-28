@@ -11,6 +11,10 @@ pkg update && pkg upgrade -y
 echo "Installing packages..."
 pkg install -y git python vim neovim tmux zsh curl wget fzf lsd bat zoxide starship ani-cli git-lfs
 
+# Install gallery-dl via pip
+echo "Installing gallery-dl..."
+pip install -U gallery-dl
+
 # Initialize Git LFS for the current user (Termux)
 if command -v git &>/dev/null && command -v git-lfs &>/dev/null; then
     echo "Initializing Git LFS..."

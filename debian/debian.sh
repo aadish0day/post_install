@@ -70,7 +70,7 @@ sudo nala update && sudo nala upgrade -y
 
 # List of general packages
 packages=(
-    ranger ncdu mpv maven yt-dlp htop fzf git git-lfs unzip nodejs
+    ranger ncdu mpv maven yt-dlp gallery-dl htop fzf git git-lfs unzip nodejs
     flameshot xclip ueberzug highlight atool mediainfo
     android-tools-adb android-tools-fastboot img2pdf
     zathura zathura-pdf-poppler zathura-ps zathura-djvu zathura-cb

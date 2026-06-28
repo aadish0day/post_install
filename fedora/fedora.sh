@@ -48,6 +48,7 @@ dnf install -y neovim ranger ncdu mpv maven yt-dlp fzf git git-lfs nodejs gcc ma
 # Install Python utilities with pip
 log "Installing Python utilities with pip..."
 dnf install -y python3-pip
+python3 -m pip install -U --break-system-packages gallery-dl
 
 # Initialize Git LFS for the current user
 if command -v git &>/dev/null && command -v git-lfs &>/dev/null; then
