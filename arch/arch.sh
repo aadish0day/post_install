@@ -196,9 +196,9 @@ install_if_needed() {
     fi
 }
 
-# Function to install yay
-install_yay() {
-    echo "Installing yay..."
+# Function to install paru
+install_paru() {
+    echo "Installing paru..."
     if ! pacman -Qq base-devel &>/dev/null; then
         echo "Installing base-devel package group..."
         sudo pacman -S --needed base-devel git --noconfirm --overwrite '*'
@@ -206,32 +206,32 @@ install_yay() {
 
     cd /tmp || exit 1
 
-    if [ -d "/tmp/yay-bin" ]; then
-        echo "Removing existing yay-bin directory..."
-        rm -rf /tmp/yay-bin
+    if [ -d "/tmp/paru-bin" ]; then
+        echo "Removing existing paru-bin directory..."
+        rm -rf /tmp/paru-bin
     fi
 
-    if ! git clone https://aur.archlinux.org/yay-bin.git; then
-        echo "Failed to clone yay-bin repository."
+    if ! git clone https://aur.archlinux.org/paru-bin.git; then
+        echo "Failed to clone paru-bin repository."
         cd - || exit 1
         return 1
     fi
 
-    cd yay-bin || {
-        echo "Failed to enter yay-bin directory."
+    cd paru-bin || {
+        echo "Failed to enter paru-bin directory."
         cd - || exit 1
         return 1
     }
 
     makepkg -si --noconfirm || {
-        echo "Failed to build and install yay."
+        echo "Failed to build and install paru."
         cd - || exit 1
         return 1
     }
 
     cd - || exit 1
-    rm -rf /tmp/yay-bin
-    echo "yay has been successfully installed."
+    rm -rf /tmp/paru-bin
+    echo "paru has been successfully installed."
 }
 
 # Function to install AUR packages
@@ -242,7 +242,7 @@ install_aur_packages() {
             if [[ "$pkg" == "i3lock-color" ]] && pacman -Qq "i3lock" &>/dev/null; then
                 sudo pacman -Rns --noconfirm "i3lock"
             fi
-            yay -S --noconfirm --needed "$pkg" || echo "Failed to install $pkg"
+            paru -S --noconfirm --needed "$pkg" || echo "Failed to install $pkg"
         else
             echo "$pkg is already installed."
         fi
@@ -386,7 +386,7 @@ if [ "$install_x11" = true ]; then
     install_if_needed "${x11_tilling_depen[@]}"
 
     # Install X11-specific AUR packages
-    if command -v yay &>/dev/null; then
+    if command -v paru &>/dev/null; then
         echo "Installing X11-specific AUR packages..."
         install_aur_packages "${x11_aur_packages[@]}"
     fi
@@ -425,11 +425,11 @@ if [ "$install_kde" = true ]; then
     install_if_needed "${kde_plasma_packages[@]}"
 fi
 
-# Install yay if not present
-if ! command -v yay &>/dev/null; then
+# Install paru if not present
+if ! command -v paru &>/dev/null; then
     echo ""
-    install_yay || {
-        echo "Failed to install yay. AUR packages will not be installed."
+    install_paru || {
+        echo "Failed to install paru. AUR packages will not be installed."
         exit 1
     }
 fi
