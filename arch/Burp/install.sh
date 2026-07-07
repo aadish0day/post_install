@@ -54,5 +54,10 @@ Keywords=burp;suite;pro;web;security;scanner;
 Path=$REPO_DIR
 EOF
 
+echo "Starting Key loader.jar..."
+(java -jar "$REPO_DIR/loader.jar") &
+
+echo "Starting Burp Suite Professional..."
+("$HOME/.local/bin/burpsuitepro") &
+
 echo "Burp Suite Professional installation complete!"
-echo "Run 'burpsuitepro' or launch from your app menu."
