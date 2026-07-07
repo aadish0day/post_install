@@ -115,7 +115,12 @@ fi
 
 # Change default shell to zsh
 if command -v zsh &>/dev/null; then
-	chsh -s "$(command -v zsh)" "$USER"
+	if [ "$SHELL" != "$(command -v zsh)" ]; then
+		echo "Changing default shell to zsh..."
+		sudo chsh -s "$(command -v zsh)" "$USER" || echo "Failed to change shell (may need manual chsh)."
+	else
+		echo "zsh is already the default shell. Skipping..."
+	fi
 fi
 
 # Ask about Burp Suite Professional
@@ -123,9 +128,7 @@ echo ""
 read -rp "Do you want to install Burp Suite Professional? (y/n): " install_burp_input
 if [[ $install_burp_input =~ ^[Yy]$ ]]; then
     log "Installing Burp Suite Professional..."
-    if [ -f "./kali/Burp/install.sh" ]; then
-        bash ./kali/Burp/install.sh
-    elif [ -f "./Burp/install.sh" ]; then
+    if [ -f "./Burp/install.sh" ]; then
         bash ./Burp/install.sh
     else
         log "Error: Burp/install.sh not found."
@@ -137,9 +140,7 @@ echo ""
 read -rp "Do you want to install Docker? (y/n): " install_docker_input
 if [[ $install_docker_input =~ ^[Yy]$ ]]; then
     log "Installing Docker..."
-    if [ -f "./kali/docker.sh" ]; then
-        bash ./kali/docker.sh
-    elif [ -f "./docker.sh" ]; then
+    if [ -f "./docker.sh" ]; then
         bash ./docker.sh
     else
         log "Error: docker.sh not found."
@@ -147,6 +148,6 @@ if [[ $install_docker_input =~ ^[Yy]$ ]]; then
 fi
 
 # Clean up
-sudo nala clean
+sudo nala clean || true
 log "Kali Linux setup completed successfully!"
 log "Please reboot your system to ensure all changes take effect."
