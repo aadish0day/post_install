@@ -13,7 +13,7 @@ if ! pacman -Qi jre21-openjdk &>/dev/null; then
 fi
 
 echo "Installing dependencies..."
-sudo pacman -S --noconfirm --needed git aria2
+sudo pacman -S --noconfirm --needed git wget
 
 if [ -d "$REPO_DIR" ]; then
     rm -rf "$REPO_DIR"
@@ -25,7 +25,7 @@ git clone https://github.com/xiv3r/Burpsuite-Professional.git "$REPO_DIR"
 cd "$REPO_DIR"
 
 echo "Downloading Burp Suite Professional Latest..."
-aria2c -o "burpsuite_pro_v$BURP_VERSION.jar" "https://github.com/xiv3r/Burpsuite-Professional/releases/download/burpsuite-pro/burpsuite_pro_v$BURP_VERSION.jar"
+wget -O "burpsuite_pro_v$BURP_VERSION.jar" "https://github.com/xiv3r/Burpsuite-Professional/releases/download/burpsuite-pro/burpsuite_pro_v$BURP_VERSION.jar"
 
 echo "Copying local config files..."
 cp "$SCRIPT_DIR/.config.ini" "$REPO_DIR/" 2>/dev/null || true
