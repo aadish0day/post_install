@@ -133,6 +133,17 @@ else
     echo "Skipping coding packages."
 fi
 
+# Ask about Burp Suite Professional
+echo ""
+read -rp "Do you want to install Burp Suite Professional? (y/n): " install_burp_input
+install_burp=false
+if [[ $install_burp_input =~ ^[Yy]$ ]]; then
+    install_burp=true
+    echo "Burp Suite Professional will be installed."
+else
+    echo "Skipping Burp Suite Professional installation."
+fi
+
 echo ""
 echo "=========================================="
 echo "Installation Summary"
@@ -152,6 +163,7 @@ echo "Virtualization Packages: $([ "$install_virt" = true ] && echo "Yes" || ech
 echo "Docker: $([ "$install_docker" = true ] && echo "Yes" || echo "No")"
 echo "AMD Drivers: $([ "$install_amd" = true ] && echo "Yes" || echo "No")"
 echo "Coding Packages: $([ "$install_coding" = true ] && echo "Yes" || echo "No")"
+echo "Burp Suite Professional: $([ "$install_burp" = true ] && echo "Yes" || echo "No")"
 echo "=========================================="
 echo ""
 read -rp "Continue with installation? (y/n): " continue_install
@@ -475,6 +487,17 @@ if [ "$install_docker" = true ]; then
         bash "$SCRIPT_DIR/docker.sh"
     else
         echo "Error: docker.sh not found."
+    fi
+fi
+
+# Install Burp Suite Professional if selected
+if [ "$install_burp" = true ]; then
+    echo ""
+    echo "Installing Burp Suite Professional..."
+    if [ -f "$SCRIPT_DIR/Burp/install.sh" ]; then
+        bash "$SCRIPT_DIR/Burp/install.sh"
+    else
+        echo "Error: Burp/install.sh not found."
     fi
 fi
 

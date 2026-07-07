@@ -118,6 +118,20 @@ if command -v zsh &>/dev/null; then
 	chsh -s "$(command -v zsh)" "$USER"
 fi
 
+# Ask about Burp Suite Professional
+echo ""
+read -rp "Do you want to install Burp Suite Professional? (y/n): " install_burp_input
+if [[ $install_burp_input =~ ^[Yy]$ ]]; then
+    log "Installing Burp Suite Professional..."
+    if [ -f "./kali/Burp/install.sh" ]; then
+        bash ./kali/Burp/install.sh
+    elif [ -f "./Burp/install.sh" ]; then
+        bash ./Burp/install.sh
+    else
+        log "Error: Burp/install.sh not found."
+    fi
+fi
+
 # Ask about Docker
 echo ""
 read -rp "Do you want to install Docker? (y/n): " install_docker_input
