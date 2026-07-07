@@ -107,7 +107,7 @@ done
 # Update searchsploit database
 log "Updating searchsploit exploit database..."
 if command -v searchsploit &>/dev/null; then
-	searchsploit -u
+	searchsploit -u || true
 	log "Searchsploit database updated successfully."
 else
 	log "Searchsploit not found. It will be available after installing Kali metapackages."
