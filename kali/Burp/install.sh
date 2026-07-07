@@ -12,6 +12,9 @@ if ! dpkg -l | grep -q "^ii  openjdk-21-jre "; then
     sudo nala install -y openjdk-21-jre
 fi
 
+echo "Setting Java 21 as default..."
+sudo update-alternatives --set java /usr/lib/jvm/java-21-openjdk-amd64/bin/java 2>/dev/null || true
+
 echo "Installing dependencies..."
 sudo nala install -y git aria2
 
@@ -25,7 +28,7 @@ git clone https://github.com/xiv3r/Burpsuite-Professional.git "$REPO_DIR"
 cd "$REPO_DIR"
 
 echo "Downloading Burp Suite Professional Latest..."
-aria2c -o "burpsuite_pro_v$BURP_VERSION.jar" "https://github.com/xiv3r/Burpsuite-Professional/releases/download/burpsuite-pro/burpsuite_pro_v$BURP_VERSION.jar"
+aria2c --check-certificate=false -o "burpsuite_pro_v$BURP_VERSION.jar" "https://github.com/xiv3r/Burpsuite-Professional/releases/download/burpsuite-pro/burpsuite_pro_v$BURP_VERSION.jar"
 
 echo "Copying local config files..."
 cp "$SCRIPT_DIR/.config.ini" "$REPO_DIR/" 2>/dev/null || true
