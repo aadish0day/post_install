@@ -7,10 +7,13 @@ BURP_VERSION="2026"
 
 echo "Installing Burp Suite Professional..."
 
-if ! pacman -Qi jre21-openjdk &>/dev/null; then
+if ! pacman -Qi jre21-openjdk &>/dev/null && ! pacman -Qi jdk21-openjdk &>/dev/null; then
     echo "Installing Java 21..."
-    sudo pacman -S --noconfirm jre21-openjdk
+    sudo pacman -S --noconfirm jdk21-openjdk
 fi
+
+echo "Setting Java 21 as default..."
+sudo update-alternatives --set java /usr/lib/jvm/java-21-openjdk/bin/java 2>/dev/null || true
 
 echo "Installing dependencies..."
 sudo pacman -S --noconfirm --needed git aria2
