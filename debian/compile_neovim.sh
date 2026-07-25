@@ -12,13 +12,13 @@ ORIGINAL_DIR=$(pwd) # Store the original directory
 
 # Clone the Neovim repository if it doesn't already exist
 if [ ! -d "$NEOVIM_DIR" ]; then
-	echo "Cloning Neovim..."
-	git clone https://github.com/neovim/neovim.git "$NEOVIM_DIR"
+    echo "Cloning Neovim..."
+    git clone https://github.com/neovim/neovim.git "$NEOVIM_DIR"
 else
-	echo "Directory $NEOVIM_DIR already exists, updating existing repository..."
-	cd "$NEOVIM_DIR"
-	git pull
-	cd "$ORIGINAL_DIR"
+    echo "Directory $NEOVIM_DIR already exists, updating existing repository..."
+    cd "$NEOVIM_DIR"
+    git pull
+    cd "$ORIGINAL_DIR"
 fi
 
 # Change directory to the cloned repository
@@ -37,8 +37,8 @@ cd "$ORIGINAL_DIR"
 
 # Optionally, remove the Neovim clone directory
 if [ -d "$NEOVIM_DIR" ]; then
-	echo "Cleaning up installation files..."
-	rm -rf "$NEOVIM_DIR"
+    echo "Cleaning up installation files..."
+    rm -rf "$NEOVIM_DIR"
 fi
 
 echo "Neovim installation and cleanup completed successfully."

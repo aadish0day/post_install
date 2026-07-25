@@ -11,8 +11,8 @@ log "Installing Docker on Debian/Ubuntu..."
 # Determine the distribution name for the repo
 DISTRO_ID=$(. /etc/os-release && echo "$ID")
 case "$DISTRO_ID" in
-    ubuntu) repo_distro="ubuntu" ;;
-    *)      repo_distro="debian" ;;
+ubuntu) repo_distro="ubuntu" ;;
+*) repo_distro="debian" ;;
 esac
 
 # Add Docker's official GPG key:
@@ -24,9 +24,9 @@ sudo chmod a+r /etc/apt/keyrings/docker.asc
 
 # Add the repository to Apt sources:
 echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/$repo_distro \
-  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/$repo_distro \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" |
+    sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
 sudo apt-get update
 
 # Install Docker packages

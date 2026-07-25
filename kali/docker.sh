@@ -13,12 +13,12 @@ sudo chmod a+r /etc/apt/keyrings/docker.asc
 # Add the repository to Apt sources:
 KALI_CODENAME=$(. /etc/os-release && echo "$VERSION_CODENAME")
 case "$KALI_CODENAME" in
-    kali-rolling) DEBIAN_CODENAME="bookworm" ;;
-    *)            DEBIAN_CODENAME="$KALI_CODENAME" ;;
+kali-rolling) DEBIAN_CODENAME="bookworm" ;;
+*) DEBIAN_CODENAME="$KALI_CODENAME" ;;
 esac
 
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $DEBIAN_CODENAME stable" | \
-  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $DEBIAN_CODENAME stable" |
+    sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
 sudo apt-get update
 
 # Install Docker packages

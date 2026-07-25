@@ -5,9 +5,9 @@
 
 # Check if running as root
 if [[ $EUID -ne 0 ]]; then
-   echo "Error: This script must be run as root"
-   echo "Please run: sudo $0"
-   exit 1
+    echo "Error: This script must be run as root"
+    echo "Please run: sudo $0"
+    exit 1
 fi
 
 echo "Kali Linux User Setup Script"
@@ -62,7 +62,7 @@ echo "Adding user to additional groups..."
 GROUPS="dialout wireshark bluetooth netdev kaboxer vboxsf docker"
 
 for group in $GROUPS; do
-    if getent group "$group" > /dev/null 2>&1; then
+    if getent group "$group" >/dev/null 2>&1; then
         usermod -aG "$group" "$NEW_USER"
     fi
 done
@@ -77,7 +77,7 @@ su - "$NEW_USER" -c "mkdir -p ~/Documents ~/Downloads ~/Tools ~/Scripts"
 if [[ "$KALI_EXISTS" == true ]]; then
     echo
     read -p "Remove the default 'kali' user? (yes/no): " REMOVE_KALI
-    
+
     if [[ "$REMOVE_KALI" == "yes" || "$REMOVE_KALI" == "y" ]]; then
         echo "Removing kali user..."
         pkill -u kali 2>/dev/null
@@ -96,11 +96,11 @@ if [[ "$AUTO_LOGIN" == "yes" || "$AUTO_LOGIN" == "y" ]]; then
     if [[ -f /etc/lightdm/lightdm.conf ]]; then
         cp /etc/lightdm/lightdm.conf /etc/lightdm/lightdm.conf.backup
     fi
-    
+
     if grep -q "autologin-user=" /etc/lightdm/lightdm.conf 2>/dev/null; then
         sed -i "s/^autologin-user=.*/autologin-user=$NEW_USER/" /etc/lightdm/lightdm.conf
     else
-        echo -e "\n[Seat:*]\nautologin-user=$NEW_USER\nautologin-user-timeout=0" >> /etc/lightdm/lightdm.conf
+        echo -e "\n[Seat:*]\nautologin-user=$NEW_USER\nautologin-user-timeout=0" >>/etc/lightdm/lightdm.conf
     fi
 fi
 

@@ -55,11 +55,11 @@ enable_services() {
 # Configure asusctl settings
 configure_asusctl() {
     echo "Configuring asusctl settings..."
-    
+
     # Set battery charge limit to 85%
     echo "Setting battery charge limit to 85%..."
     asusctl -c 85
-    
+
     # Enable custom fan curves for all modes
     echo "Enabling custom fan curves..."
     asusctl fan-curve -m Quiet -f cpu -e true
@@ -68,7 +68,7 @@ configure_asusctl() {
     asusctl fan-curve -m Performance -f gpu -e true
     asusctl fan-curve -m Balanced -f cpu -e true
     asusctl fan-curve -m Balanced -f gpu -e true
-    
+
     echo "Asusctl configuration completed."
 }
 
