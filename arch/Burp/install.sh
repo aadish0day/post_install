@@ -50,14 +50,7 @@ LAUNCHER_PATH="$HOME/.local/bin/burpsuitepro"
 echo "Creating launcher script at $LAUNCHER_PATH..."
 cat << EOF > "$LAUNCHER_PATH"
 #!/bin/bash
-java --add-opens=java.desktop/javax.swing=ALL-UNNAMED \
-     --add-opens=java.base/java.lang=ALL-UNNAMED \
-     --add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED \
-     --add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED \
-     --add-opens=java.base/jdk.internal.org.objectweb.asm.Opcodes=ALL-UNNAMED \
-     -javaagent:$REPO_DIR/loader.jar \
-     -noverify \
-     -jar $REPO_DIR/$JAR_NAME "\$@"
+java --add-opens=java.desktop/javax.swing=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm.Opcodes=ALL-UNNAMED -javaagent:$REPO_DIR/loader.jar -noverify -jar $REPO_DIR/$JAR_NAME "\$@"
 EOF
 chmod +x "$LAUNCHER_PATH"
 
