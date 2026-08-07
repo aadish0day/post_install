@@ -299,7 +299,6 @@ aur_packages=(
     "lib32-gstreamer"
     "localsend-bin"
     "markitdown-bin"
-    "slack-desktop-wayland"
     "thorium-browser-bin"
     "timeshift-autosnap"
     "vesktop-bin"
