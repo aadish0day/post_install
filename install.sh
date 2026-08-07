@@ -1,101 +1,77 @@
 #!/usr/bin/env bash
+# ponytail: auto-detect distro via /etc/os-release stdlib sourcing & execute target installer dynamically
+set -euo pipefail
 
-# Prompt user to select their distribution
-echo "Select your distribution:"
-echo "1) Debian/Ubuntu"
-echo "2) Arch Linux"
-echo "3) Fedora"
-echo "4) Kali Linux"
-echo "5) Termux"
-read -p "Distribution (1/2/3/4/5): " DISTRO_CHOICE
-
-# Define a function to clone Neovim configuration
-clone_neovim_config() {
-	echo "Cloning Neovim configuration..."
-	if git clone https://github.com/Aadishx07/neovim_config.git "${XDG_CONFIG_HOME:-$HOME/.config}/nvim"; then
-		echo "Neovim configuration cloned successfully."
-	else
-		echo "Failed to clone Neovim configuration."
-		exit 1
+detect_distro() {
+	if [ -d "/data/data/com.termux" ] || [ -n "${TERMUX_VERSION:-}" ]; then
+		echo "termux"
+		return 0
 	fi
+
+	if [ -f /etc/os-release ]; then
+		# ponytail: source /etc/os-release directly instead of parsing with grep/cut
+		local ID="" ID_LIKE=""
+		. /etc/os-release
+
+		case "${ID:-}" in
+		kali) echo "kali"; return 0 ;;
+		arch | manjaro | endeavouros | garuda | artix | cachyos) echo "arch"; return 0 ;;
+		fedora | rhel | centos | rocky | almalinux | nobara) echo "fedora"; return 0 ;;
+		debian | ubuntu | pop | linuxmint | elementary | raspbian) echo "debian"; return 0 ;;
+		esac
+
+		for like in ${ID_LIKE:-}; do
+			case "$like" in
+			arch) echo "arch"; return 0 ;;
+			fedora | rhel) echo "fedora"; return 0 ;;
+			debian | ubuntu) echo "debian"; return 0 ;;
+			esac
+		done
+	fi
+
+	echo "unknown"
+	return 1
 }
 
-# Check if Neovim config already exists
-if [ ! -d "${XDG_CONFIG_HOME:-$HOME/.config}/nvim" ]; then
-	# Clone Neovim config if it doesn't exist
-	clone_neovim_config
-else
-	echo "Neovim configuration already exists. Skipping clone."
-fi
+DETECTED_DISTRO=$(detect_distro || echo "unknown")
 
-# Ensure the creation of the Screenshot folder
-mkdir -p "$HOME/Pictures/Screenshots" || {
-	echo "Failed to create $HOME/Pictures/Screenshots directory."
-	exit 1
-}
-
-# Run the distribution-specific script
-case $DISTRO_CHOICE in
-1)
-	if [ -d "./debian" ] && [ -f "./debian/debian.sh" ]; then
-		(cd debian && ./debian.sh) || {
-			echo "Failed to run distribution-specific script for Debian/Ubuntu."
-			exit 1
-		}
-	else
-		echo "Debian/Ubuntu script not found."
-		exit 1
-	fi
-	;;
-2)
-	if [ -d "./arch" ] && [ -f "./arch/arch.sh" ]; then
-		(cd arch && ./arch.sh) || {
-			echo "Failed to run distribution-specific script for Arch Linux."
-			exit 1
-		}
-	else
-		echo "Arch Linux script not found."
-		exit 1
-	fi
-	;;
-3)
-	if [ -d "./fedora" ] && [ -f "./fedora/fedora.sh" ]; then
-		(cd fedora && ./fedora.sh) || {
-			echo "Failed to run distribution-specific script for Fedora."
-			exit 1
-		}
-	else
-		echo "Fedora script not found."
-		exit 1
-	fi
-	;;
-4)
-	if [ -d "./kali" ] && [ -f "./kali/kali.sh" ]; then
-		(cd kali && ./kali.sh) || {
-			echo "Failed to run distribution-specific script for Kali Linux."
-			exit 1
-		}
-	else
-		echo "Kali Linux script not found."
-		exit 1
-	fi
-	;;
-5)
-	if [ -d "./termux" ] && [ -f "./termux/termux.sh" ]; then
-		(cd termux && ./termux.sh) || {
-			echo "Failed to run distribution-specific script for Termux."
-			exit 1
-		}
-	else
-		echo "Termux script not found."
-		exit 1
-	fi
-	;;
+case "$DETECTED_DISTRO" in
+debian) echo "Auto-detected OS: Debian/Ubuntu"; DISTRO_DIR="debian" ;;
+arch)   echo "Auto-detected OS: Arch Linux";    DISTRO_DIR="arch" ;;
+fedora) echo "Auto-detected OS: Fedora";        DISTRO_DIR="fedora" ;;
+kali)   echo "Auto-detected OS: Kali Linux";    DISTRO_DIR="kali" ;;
+termux) echo "Auto-detected OS: Termux";        DISTRO_DIR="termux" ;;
 *)
-	echo "Invalid selection. Exiting."
-	exit 1
+	echo "Could not auto-detect distribution."
+	echo "1) Debian/Ubuntu 2) Arch Linux 3) Fedora 4) Kali Linux 5) Termux"
+	read -rp "Distribution (1-5): " CHOICE
+	case "$CHOICE" in
+	1) DISTRO_DIR="debian" ;;
+	2) DISTRO_DIR="arch" ;;
+	3) DISTRO_DIR="fedora" ;;
+	4) DISTRO_DIR="kali" ;;
+	5) DISTRO_DIR="termux" ;;
+	*) echo "Invalid selection."; exit 1 ;;
+	esac
 	;;
 esac
 
-# Install fonts, icon themes, and GTK themes
+# Clone Neovim configuration if missing
+NVIM_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/nvim"
+if [ ! -d "$NVIM_DIR" ]; then
+	echo "Cloning Neovim configuration..."
+	git clone https://github.com/Aadishx07/neovim_config.git "$NVIM_DIR" || { echo "Failed to clone nvim config."; exit 1; }
+fi
+
+mkdir -p "$HOME/Pictures/Screenshots"
+
+# ponytail: dynamic execution block replaces 60 lines of repetitive case statements
+SCRIPT="./$DISTRO_DIR/$DISTRO_DIR.sh"
+if [ -f "$SCRIPT" ]; then
+	(cd "$DISTRO_DIR" && ./"$DISTRO_DIR.sh") || { echo "Installation script failed for $DISTRO_DIR."; exit 1; }
+else
+	echo "Script $SCRIPT not found."
+	exit 1
+fi
+
 echo "Setup completed successfully!"
