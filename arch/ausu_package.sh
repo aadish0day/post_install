@@ -1,82 +1,222 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Define key and repo details
-KEY_ID="8F654886F17D497FEFE3DB448B15A6B0E9A3FA35"
-REPO_URL="https://arch.asus-linux.org"
-REPO_NAME="g14"
+# ============================================================
+# ASUS ROG setup script (Arch)
+# Auto-detects CPU vendor (amd/intel), dGPU vendor
+# (nvidia/amd/intel) and the display session (wayland/x11)
+# before installing drivers and asusctl tooling.
+# ============================================================
 
-# Function to check for root privileges
-require_root() {
-    if [ "$EUID" -ne 0 ]; then
-        echo "This script requires root privileges. Please run as root."
-        exit 1
+# ------------------------- Configuration --------------------
+AYUSH_KEY_ID="F79100EF8C802DAB81C323BB8EEA5962FE510E19"
+DRAGOON_KEY_ID="8F654886F17D497FEFE3DB448B15A6B0E9A3FA35"
+REPO_URL="https://pacman.opengamingcollective.org"
+REPO_NAME="ogc"
+BATTERY_LIMIT=85
+
+# ------------------------- Detection ------------------------
+detect_cpu_vendor() {
+    if grep -q "GenuineIntel" /proc/cpuinfo; then
+        echo "intel"
+    else
+        echo "amd"
     fi
 }
 
-# Add G14 key and repository
-add_g14_repo() {
-    echo "Adding G14 key..."
-    pacman-key --recv-keys "$KEY_ID"
-    pacman-key --finger "$KEY_ID"
-    pacman-key --lsign-key "$KEY_ID"
-    pacman-key --finger "$KEY_ID"
+detect_cpu_model() {
+    grep -m1 "model name" /proc/cpuinfo | sed -E 's/.*: //'
+}
 
-    # Verify keyserver configuration if key fetch fails
+detect_gpu_vendor() {
+    if lspci 2>/dev/null | grep -qi "nvidia"; then
+        echo "nvidia"
+    elif lspci 2>/dev/null | grep -qiE "\[amd/at\]|radeon|navi"; then
+        echo "amd"
+    elif lspci 2>/dev/null | grep -qiE "intel corporation.*vga|\[8086:"; then
+        echo "intel"
+    else
+        echo "other"
+    fi
+}
+
+detect_session_type() {
+    local type=""
+    type="${XDG_SESSION_TYPE:-}"
+    if [ -z "$type" ] && command -v loginctl >/dev/null 2>&1; then
+        local sid
+        sid="$(loginctl --no-legend list-sessions 2>/dev/null | awk '$4 != "-" {print $1; exit}')"
+        if [ -n "$sid" ]; then
+            type="$(loginctl show-session "$sid" -p Type --value 2>/dev/null || true)"
+        fi
+    fi
+    [ -n "$type" ] && echo "$type" || echo "unknown"
+}
+
+gpu_description() {
+    lspci 2>/dev/null | grep -Ei "vga|3d controller" | sed -E 's/^[0-9a-f:.]+\s+//' | sort -u
+}
+
+# ------------------------- Root check -----------------------
+require_root() {
+    if [ "$EUID" -ne 0 ]; then
+        echo "This script needs root privileges. Re-running with sudo..."
+        exec sudo bash "$0" "$@"
+    fi
+}
+
+# ------------------------- OGC repo -------------------------
+add_ogc_repo() {
+    # Ensure the keyserver is configured before fetching keys
     if [ ! -f /etc/pacman.d/gnupg/gpg.conf ] || ! grep -q "keyserver" /etc/pacman.d/gnupg/gpg.conf; then
         echo "Configuring keyserver..."
         echo "keyserver hkp://keyserver.ubuntu.com" >>/etc/pacman.d/gnupg/gpg.conf
     fi
 
-    # Add the G14 repository to pacman.conf
+    echo "Adding Ayush key..."
+    pacman-key --recv-keys "$AYUSH_KEY_ID"
+    pacman-key --lsign-key "$AYUSH_KEY_ID"
+
+    echo "Adding dragoon key..."
+    pacman-key --recv-keys "$DRAGOON_KEY_ID"
+    pacman-key --finger "$DRAGOON_KEY_ID"
+    pacman-key --lsign-key "$DRAGOON_KEY_ID"
+    pacman-key --finger "$DRAGOON_KEY_ID"
+
+    # Add the OGC repository to pacman.conf
     if ! grep -q "\[$REPO_NAME\]" /etc/pacman.conf; then
-        echo "Adding G14 repository..."
+        echo "Adding OGC repository..."
         echo -e "\n[$REPO_NAME]\nServer = $REPO_URL" >>/etc/pacman.conf
     fi
 }
 
-# Install packages
+# ------------------------- Firmware/ucode -------------------
+install_firmware() {
+    local cpu_vendor="$1"
+    echo "Installing linux-firmware and ${cpu_vendor}-ucode..."
+    pacman -S --noconfirm --needed linux-firmware
+    pacman -S --noconfirm --needed "${cpu_vendor}-ucode"
+}
+
+# ------------------------- GPU drivers ----------------------
+install_gpu_drivers() {
+    local gpu_vendor="$1"
+    case "$gpu_vendor" in
+        nvidia)
+            echo "NVIDIA dGPU detected - installing NVIDIA drivers..."
+            pacman -S --noconfirm --needed mesa vulkan-radeon vulkan-icd-loader nvidia-utils
+
+            # nvidia-laptop-power-cfg must be built as a non-root user
+            if [ -n "${SUDO_USER:-}" ]; then
+                sudo -u "$SUDO_USER" bash -c '
+                    cd /tmp &&
+                    rm -rf nvidia-laptop-power-cfg &&
+                    git clone --depth 1 https://gitlab.com/asus-linux/nvidia-laptop-power-cfg.git &&
+                    cd nvidia-laptop-power-cfg &&
+                    makepkg -sfi --noconfirm
+                '
+            else
+                echo "nvidia-laptop-power-cfg needs to be built as a non-root user:"
+                echo "  git clone https://gitlab.com/asus-linux/nvidia-laptop-power-cfg.git"
+                echo "  cd nvidia-laptop-power-cfg && makepkg -sfi"
+            fi
+
+            for svc in nvidia-suspend.service nvidia-hibernate.service nvidia-resume.service; do
+                if [ -f "/usr/lib/systemd/system/$svc" ]; then
+                    systemctl enable "$svc"
+                fi
+            done
+            if [ -f /usr/lib/systemd/system/nvidia-powerd.service ]; then
+                systemctl enable --now nvidia-powerd.service
+            fi
+            ;;
+        amd)
+            echo "AMD GPU detected - ensuring Mesa/Vulkan support..."
+            pacman -S --noconfirm --needed mesa vulkan-radeon vulkan-icd-loader
+            ;;
+        intel)
+            echo "Intel GPU detected - ensuring Mesa/Vulkan support..."
+            pacman -S --noconfirm --needed mesa vulkan-intel vulkan-icd-loader
+            ;;
+        *)
+            echo "GPU vendor unknown - skipping GPU driver setup."
+            ;;
+    esac
+}
+
+# ------------------------- Packages -------------------------
 install_packages() {
     echo "Updating system and installing packages..."
-    pacman -Syu --noconfirm
-    pacman -S --noconfirm asusctl power-profiles-daemon supergfxctl rog-control-center
+    pacman -Suy --noconfirm
+    pacman -S --noconfirm asusctl power-profiles-daemon rog-control-center
 }
 
-# Enable services without starting them
+# ------------------------- Services -------------------------
 enable_services() {
     echo "Enabling power-profiles-daemon..."
-    systemctl enable power-profiles-daemon.service
+    systemctl enable --now power-profiles-daemon.service
 
-    echo "Enabling supergfxctl and switcheroo-control..."
-    systemctl enable supergfxd.service
-    systemctl start supergfxd.service
+    echo "asusd is triggered by a udev rule and does not need to be enabled."
 }
 
-# Configure asusctl settings
+# ------------------------- asusctl config -------------------
 configure_asusctl() {
+    local limit="$1"
     echo "Configuring asusctl settings..."
 
-    # Set battery charge limit to 85%
-    echo "Setting battery charge limit to 85%..."
-    asusctl -c 85
+    # Set battery charge limit
+    echo "Setting battery charge limit to ${limit}%..."
+    asusctl battery limit "$limit"
 
-    # Enable custom fan curves for all modes
+    # Enable custom fan curves for all modes.
+    # NOTE: asusd races on consecutive writes and drops updates;
+    # a short pause between profiles lets each fan-curve persist.
     echo "Enabling custom fan curves..."
-    asusctl fan-curve -m Quiet -f cpu -e true
-    asusctl fan-curve -m Quiet -f gpu -e true
-    asusctl fan-curve -m Performance -f cpu -e true
-    asusctl fan-curve -m Performance -f gpu -e true
-    asusctl fan-curve -m Balanced -f cpu -e true
-    asusctl fan-curve -m Balanced -f gpu -e true
+    asusctl fan-curve --mod-profile Quiet --enable-fan-curves true
+    sleep 1
+    asusctl fan-curve --mod-profile Performance --enable-fan-curves true
+    sleep 1
+    asusctl fan-curve --mod-profile Balanced --enable-fan-curves true
 
     echo "Asusctl configuration completed."
 }
 
-# Run functions
+# ------------------------- Summary --------------------------
+print_summary() {
+    local cpu_vendor="$1"
+    local session_type="$2"
+    local krel kmajor kminor
+
+    echo "=========================================="
+    echo " Hardware summary"
+    echo "  CPU:     $(detect_cpu_model) ($cpu_vendor)"
+    echo "  GPU(s):"
+    gpu_description | sed 's/^/    /'
+    echo "  Session: $session_type"
+    echo "  Kernel:  $(uname -r)"
+
+    krel="$(uname -r | cut -d- -f1)"
+    kmajor="${krel%%.*}"
+    kminor="${krel#*.}"
+    kminor="${kminor%%.*}"
+    if [ "$kmajor" -gt 6 ] || { [ "$kmajor" -eq 6 ] && [ "$kminor" -ge 19 ]; }; then
+        echo "  Note: kernel >= 6.19, stock kernel is fine (no OGC kernel needed)."
+    fi
+    echo "=========================================="
+}
+
+# ------------------------- Main -----------------------------
 require_root
-add_g14_repo
+CPU_VENDOR="$(detect_cpu_vendor)"
+GPU_VENDOR="$(detect_gpu_vendor)"
+SESSION_TYPE="$(detect_session_type)"
+
+add_ogc_repo
+install_firmware "$CPU_VENDOR"
+install_gpu_drivers "$GPU_VENDOR"
 install_packages
 enable_services
-configure_asusctl
+configure_asusctl "$BATTERY_LIMIT"
+print_summary "$CPU_VENDOR" "$SESSION_TYPE"
 
-echo "Installation completed successfully. G14 repo added, keys configured, packages installed, and asusctl configured."
+echo "Installation completed successfully."
