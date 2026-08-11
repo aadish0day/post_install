@@ -4,6 +4,13 @@ set -euo pipefail
 # Get the directory where the script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+prompt_yes_no() {
+    local res
+    echo ""
+    read -rp "$1 (y/n): " res
+    [[ "$res" =~ ^[Yy]$ ]]
+}
+
 # Keep sudo alive during long operations (e.g., AUR builds)
 if sudo -v; then
     sudo -n true
@@ -22,12 +29,9 @@ sudo pacman -Sy --noconfirm
 sudo pacman -S --needed reflector --noconfirm --overwrite '*'
 
 # Prompt user to configure mirrors
-read -rp "Do you want to configure the mirror list for India using reflector? (y/n): " configure_mirrors
-if [[ $configure_mirrors =~ ^[Yy]$ ]]; then
+if prompt_yes_no "Do you want to configure the mirror list for India using reflector?"; then
     echo "Configuring mirror list for India..."
     sudo reflector --latest 5 --country India --protocol https --sort rate --save /etc/pacman.d/mirrorlist
-else
-    echo "Skipping mirror configuration."
 fi
 
 # Update system and packages after mirror update
@@ -67,82 +71,14 @@ case $de_choice in
     ;;
 esac
 
-# Ask about gaming packages
-echo ""
-read -rp "Do you want to install gaming packages? (y/n): " install_gaming_input
-install_gaming=false
-if [[ $install_gaming_input =~ ^[Yy]$ ]]; then
-    install_gaming=true
-    echo "Gaming packages will be installed."
-else
-    echo "Skipping gaming packages."
-fi
-
-# Ask about ASUS specific packages
-echo ""
-read -rp "Do you want to install ASUS specific drivers? (y/n): " install_asus_input
-install_asus=false
-if [[ $install_asus_input =~ ^[Yy]$ ]]; then
-    install_asus=true
-    echo "ASUS specific drivers will be installed."
-else
-    echo "Skipping ASUS specific drivers."
-fi
-
-# Ask about virtualization packages
-echo ""
-read -rp "Do you want to install virtualization packages (VMware Workstation and Open VM Tools)? (y/n): " install_virt_input
-install_virt=false
-if [[ $install_virt_input =~ ^[Yy]$ ]]; then
-    install_virt=true
-    echo "Virtualization packages will be installed."
-else
-    echo "Skipping virtualization packages."
-fi
-
-# Ask about Docker
-echo ""
-read -rp "Do you want to install Docker? (y/n): " install_docker_input
-install_docker=false
-if [[ $install_docker_input =~ ^[Yy]$ ]]; then
-    install_docker=true
-    echo "Docker will be installed."
-else
-    echo "Skipping Docker installation."
-fi
-
-# Ask about AMD GPU drivers and related runtimes
-echo ""
-read -rp "Do you want to install AMD GPU drivers and runtimes (Vulkan/OpenCL/VA-API/VDPAU)? (y/n): " install_amd_input
-install_amd=false
-if [[ $install_amd_input =~ ^[Yy]$ ]]; then
-    install_amd=true
-    echo "AMD GPU drivers and runtimes will be installed."
-else
-    echo "Skipping AMD GPU drivers and runtimes."
-fi
-
-# Ask about coding packages
-echo ""
-read -rp "Do you want to install coding packages (VS Code, Android Studio, Flutter, etc.)? (y/n): " install_coding_input
-install_coding=false
-if [[ $install_coding_input =~ ^[Yy]$ ]]; then
-    install_coding=true
-    echo "Coding packages will be installed."
-else
-    echo "Skipping coding packages."
-fi
-
-# Ask about Burp Suite Professional
-echo ""
-read -rp "Do you want to install Burp Suite Professional? (y/n): " install_burp_input
-install_burp=false
-if [[ $install_burp_input =~ ^[Yy]$ ]]; then
-    install_burp=true
-    echo "Burp Suite Professional will be installed."
-else
-    echo "Skipping Burp Suite Professional installation."
-fi
+# Ask preferences
+install_gaming=false; prompt_yes_no "Do you want to install gaming packages?" && install_gaming=true
+install_asus=false; prompt_yes_no "Do you want to install ASUS specific drivers?" && install_asus=true
+install_virt=false; prompt_yes_no "Do you want to install virtualization packages (VMware Workstation and Open VM Tools)?" && install_virt=true
+install_docker=false; prompt_yes_no "Do you want to install Docker?" && install_docker=true
+install_amd=false; prompt_yes_no "Do you want to install AMD GPU drivers and runtimes (Vulkan/OpenCL/VA-API/VDPAU)?" && install_amd=true
+install_coding=false; prompt_yes_no "Do you want to install coding packages (VS Code, Android Studio, Flutter, etc.)?" && install_coding=true
+install_burp=false; prompt_yes_no "Do you want to install Burp Suite Professional?" && install_burp=true
 
 echo ""
 echo "=========================================="
@@ -178,87 +114,25 @@ fi
 
 # Function to install packages if not already installed
 install_if_needed() {
-    local pkg
-    local failures=()
-    local to_install=()
-
-    for pkg in "$@"; do
-        if ! pacman -Qi "$pkg" &>/dev/null; then
-            to_install+=("$pkg")
-        else
-            echo "$pkg is already installed. Skipping..."
-        fi
-    done
-
-    if [ ${#to_install[@]} -gt 0 ]; then
-        echo "Installing: ${to_install[*]}"
-        if ! sudo pacman -S --noconfirm --needed --overwrite '*' "${to_install[@]}"; then
-            echo "Some packages failed to install, checking..."
-            for pkg in "${to_install[@]}"; do
-                if ! pacman -Qi "$pkg" &>/dev/null; then
-                    echo "Failed to install $pkg"
-                    failures+=("$pkg")
-                fi
-            done
-            if [ ${#failures[@]} -gt 0 ]; then
-                echo "Failed to install the following packages: ${failures[*]}"
-                return 1
-            fi
-        fi
-    fi
+    sudo pacman -S --needed --noconfirm --overwrite '*' "$@"
 }
 
 # Function to install paru
 install_paru() {
     echo "Installing paru..."
-    if ! pacman -Qq base-devel &>/dev/null; then
-        echo "Installing base-devel package group..."
-        sudo pacman -S --needed base-devel git --noconfirm --overwrite '*'
-    fi
-
-    cd /tmp || exit 1
-
-    if [ -d "/tmp/paru-bin" ]; then
-        echo "Removing existing paru-bin directory..."
-        rm -rf /tmp/paru-bin
-    fi
-
-    if ! git clone https://aur.archlinux.org/paru-bin.git; then
-        echo "Failed to clone paru-bin repository."
-        cd - || exit 1
-        return 1
-    fi
-
-    cd paru-bin || {
-        echo "Failed to enter paru-bin directory."
-        cd - || exit 1
-        return 1
-    }
-
-    makepkg -si --noconfirm || {
-        echo "Failed to build and install paru."
-        cd - || exit 1
-        return 1
-    }
-
-    cd - || exit 1
-    rm -rf /tmp/paru-bin
-    echo "paru has been successfully installed."
+    sudo pacman -S --needed --noconfirm base-devel git
+    rm -rf /tmp/paru
+    git clone https://aur.archlinux.org/paru.git /tmp/paru
+    (cd /tmp/paru && makepkg -si --noconfirm)
+    rm -rf /tmp/paru
 }
 
 # Function to install AUR packages
 install_aur_packages() {
-    local pkg
-    for pkg in "$@"; do
-        if ! pacman -Qi "$pkg" &>/dev/null; then
-            if [[ "$pkg" == "i3lock-color" ]] && pacman -Qq "i3lock" &>/dev/null; then
-                sudo pacman -Rns --noconfirm "i3lock"
-            fi
-            paru -S --noconfirm --needed "$pkg" || echo "Failed to install $pkg"
-        else
-            echo "$pkg is already installed."
-        fi
-    done
+    if pacman -Qq "i3lock" &>/dev/null && [[ " $@ " =~ " i3lock-color " ]]; then
+        sudo pacman -Rns --noconfirm "i3lock"
+    fi
+    paru -S --noconfirm --needed "$@"
 }
 
 # ============================================================================

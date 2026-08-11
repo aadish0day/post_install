@@ -45,7 +45,7 @@ post_install/
 │   ├── arch.sh             # Arch Linux main setup
 │   ├── Burp/install.sh     # Burp Suite Pro installer (Arch)
 │   ├── ausu_package.sh     # ASUS laptop tools & G14 repo
-│   ├── driver.sh           # Touchpad & AMD GPU config
+│   ├── touchpad.sh         # Touchpad configuration
 │   ├── docker.sh           # Docker & Compose setup
 │   ├── vm.sh               # KVM/QEMU virtualization stack
 │   └── environment/        # Desktop environments (KDE / Tiling WMs)

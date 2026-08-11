@@ -17,11 +17,7 @@ BATTERY_LIMIT=85
 
 # ------------------------- Detection ------------------------
 detect_cpu_vendor() {
-    if grep -q "GenuineIntel" /proc/cpuinfo; then
-        echo "intel"
-    else
-        echo "amd"
-    fi
+    grep -q "GenuineIntel" /proc/cpuinfo && echo "intel" || echo "amd"
 }
 
 detect_cpu_model() {
@@ -40,18 +36,7 @@ detect_gpu_vendor() {
     fi
 }
 
-detect_session_type() {
-    local type=""
-    type="${XDG_SESSION_TYPE:-}"
-    if [ -z "$type" ] && command -v loginctl >/dev/null 2>&1; then
-        local sid
-        sid="$(loginctl --no-legend list-sessions 2>/dev/null | awk '$4 != "-" {print $1; exit}')"
-        if [ -n "$sid" ]; then
-            type="$(loginctl show-session "$sid" -p Type --value 2>/dev/null || true)"
-        fi
-    fi
-    [ -n "$type" ] && echo "$type" || echo "unknown"
-}
+
 
 gpu_description() {
     lspci 2>/dev/null | grep -Ei "vga|3d controller" | sed -E 's/^[0-9a-f:.]+\s+//' | sort -u
@@ -79,7 +64,6 @@ add_ogc_repo() {
 
     echo "Adding dragoon key..."
     pacman-key --recv-keys "$DRAGOON_KEY_ID"
-    pacman-key --finger "$DRAGOON_KEY_ID"
     pacman-key --lsign-key "$DRAGOON_KEY_ID"
     pacman-key --finger "$DRAGOON_KEY_ID"
 
@@ -209,7 +193,7 @@ print_summary() {
 require_root
 CPU_VENDOR="$(detect_cpu_vendor)"
 GPU_VENDOR="$(detect_gpu_vendor)"
-SESSION_TYPE="$(detect_session_type)"
+SESSION_TYPE="${XDG_SESSION_TYPE:-unknown}"
 
 add_ogc_repo
 install_firmware "$CPU_VENDOR"
