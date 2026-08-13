@@ -11,13 +11,6 @@ log() {
 # Get the directory where the script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Update the dnf config if the file exists
-if [ -f "$SCRIPT_DIR/config/dnf.conf" ]; then
-    sudo cp -r "$SCRIPT_DIR/config/dnf.conf" /etc/dnf/dnf.conf
-else
-    log "Warning: config/dnf.conf not found. Skipping dnf configuration update."
-fi
-
 # Ensure the script is run as root (auto-elevate if needed)
 if [ "$(id -u)" != "0" ]; then
     log "Re-running with sudo..."
@@ -25,6 +18,17 @@ if [ "$(id -u)" != "0" ]; then
 fi
 
 log "Starting Fedora setup..."
+
+# Safely update DNF configuration
+if [ -f "$SCRIPT_DIR/config/dnf.conf" ]; then
+    log "Optimizing DNF configuration..."
+    if [ -f /etc/dnf/dnf.conf ] && [ ! -f /etc/dnf/dnf.conf.bak ]; then
+        cp /etc/dnf/dnf.conf /etc/dnf/dnf.conf.bak
+    fi
+    cp "$SCRIPT_DIR/config/dnf.conf" /etc/dnf/dnf.conf
+else
+    log "Warning: config/dnf.conf not found. Skipping dnf configuration update."
+fi
 
 # Update the system
 log "Updating the system..."
