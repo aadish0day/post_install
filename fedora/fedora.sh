@@ -19,16 +19,33 @@ fi
 
 log "Starting Fedora setup..."
 
-# Safely update DNF configuration
-if [ -f "$SCRIPT_DIR/config/dnf.conf" ]; then
-    log "Optimizing DNF configuration..."
-    if [ -f /etc/dnf/dnf.conf ] && [ ! -f /etc/dnf/dnf.conf.bak ]; then
-        cp /etc/dnf/dnf.conf /etc/dnf/dnf.conf.bak
+# Safely optimize DNF / DNF5 configuration non-destructively
+log "Optimizing DNF configuration..."
+for config_target in /etc/dnf/dnf.conf /etc/dnf/dnf5.conf; do
+    if [ -f "$config_target" ]; then
+        if [ ! -f "${config_target}.bak" ]; then
+            cp "$config_target" "${config_target}.bak"
+        fi
+        
+        # Ensure setting keys exist or update them without wiping the whole file
+        declare -A dnf_opts=(
+            ["fastestmirror"]="True"
+            ["max_parallel_downloads"]="10"
+            ["defaultyes"]="True"
+            ["countme"]="False"
+            ["installonly_limit"]="3"
+            ["clean_requirements_on_remove"]="True"
+        )
+        for key in "${!dnf_opts[@]}"; do
+            val="${dnf_opts[$key]}"
+            if grep -q "^${key}=" "$config_target"; then
+                sed -i "s|^${key}=.*|${key}=${val}|" "$config_target"
+            else
+                echo "${key}=${val}" >> "$config_target"
+            fi
+        done
     fi
-    cp "$SCRIPT_DIR/config/dnf.conf" /etc/dnf/dnf.conf
-else
-    log "Warning: config/dnf.conf not found. Skipping dnf configuration update."
-fi
+done
 
 # Update the system
 log "Updating the system..."
