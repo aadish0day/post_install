@@ -44,7 +44,7 @@ post_install/
 ├── arch/
 │   ├── arch.sh             # Arch Linux main setup
 │   ├── apps/               # App-specific installers (burp, docker)
-│   ├── desktop/            # Desktop environments & UI settings (kde, tiling, touchpad)
+│   ├── desktop/            # Desktop environments & UI settings (kde, tiling, touchpad, samsung-second-screen)
 │   ├── hardware/           # Hardware drivers (asus)
 │   └── virt/               # Virtualization (kvm-qemu, vmware-workstation)
 ├── debian/
