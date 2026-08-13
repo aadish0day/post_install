@@ -46,7 +46,7 @@ gpu_description() {
 require_root() {
     if [ "$EUID" -ne 0 ]; then
         echo "This script needs root privileges. Re-running with sudo..."
-        exec sudo bash "$0" "$@"
+        exec sudo bash "$(readlink -f "$0")" "$@"
     fi
 }
 
