@@ -26,10 +26,10 @@ fi
 
 # 3. Install VMware Workstation and related packages from AUR
 virt_packages=(
+    "vmware-keymaps"
     "ncurses5-compat-libs"
     "libx11-mr293"
     "vmware-workstation"
-    "vmware-keymaps"
     "bridge-utils"
 )
 
