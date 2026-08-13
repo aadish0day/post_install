@@ -350,7 +350,11 @@ fi
 if [ "$install_virt" = true ]; then
     echo ""
     echo "Installing virtualization packages..."
-    install_aur_packages "${virt_packages[@]}"
+    if [ -f "$SCRIPT_DIR/vmware-workstation.sh" ]; then
+        bash "$SCRIPT_DIR/vmware-workstation.sh"
+    else
+        install_aur_packages "${virt_packages[@]}"
+    fi
 fi
 
 # Install Docker if selected

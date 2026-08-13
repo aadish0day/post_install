@@ -22,7 +22,7 @@ cd post_install
 
 | Distribution | Main Entry | Key Features & Modular Components |
 |---|---|---|
-| **Arch Linux** | `arch/arch.sh` | • Interactive desktop setup (KDE / Tiling WMs)<br>• ASUS laptop tools (`ausu_package.sh`) & AMD GPU optimization<br>• KVM/QEMU virtualization stack (`vm.sh`) & Docker<br>• Burp Suite Professional installer (`Burp/install.sh`) |
+| **Arch Linux** | `arch/arch.sh` | • Interactive desktop setup (KDE / Tiling WMs)<br>• ASUS laptop tools (`ausu_package.sh`) & AMD GPU optimization<br>• KVM/QEMU virtualization stack (`kvm-qemu.sh`) & VMware Workstation (`vmware-workstation.sh`) & Docker<br>• Burp Suite Professional installer (`Burp/install.sh`) |
 | **Kali Linux** | `kali/kali.sh` | • Automated `~/cybersec` workspace & dotfile linking<br>• Metapackage installer (everything / large / labs)<br>• Multi-user setup (`setup_kali_user.sh`) & Realtek WiFi driver<br>• Burp Suite Professional installer (`Burp/install.sh`) |
 | **Debian / Ubuntu**| `debian/debian.sh` | • `nala` package manager setup & core dev stack<br>• Neovim source build script (`compile_neovim.sh`)<br>• Official Docker CE setup (`docker.sh`) |
 | **Fedora** | `fedora/fedora.sh` | • Tuned `dnf.conf` (parallel downloads & fast mirrors)<br>• RPM Fusion & COPR repo enablement<br>• Docker CE setup (`docker.sh`) |
@@ -47,7 +47,8 @@ post_install/
 │   ├── ausu_package.sh     # ASUS laptop tools & G14 repo
 │   ├── touchpad.sh         # Touchpad configuration
 │   ├── docker.sh           # Docker & Compose setup
-│   ├── vm.sh               # KVM/QEMU virtualization stack
+│   ├── kvm-qemu.sh         # KVM/QEMU virtualization stack
+│   ├── vmware-workstation.sh # VMware Workstation setup
 │   └── environment/        # Desktop environments (KDE / Tiling WMs)
 ├── debian/
 │   ├── debian.sh           # Debian/Ubuntu main setup
