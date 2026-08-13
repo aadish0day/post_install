@@ -123,15 +123,18 @@ if command -v zsh &>/dev/null; then
     fi
 fi
 
+# Get the directory where the script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Ask about Docker
 echo ""
 read -rp "Do you want to install Docker? (y/n): " install_docker_input
 if [[ $install_docker_input =~ ^[Yy]$ ]]; then
     log "Installing Docker..."
-    if [ -f "./docker.sh" ]; then
-        bash ./docker.sh
+    if [ -f "$SCRIPT_DIR/apps/docker.sh" ]; then
+        bash "$SCRIPT_DIR/apps/docker.sh"
     else
-        log "Error: docker.sh not found."
+        log "Error: apps/docker.sh not found."
     fi
 fi
 

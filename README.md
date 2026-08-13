@@ -23,10 +23,10 @@ cd post_install
 | Distribution | Main Entry | Key Features & Modular Components |
 |---|---|---|
 | **Arch Linux** | `arch/arch.sh` | • Interactive desktop setup (KDE / Tiling WMs)<br>• ASUS laptop tools (`hardware/asus.sh`) & AMD GPU optimization<br>• KVM/QEMU (`virt/kvm-qemu.sh`) & VMware Workstation (`virt/vmware-workstation.sh`) & Docker (`apps/docker.sh`)<br>• Burp Suite Professional installer (`apps/burp/install.sh`) |
-| **Kali Linux** | `kali/kali.sh` | • Automated `~/cybersec` workspace & dotfile linking<br>• Metapackage installer (everything / large / labs)<br>• Multi-user setup (`setup_kali_user.sh`) & Realtek WiFi driver<br>• Burp Suite Professional installer (`Burp/install.sh`) |
-| **Debian / Ubuntu**| `debian/debian.sh` | • `nala` package manager setup & core dev stack<br>• Neovim source build script (`compile_neovim.sh`)<br>• Official Docker CE setup (`docker.sh`) |
-| **Fedora** | `fedora/fedora.sh` | • Tuned `dnf.conf` (parallel downloads & fast mirrors)<br>• RPM Fusion & COPR repo enablement<br>• Docker CE setup (`docker.sh`) |
-| **Termux** | `termux/termux.sh` | • Terminal environment setup & dotfiles linking<br>• JetBrainsMono Nerd Font setup (`install_nerd_font.sh`) |
+| **Kali Linux** | `kali/kali.sh` | • Automated `~/cybersec` workspace & dotfile linking<br>• Metapackage installer (everything / large / labs)<br>• Multi-user setup (`system/user.sh`) & Realtek WiFi driver (`hardware/wifi.sh`)<br>• Burp Suite Professional installer (`apps/burp/install.sh`) |
+| **Debian / Ubuntu**| `debian/debian.sh` | • `nala` package manager setup & core dev stack<br>• Neovim source build script (`apps/neovim.sh`)<br>• Official Docker CE setup (`apps/docker.sh`) |
+| **Fedora** | `fedora/fedora.sh` | • Tuned `config/dnf.conf` (parallel downloads & fast mirrors)<br>• RPM Fusion & COPR repo enablement<br>• Docker CE setup (`apps/docker.sh`) |
+| **Termux** | `termux/termux.sh` | • Terminal environment setup & dotfiles linking<br>• JetBrainsMono Nerd Font setup (`system/font.sh`) |
 
 ## Key Standalone Tools
 
@@ -43,35 +43,25 @@ post_install/
 ├── vmtools.sh              # VMware guest tools installer
 ├── arch/
 │   ├── arch.sh             # Arch Linux main setup
-│   ├── apps/               # App-specific installers
-│   │   ├── burp/           # Burp Suite Pro installer & assets
-│   │   └── docker.sh       # Docker & Compose setup
-│   ├── desktop/            # Desktop environments & UI settings
-│   │   ├── kde.sh          # KDE Plasma setup
-│   │   ├── tiling.sh       # X11 Tiling WM setup
-│   │   └── touchpad.sh     # Touchpad configuration
-│   ├── hardware/           # Hardware-specific drivers & tools
-│   │   └── asus.sh         # ASUS ROG setup & G14 repo
-│   └── virt/               # Virtualization hypervisors
-│       ├── kvm-qemu.sh     # KVM/QEMU virtualization stack
-│       └── vmware-workstation.sh # VMware Workstation setup
+│   ├── apps/               # App-specific installers (burp, docker)
+│   ├── desktop/            # Desktop environments & UI settings (kde, tiling, touchpad)
+│   ├── hardware/           # Hardware drivers (asus)
+│   └── virt/               # Virtualization (kvm-qemu, vmware-workstation)
 ├── debian/
 │   ├── debian.sh           # Debian/Ubuntu main setup
-│   ├── compile_neovim.sh   # Neovim source builder
-│   └── docker.sh           # Docker CE setup
+│   └── apps/               # App-specific installers (docker, neovim)
 ├── fedora/
 │   ├── fedora.sh           # Fedora main setup
-│   ├── dnf.conf            # Optimized DNF configuration
-│   └── docker.sh           # Docker CE setup
+│   ├── apps/               # App-specific installers (docker)
+│   └── config/             # Config files (dnf.conf)
 ├── kali/
 │   ├── kali.sh             # Kali Linux main setup
-│   ├── Burp/install.sh     # Burp Suite Pro installer (Kali)
-│   ├── setup_kali_user.sh  # User creation & permission manager
-│   ├── wifi-driver.sh      # Realtek 8821au WiFi driver
-│   └── docker.sh           # Docker setup
+│   ├── apps/               # App-specific installers (burp, docker)
+│   ├── hardware/           # Hardware drivers (wifi)
+│   └── system/             # System tools (user permissions)
 └── termux/
     ├── termux.sh           # Termux main setup
-    └── install_nerd_font.sh# Termux Nerd Font installer
+    └── system/             # System scripts (font installer)
 ```
 
 ## License

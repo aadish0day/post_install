@@ -106,8 +106,8 @@ echo ""
 read -rp "Do you want to install Docker? (y/n): " install_docker_input
 if [[ $install_docker_input =~ ^[Yy]$ ]]; then
     echo "Installing Docker..."
-    if [ -f "$SCRIPT_DIR/docker.sh" ]; then
-        bash "$SCRIPT_DIR/docker.sh"
+    if [ -f "$SCRIPT_DIR/apps/docker.sh" ]; then
+        bash "$SCRIPT_DIR/apps/docker.sh"
     else
         echo "Error: docker.sh not found."
     fi

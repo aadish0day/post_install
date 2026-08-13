@@ -8,17 +8,20 @@ log() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1"
 }
 
+# Get the directory where the script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Update the dnf config if the file exists
-if [ -f ./dnf.conf ]; then
-    sudo cp -r ./dnf.conf /etc/dnf/dnf.conf
+if [ -f "$SCRIPT_DIR/config/dnf.conf" ]; then
+    sudo cp -r "$SCRIPT_DIR/config/dnf.conf" /etc/dnf/dnf.conf
 else
-    log "Warning: dnf.conf not found. Skipping dnf configuration update."
+    log "Warning: config/dnf.conf not found. Skipping dnf configuration update."
 fi
 
 # Ensure the script is run as root (auto-elevate if needed)
 if [ "$(id -u)" != "0" ]; then
     log "Re-running with sudo..."
-    exec sudo -E "$0" "$@"
+    exec sudo bash "$(readlink -f "$0")" "$@"
 fi
 
 log "Starting Fedora setup..."
@@ -56,7 +59,7 @@ if command -v git &>/dev/null && command -v git-lfs &>/dev/null; then
     git lfs install --skip-repo
 fi
 
-Enable and start Bluetooth service
+# Enable and start Bluetooth service
 log "Enabling Bluetooth service..."
 systemctl enable --now bluetooth.service
 log "Bluetooth service has been enabled."
@@ -70,11 +73,9 @@ echo ""
 read -rp "Do you want to install Docker? (y/n): " install_docker_input
 if [[ $install_docker_input =~ ^[Yy]$ ]]; then
     log "Installing Docker..."
-    if [ -f "./fedora/docker.sh" ]; then
-        bash ./fedora/docker.sh
-    elif [ -f "./docker.sh" ]; then
-        bash ./docker.sh
+    if [ -f "$SCRIPT_DIR/apps/docker.sh" ]; then
+        bash "$SCRIPT_DIR/apps/docker.sh"
     else
-        log "Error: docker.sh not found."
+        log "Error: apps/docker.sh not found."
     fi
 fi

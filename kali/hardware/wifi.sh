@@ -3,7 +3,7 @@
 # Check if running as root (auto-elevate if needed)
 if [ "$(id -u)" -ne 0 ]; then
     echo "Re-running with sudo..."
-    exec sudo -E "$0" "$@"
+    exec sudo bash "$(readlink -f "$0")" "$@"
 fi
 
 echo "Installing WiFi drivers..."
