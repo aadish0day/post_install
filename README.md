@@ -22,7 +22,7 @@ cd post_install
 
 | Distribution | Main Entry | Key Features & Modular Components |
 |---|---|---|
-| **Arch Linux** | `arch/arch.sh` | • Interactive desktop setup (KDE / Tiling WMs)<br>• ASUS laptop tools (`ausu_package.sh`) & AMD GPU optimization<br>• KVM/QEMU virtualization stack (`kvm-qemu.sh`) & VMware Workstation (`vmware-workstation.sh`) & Docker<br>• Burp Suite Professional installer (`Burp/install.sh`) |
+| **Arch Linux** | `arch/arch.sh` | • Interactive desktop setup (KDE / Tiling WMs)<br>• ASUS laptop tools (`hardware/asus.sh`) & AMD GPU optimization<br>• KVM/QEMU (`virt/kvm-qemu.sh`) & VMware Workstation (`virt/vmware-workstation.sh`) & Docker (`apps/docker.sh`)<br>• Burp Suite Professional installer (`apps/burp/install.sh`) |
 | **Kali Linux** | `kali/kali.sh` | • Automated `~/cybersec` workspace & dotfile linking<br>• Metapackage installer (everything / large / labs)<br>• Multi-user setup (`setup_kali_user.sh`) & Realtek WiFi driver<br>• Burp Suite Professional installer (`Burp/install.sh`) |
 | **Debian / Ubuntu**| `debian/debian.sh` | • `nala` package manager setup & core dev stack<br>• Neovim source build script (`compile_neovim.sh`)<br>• Official Docker CE setup (`docker.sh`) |
 | **Fedora** | `fedora/fedora.sh` | • Tuned `dnf.conf` (parallel downloads & fast mirrors)<br>• RPM Fusion & COPR repo enablement<br>• Docker CE setup (`docker.sh`) |
@@ -30,7 +30,7 @@ cd post_install
 
 ## Key Standalone Tools
 
-- **Burp Suite Professional (`Burp/install.sh`)**: High-speed multi-threaded downloader (`aria2c`), OpenJDK 21 dependency manager, desktop entry creation, and launcher binary (`burpsuitepro`). Available for Arch & Kali.
+- **Burp Suite Professional (`apps/burp/install.sh`)**: High-speed multi-threaded downloader (`aria2c`), OpenJDK 21 dependency manager, desktop entry creation, and launcher binary (`burpsuitepro`). Available for Arch & Kali.
 - **VMware Guest Tools (`vmtools.sh`)**: Auto-detects distribution and configures `open-vm-tools`.
 - **System Fonts (`theme_and_font.sh`)**: System-wide installation of Fira Mono Nerd Font.
 
@@ -43,13 +43,18 @@ post_install/
 ├── vmtools.sh              # VMware guest tools installer
 ├── arch/
 │   ├── arch.sh             # Arch Linux main setup
-│   ├── Burp/install.sh     # Burp Suite Pro installer (Arch)
-│   ├── ausu_package.sh     # ASUS laptop tools & G14 repo
-│   ├── touchpad.sh         # Touchpad configuration
-│   ├── docker.sh           # Docker & Compose setup
-│   ├── kvm-qemu.sh         # KVM/QEMU virtualization stack
-│   ├── vmware-workstation.sh # VMware Workstation setup
-│   └── environment/        # Desktop environments (KDE / Tiling WMs)
+│   ├── apps/               # App-specific installers
+│   │   ├── burp/           # Burp Suite Pro installer & assets
+│   │   └── docker.sh       # Docker & Compose setup
+│   ├── desktop/            # Desktop environments & UI settings
+│   │   ├── kde.sh          # KDE Plasma setup
+│   │   ├── tiling.sh       # X11 Tiling WM setup
+│   │   └── touchpad.sh     # Touchpad configuration
+│   ├── hardware/           # Hardware-specific drivers & tools
+│   │   └── asus.sh         # ASUS ROG setup & G14 repo
+│   └── virt/               # Virtualization hypervisors
+│       ├── kvm-qemu.sh     # KVM/QEMU virtualization stack
+│       └── vmware-workstation.sh # VMware Workstation setup
 ├── debian/
 │   ├── debian.sh           # Debian/Ubuntu main setup
 │   ├── compile_neovim.sh   # Neovim source builder

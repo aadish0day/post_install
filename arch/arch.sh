@@ -263,10 +263,10 @@ fi
 if [ "$install_x11" = true ]; then
     echo ""
     echo "Installing X11 tiling-specific packages..."
-    if [ -f "$SCRIPT_DIR/environment/tiling.sh" ]; then
-        source "$SCRIPT_DIR/environment/tiling.sh"
+    if [ -f "$SCRIPT_DIR/desktop/tiling.sh" ]; then
+        source "$SCRIPT_DIR/desktop/tiling.sh"
     else
-        echo "Error: tiling.sh not found."
+        echo "Error: desktop/tiling.sh not found."
         exit 1
     fi
     install_if_needed "${x11_tilling_depen[@]}"
@@ -302,10 +302,10 @@ fi
 if [ "$install_kde" = true ]; then
     echo ""
     echo "Installing KDE Plasma desktop environment..."
-    if [ -f "$SCRIPT_DIR/environment/kde.sh" ]; then
-        source "$SCRIPT_DIR/environment/kde.sh"
+    if [ -f "$SCRIPT_DIR/desktop/kde.sh" ]; then
+        source "$SCRIPT_DIR/desktop/kde.sh"
     else
-        echo "Error: kde.sh not found."
+        echo "Error: desktop/kde.sh not found."
         exit 1
     fi
     install_if_needed "${kde_plasma_packages[@]}"
@@ -343,15 +343,19 @@ fi
 if [ "$install_asus" = true ]; then
     echo ""
     echo "Installing ASUS specific drivers..."
-    install_aur_packages "${asus_packages[@]}"
+    if [ -f "$SCRIPT_DIR/hardware/asus.sh" ]; then
+        bash "$SCRIPT_DIR/hardware/asus.sh"
+    else
+        install_aur_packages "${asus_packages[@]}"
+    fi
 fi
 
 # Install virtualization packages if selected
 if [ "$install_virt" = true ]; then
     echo ""
     echo "Installing virtualization packages..."
-    if [ -f "$SCRIPT_DIR/vmware-workstation.sh" ]; then
-        bash "$SCRIPT_DIR/vmware-workstation.sh"
+    if [ -f "$SCRIPT_DIR/virt/vmware-workstation.sh" ]; then
+        bash "$SCRIPT_DIR/virt/vmware-workstation.sh"
     else
         install_aur_packages "${virt_packages[@]}"
     fi
@@ -361,10 +365,10 @@ fi
 if [ "$install_docker" = true ]; then
     echo ""
     echo "Installing Docker..."
-    if [ -f "$SCRIPT_DIR/docker.sh" ]; then
-        bash "$SCRIPT_DIR/docker.sh"
+    if [ -f "$SCRIPT_DIR/apps/docker.sh" ]; then
+        bash "$SCRIPT_DIR/apps/docker.sh"
     else
-        echo "Error: docker.sh not found."
+        echo "Error: apps/docker.sh not found."
     fi
 fi
 
@@ -372,10 +376,10 @@ fi
 if [ "$install_burp" = true ]; then
     echo ""
     echo "Installing Burp Suite Professional..."
-    if [ -f "$SCRIPT_DIR/Burp/install.sh" ]; then
-        bash "$SCRIPT_DIR/Burp/install.sh"
+    if [ -f "$SCRIPT_DIR/apps/burp/install.sh" ]; then
+        bash "$SCRIPT_DIR/apps/burp/install.sh"
     else
-        echo "Error: Burp/install.sh not found."
+        echo "Error: apps/burp/install.sh not found."
     fi
 fi
 
