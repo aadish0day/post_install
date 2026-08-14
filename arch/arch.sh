@@ -72,13 +72,22 @@ case $de_choice in
 esac
 
 # Ask preferences
-install_gaming=false; prompt_yes_no "Do you want to install gaming packages?" && install_gaming=true
-install_asus=false; prompt_yes_no "Do you want to install ASUS specific drivers?" && install_asus=true
-install_virt=false; prompt_yes_no "Do you want to install virtualization packages (VMware Workstation and Open VM Tools)?" && install_virt=true
-install_docker=false; prompt_yes_no "Do you want to install Docker?" && install_docker=true
-install_amd=false; prompt_yes_no "Do you want to install AMD GPU drivers and runtimes (Vulkan/OpenCL/VA-API/VDPAU)?" && install_amd=true
-install_coding=false; prompt_yes_no "Do you want to install coding packages (VS Code, Android Studio, Flutter, etc.)?" && install_coding=true
-install_burp=false; prompt_yes_no "Do you want to install Burp Suite Professional?" && install_burp=true
+install_gaming=false
+prompt_yes_no "Do you want to install gaming packages?" && install_gaming=true
+install_asus=false
+prompt_yes_no "Do you want to install ASUS specific drivers?" && install_asus=true
+install_virt=false
+prompt_yes_no "Do you want to install virtualization packages (VMware Workstation and Open VM Tools)?" && install_virt=true
+install_docker=false
+prompt_yes_no "Do you want to install Docker?" && install_docker=true
+install_amd=false
+prompt_yes_no "Do you want to install AMD GPU drivers and runtimes (Vulkan/OpenCL/VA-API/VDPAU)?" && install_amd=true
+install_aiml=false
+prompt_yes_no "Do you want to install AI/ML packages (ROCm, PyTorch, ONNX Runtime, etc.)?" && install_aiml=true
+install_coding=false
+prompt_yes_no "Do you want to install coding packages (VS Code, Android Studio, Flutter, etc.)?" && install_coding=true
+install_burp=false
+prompt_yes_no "Do you want to install Burp Suite Professional?" && install_burp=true
 
 echo ""
 echo "=========================================="
@@ -98,6 +107,7 @@ echo "ASUS Drivers: $([ "$install_asus" = true ] && echo "Yes" || echo "No")"
 echo "Virtualization Packages: $([ "$install_virt" = true ] && echo "Yes" || echo "No")"
 echo "Docker: $([ "$install_docker" = true ] && echo "Yes" || echo "No")"
 echo "AMD Drivers: $([ "$install_amd" = true ] && echo "Yes" || echo "No")"
+echo "AI/ML Packages: $([ "$install_aiml" = true ] && echo "Yes" || echo "No")"
 echo "Coding Packages: $([ "$install_coding" = true ] && echo "Yes" || echo "No")"
 echo "Burp Suite Professional: $([ "$install_burp" = true ] && echo "Yes" || echo "No")"
 echo "=========================================="
@@ -146,17 +156,17 @@ packages=(
     gvfs-smb highlight htop img2pdf imagemagick inxi jq jpegoptim kitty less libavtp libdca libgme liblrdf libltc
     libtool linux-headers lsd lz4 make man-db man-pages maven mediainfo mjpegtools mkinitcpio mpv mpv-mpris ncdu
     neovim nodejs noto-fonts noto-fonts-cjk noto-fonts-emoji noto-fonts-extra npm obs-studio p7zip pacman-contrib pacutils
-    papirus-icon-theme parallel pipewire pipewire-alsa pipewire-audio pipewire-jack pipewire-pulse pipewire-zeroconf pipewire-libcamera
+    papirus-icon-theme parallel pipewire pipewire-alsa pipewire-audio pipewire-jack lib32-pipewire-jack pipewire-pulse pipewire-zeroconf pipewire-libcamera
     pkgfile plocate playerctl pv qalculate-qt qbittorrent ripgrep sd spandsp starship soundtouch svt-hevc tar
     tree tree-sitter-cli trash-cli tmux ttf-jetbrains-mono ttf-jetbrains-mono-nerd tumbler unzip wireplumber xz
-    yazi yt-dlp zip zoxide zsh zstd dosfstools usbutils lazydocker opencode
+    yazi yt-dlp zip zoxide zsh zstd dosfstools usbutils lazydocker opencode github-cli
 )
 
 # List of gaming packages
 gaming_packages=(
     alsa-lib alsa-plugins gamemode giflib gnutls gst-plugins-base-libs gtk3 innoextract
     lib32-alsa-lib lib32-alsa-plugins lib32-gamemode lib32-giflib lib32-gnutls
-    lib32-gst-plugins-base-libs lib32-gtk3 lib32-libpulse lib32-libva lib32-libxcomposite
+    lib32-gtk3 lib32-libpulse lib32-libva lib32-libxcomposite
     lib32-ocl-icd lib32-sdl2 lib32-sqlite lib32-v4l-utils lib32-vkd3d lib32-vulkan-icd-loader
     libayatana-appindicator libpulse libva libxcomposite ocl-icd python-protobuf sdl2 sqlite
     v4l-utils vkd3d vulkan-icd-loader wine-gecko wine-mono wine-staging winetricks
@@ -169,23 +179,21 @@ aur_packages=(
     "ani-cli"
     "anydesk-bin"
     "gallery-dl-bin"
-    "lib32-gst-plugins-base-libs"
-    "lib32-gstreamer"
     "localsend-bin"
     "markitdown-bin"
     "thorium-browser-bin"
-    "timeshift-autosnap"
+    # "timeshift-autosnap"
     "vesktop-bin"
-    "xdman"
+    # "xdman"
     "zen-browser-bin"
+    "antigravity"
 )
 
 # List of coding-specific AUR packages
 aur_coding_packages=(
-    "antigravity"
+    "antigravity-cli"
     "antigravity-ide"
     "android-studio"
-    "claude-desktop-bin"
     "cursor-bin"
     "flutter-bin"
     "visual-studio-code-bin"
@@ -195,6 +203,8 @@ aur_coding_packages=(
 gaming_aur_packages=(
     # "dxvk-bin"
     "dxvk-gplasync-bin"
+    "lib32-gst-plugins-base-libs"
+    "lib32-gstreamer"
 )
 
 # List of ASUS specific packages
@@ -212,13 +222,19 @@ amd_packages=(
     xf86-video-amdgpu amd-ucode mesa lib32-mesa vulkan-radeon lib32-vulkan-radeon
     radeontop libva-mesa-driver lib32-libva-mesa-driver mesa-utils mesa-demos
     vulkan-mesa-layers lib32-mesa-utils lib32-mesa-demos lib32-vulkan-mesa-layers
-    rocm-opencl-runtime rocm-opencl-sdk opencl-headers libclc ocl-icd glu lib32-glu
+    glu lib32-glu
     # mesa-vdpau lib32-mesa-vdpau
+)
+
+# List of AI/ML and ROCm packages
+ai_ml_packages=(
+    rocm-llvm rocm-opencl-runtime rocm-opencl-sdk rocm-hip-sdk rocm-ml-libraries
+    rocm-openmp hipify-clang rocminfo opencl-headers libclc ocl-icd
+    python-pytorch-rocm python-onnxruntime-rocm
 )
 
 # List of virtualization packages
 virt_packages=(
-    "libx11-mr293"
     "vmware-workstation"
     "bridge-utils"
     "vmware-keymaps"
@@ -257,6 +273,13 @@ if [ "$install_gaming" = true ]; then
     echo ""
     echo "Installing gaming packages..."
     install_if_needed "${gaming_packages[@]}"
+fi
+
+# Install AI/ML packages if selected
+if [ "$install_aiml" = true ]; then
+    echo ""
+    echo "Installing AI/ML packages (ROCm, PyTorch, ONNX Runtime)..."
+    install_if_needed "${ai_ml_packages[@]}"
 fi
 
 # Install X11 tiling-specific packages if selected
@@ -343,11 +366,7 @@ fi
 if [ "$install_asus" = true ]; then
     echo ""
     echo "Installing ASUS specific drivers..."
-    if [ -f "$SCRIPT_DIR/hardware/asus.sh" ]; then
-        bash "$SCRIPT_DIR/hardware/asus.sh"
-    else
-        install_aur_packages "${asus_packages[@]}"
-    fi
+    install_aur_packages "${asus_packages[@]}"
 fi
 
 # Install virtualization packages if selected

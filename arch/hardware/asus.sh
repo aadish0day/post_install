@@ -36,8 +36,6 @@ detect_gpu_vendor() {
     fi
 }
 
-
-
 gpu_description() {
     lspci 2>/dev/null | grep -Ei "vga|3d controller" | sed -E 's/^[0-9a-f:.]+\s+//' | sort -u
 }
@@ -58,14 +56,22 @@ add_ogc_repo() {
         echo "keyserver hkp://keyserver.ubuntu.com" >>/etc/pacman.d/gnupg/gpg.conf
     fi
 
-    echo "Adding Ayush key..."
-    pacman-key --recv-keys "$AYUSH_KEY_ID"
-    pacman-key --lsign-key "$AYUSH_KEY_ID"
+    if pacman-key --list-keys "$AYUSH_KEY_ID" &>/dev/null; then
+        echo "Ayush key already in keyring, skipping..."
+    else
+        echo "Adding Ayush key..."
+        pacman-key --recv-keys "$AYUSH_KEY_ID"
+        pacman-key --lsign-key "$AYUSH_KEY_ID"
+    fi
 
-    echo "Adding dragoon key..."
-    pacman-key --recv-keys "$DRAGOON_KEY_ID"
-    pacman-key --lsign-key "$DRAGOON_KEY_ID"
-    pacman-key --finger "$DRAGOON_KEY_ID"
+    if pacman-key --list-keys "$DRAGOON_KEY_ID" &>/dev/null; then
+        echo "Dragoon key already in keyring, skipping..."
+    else
+        echo "Adding dragoon key..."
+        pacman-key --recv-keys "$DRAGOON_KEY_ID"
+        pacman-key --lsign-key "$DRAGOON_KEY_ID"
+        pacman-key --finger "$DRAGOON_KEY_ID"
+    fi
 
     # Add the OGC repository to pacman.conf
     if ! grep -q "\[$REPO_NAME\]" /etc/pacman.conf; then
@@ -86,45 +92,45 @@ install_firmware() {
 install_gpu_drivers() {
     local gpu_vendor="$1"
     case "$gpu_vendor" in
-        nvidia)
-            echo "NVIDIA dGPU detected - installing NVIDIA drivers..."
-            pacman -S --noconfirm --needed mesa vulkan-radeon vulkan-icd-loader nvidia-utils
+    nvidia)
+        echo "NVIDIA dGPU detected - installing NVIDIA drivers..."
+        pacman -S --noconfirm --needed mesa vulkan-radeon vulkan-icd-loader nvidia-utils
 
-            # nvidia-laptop-power-cfg must be built as a non-root user
-            if [ -n "${SUDO_USER:-}" ]; then
-                sudo -u "$SUDO_USER" bash -c '
+        # nvidia-laptop-power-cfg must be built as a non-root user
+        if [ -n "${SUDO_USER:-}" ]; then
+            sudo -u "$SUDO_USER" bash -c '
                     cd /tmp &&
                     rm -rf nvidia-laptop-power-cfg &&
                     git clone --depth 1 https://gitlab.com/asus-linux/nvidia-laptop-power-cfg.git &&
                     cd nvidia-laptop-power-cfg &&
                     makepkg -sfi --noconfirm
                 '
-            else
-                echo "nvidia-laptop-power-cfg needs to be built as a non-root user:"
-                echo "  git clone https://gitlab.com/asus-linux/nvidia-laptop-power-cfg.git"
-                echo "  cd nvidia-laptop-power-cfg && makepkg -sfi"
-            fi
+        else
+            echo "nvidia-laptop-power-cfg needs to be built as a non-root user:"
+            echo "  git clone https://gitlab.com/asus-linux/nvidia-laptop-power-cfg.git"
+            echo "  cd nvidia-laptop-power-cfg && makepkg -sfi"
+        fi
 
-            for svc in nvidia-suspend.service nvidia-hibernate.service nvidia-resume.service; do
-                if [ -f "/usr/lib/systemd/system/$svc" ]; then
-                    systemctl enable "$svc"
-                fi
-            done
-            if [ -f /usr/lib/systemd/system/nvidia-powerd.service ]; then
-                systemctl enable --now nvidia-powerd.service
+        for svc in nvidia-suspend.service nvidia-hibernate.service nvidia-resume.service; do
+            if [ -f "/usr/lib/systemd/system/$svc" ]; then
+                systemctl enable "$svc"
             fi
-            ;;
-        amd)
-            echo "AMD GPU detected - ensuring Mesa/Vulkan support..."
-            pacman -S --noconfirm --needed mesa vulkan-radeon vulkan-icd-loader
-            ;;
-        intel)
-            echo "Intel GPU detected - ensuring Mesa/Vulkan support..."
-            pacman -S --noconfirm --needed mesa vulkan-intel vulkan-icd-loader
-            ;;
-        *)
-            echo "GPU vendor unknown - skipping GPU driver setup."
-            ;;
+        done
+        if [ -f /usr/lib/systemd/system/nvidia-powerd.service ]; then
+            systemctl enable --now nvidia-powerd.service
+        fi
+        ;;
+    amd)
+        echo "AMD GPU detected - ensuring Mesa/Vulkan support..."
+        pacman -S --noconfirm --needed mesa vulkan-radeon vulkan-icd-loader
+        ;;
+    intel)
+        echo "Intel GPU detected - ensuring Mesa/Vulkan support..."
+        pacman -S --noconfirm --needed mesa vulkan-intel vulkan-icd-loader
+        ;;
+    *)
+        echo "GPU vendor unknown - skipping GPU driver setup."
+        ;;
     esac
 }
 

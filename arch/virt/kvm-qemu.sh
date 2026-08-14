@@ -7,15 +7,6 @@ if [ "$(id -u)" -ne 0 ]; then
     exec sudo bash "$(readlink -f "$0")" "$@"
 fi
 
-echo "=========================================="
-echo " KVM / QEMU / Virt-Manager Setup"
-echo "=========================================="
-read -rp "Do you want to start the installation? (y/n): " response
-if [[ ! $response =~ ^[yY]$ ]]; then
-    echo "Installation aborted by the user."
-    exit 0
-fi
-
 # Core virtualization and QEMU packages
 # qemu-desktop provides full hardware emulation, UI, audio, and display drivers cleanly without package conflicts
 kvm_packages=(
@@ -56,10 +47,10 @@ sed -i 's/^#\?\s*unix_sock_group = .*/unix_sock_group = "libvirt"/' /etc/libvirt
 sed -i 's/^#\?\s*unix_sock_rw_perms = .*/unix_sock_rw_perms = "0770"/' /etc/libvirt/libvirtd.conf
 
 if ! grep -q "^log_filters=" /etc/libvirt/libvirtd.conf; then
-    echo 'log_filters="3:qemu 1:libvirt"' >> /etc/libvirt/libvirtd.conf
+    echo 'log_filters="3:qemu 1:libvirt"' >>/etc/libvirt/libvirtd.conf
 fi
 if ! grep -q "^log_outputs=" /etc/libvirt/libvirtd.conf; then
-    echo 'log_outputs="1:file:/var/log/libvirt/libvirtd.log"' >> /etc/libvirt/libvirtd.conf
+    echo 'log_outputs="1:file:/var/log/libvirt/libvirtd.log"' >>/etc/libvirt/libvirtd.conf
 fi
 
 # Enable and start libvirt services

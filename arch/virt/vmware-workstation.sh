@@ -28,7 +28,6 @@ fi
 virt_packages=(
     "vmware-keymaps"
     "ncurses5-compat-libs"
-    "libx11-mr293"
     "vmware-workstation"
     "bridge-utils"
 )
