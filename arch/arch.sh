@@ -402,14 +402,14 @@ if [ "$install_kde" = false ]; then
 fi
 
 # Enable SDDM if KDE Plasma is installed
-if [ "$install_kde" = true ] && pacman -Qi sddm &>/dev/null; then
-    if ! systemctl is-enabled sddm.service &>/dev/null; then
-        echo "Enabling SDDM display manager..."
-        sudo systemctl enable sddm.service
-    else
-        echo "SDDM is already enabled."
-    fi
-fi
+# if [ "$install_kde" = true ] && pacman -Qi sddm &>/dev/null; then
+#     if ! systemctl is-enabled sddm.service &>/dev/null; then
+#         echo "Enabling SDDM display manager..."
+#         sudo systemctl enable --now sddm.service
+#     else
+#         echo "SDDM is already enabled."
+#     fi
+# fi
 
 # Start xdg-desktop-portal services (don't enable, they're socket-activated)
 systemctl_user_services=(
