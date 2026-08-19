@@ -30,8 +30,8 @@ sudo pacman -S --needed reflector --noconfirm --overwrite '*'
 
 # Prompt user to configure mirrors
 if prompt_yes_no "Do you want to configure the mirror list for India using reflector?"; then
-    echo "Configuring mirror list for India..."
-    sudo reflector --latest 5 --country India --protocol https --sort rate --save /etc/pacman.d/mirrorlist
+    echo "Configuring mirror list strictly for India (with 30s timeout)..."
+    timeout 30s sudo reflector --latest 10 --fastest 5 --protocol https --connection-timeout 5 --download-timeout 5 --threads 8 --country India --sort rate --save /etc/pacman.d/mirrorlist || echo "Reflector timed out or failed; keeping existing mirrorlist."
 fi
 
 # Update system and packages after mirror update
@@ -72,6 +72,17 @@ case $de_choice in
 esac
 
 # Ask preferences
+echo ""
+echo "=========================================="
+echo "AUR Helper Selection"
+echo "=========================================="
+echo "1) Paru (Rust, Recommended)"
+echo "2) Yay (Go, Classic)"
+echo "3) Both (Paru & Yay)"
+echo ""
+read -rp "Select AUR Helper (1-3, Default: 1): " aur_choice
+aur_choice="${aur_choice:-1}"
+
 install_gaming=false
 prompt_yes_no "Do you want to install gaming packages?" && install_gaming=true
 install_asus=false
@@ -101,7 +112,16 @@ elif [ "$install_x11" = true ]; then
     de_name="X11 Tiling"
 fi
 
+aur_name="Paru"
+case "$aur_choice" in
+    1) aur_name="Paru" ;;
+    2) aur_name="Yay" ;;
+    3) aur_name="Both (Paru + Yay)" ;;
+    *) aur_name="Paru" ;;
+esac
+
 echo "Desktop Environment: $de_name"
+echo "AUR Helper: $aur_name"
 echo "Gaming Packages: $([ "$install_gaming" = true ] && echo "Yes" || echo "No")"
 echo "ASUS Drivers: $([ "$install_asus" = true ] && echo "Yes" || echo "No")"
 echo "Virtualization Packages: $([ "$install_virt" = true ] && echo "Yes" || echo "No")"
@@ -127,22 +147,15 @@ install_if_needed() {
     sudo pacman -S --needed --noconfirm --overwrite '*' "$@"
 }
 
-# Function to install paru
-install_paru() {
-    echo "Installing paru..."
-    sudo pacman -S --needed --noconfirm base-devel git
-    rm -rf /tmp/paru
-    git clone https://aur.archlinux.org/paru.git /tmp/paru
-    (cd /tmp/paru && makepkg -si --noconfirm)
-    rm -rf /tmp/paru
-}
-
 # Function to install AUR packages
 install_aur_packages() {
-    if pacman -Qq "i3lock" &>/dev/null && [[ " $@ " =~ " i3lock-color " ]]; then
-        sudo pacman -Rns --noconfirm "i3lock"
+    if command -v paru &>/dev/null; then
+        paru -S --needed --noconfirm "$@"
+    elif command -v yay &>/dev/null; then
+        yay -S --needed --noconfirm "$@"
+    else
+        echo "Warning: No AUR helper found. Skipping AUR packages: $*"
     fi
-    paru -S --noconfirm --needed "$@"
 }
 
 # ============================================================================
@@ -160,17 +173,6 @@ packages=(
     pkgfile plocate playerctl pv qalculate-qt qbittorrent ripgrep sd spandsp starship soundtouch svt-hevc tar
     tree tree-sitter-cli trash-cli tmux ttf-jetbrains-mono ttf-jetbrains-mono-nerd tumbler unzip wireplumber xz
     yazi yt-dlp zip zoxide zsh zstd dosfstools usbutils lazydocker opencode github-cli
-)
-
-# List of gaming packages
-gaming_packages=(
-    alsa-lib alsa-plugins gamemode giflib gnutls gst-plugins-base-libs gtk3 innoextract
-    lib32-alsa-lib lib32-alsa-plugins lib32-gamemode lib32-giflib lib32-gnutls
-    lib32-gtk3 lib32-libpulse lib32-libva lib32-libxcomposite
-    lib32-ocl-icd lib32-sdl2 lib32-sqlite lib32-v4l-utils lib32-vkd3d lib32-vulkan-icd-loader
-    libayatana-appindicator libpulse libva libxcomposite ocl-icd python-protobuf sdl2 sqlite
-    v4l-utils vkd3d vulkan-icd-loader wine-gecko wine-mono wine-staging winetricks
-    umu-launcher python-pefile vulkan-tools lutris
 )
 
 # List of AUR packages
@@ -199,14 +201,6 @@ aur_coding_packages=(
     "visual-studio-code-bin"
 )
 
-# List of gaming-specific AUR packages
-gaming_aur_packages=(
-    # "dxvk-bin"
-    "dxvk-gplasync-bin"
-    "lib32-gst-plugins-base-libs"
-    "lib32-gstreamer"
-)
-
 # List of ASUS specific packages
 asus_packages=(
     "vulkan-amdgpu-pro"
@@ -231,13 +225,6 @@ ai_ml_packages=(
     rocm-llvm rocm-opencl-runtime rocm-opencl-sdk rocm-hip-sdk rocm-ml-libraries
     rocm-openmp hipify-clang rocminfo opencl-headers libclc ocl-icd
     python-pytorch-rocm python-onnxruntime-rocm
-)
-
-# List of virtualization packages
-virt_packages=(
-    "vmware-workstation"
-    "bridge-utils"
-    "vmware-keymaps"
 )
 
 # ============================================================================
@@ -272,7 +259,11 @@ fi
 if [ "$install_gaming" = true ]; then
     echo ""
     echo "Installing gaming packages..."
-    install_if_needed "${gaming_packages[@]}"
+    if [ -f "$SCRIPT_DIR/apps/gaming.sh" ]; then
+        bash "$SCRIPT_DIR/apps/gaming.sh"
+    else
+        echo "Error: apps/gaming.sh not found."
+    fi
 fi
 
 # Install AI/ML packages if selected
@@ -287,37 +278,10 @@ if [ "$install_x11" = true ]; then
     echo ""
     echo "Installing X11 tiling-specific packages..."
     if [ -f "$SCRIPT_DIR/desktop/tiling.sh" ]; then
-        source "$SCRIPT_DIR/desktop/tiling.sh"
+        bash "$SCRIPT_DIR/desktop/tiling.sh"
     else
         echo "Error: desktop/tiling.sh not found."
         exit 1
-    fi
-    install_if_needed "${x11_tilling_depen[@]}"
-
-    # Install X11-specific AUR packages
-    if command -v paru &>/dev/null; then
-        echo "Installing X11-specific AUR packages..."
-        install_aur_packages "${x11_aur_packages[@]}"
-    fi
-
-    # Service Configuration
-    echo "Configuring services for X11 tiling..."
-    read -rp "Do you want to enable Bluetooth? (y/n): " enable_bluetooth
-    if [[ $enable_bluetooth =~ ^[Yy]$ ]]; then
-        sudo systemctl enable --now bluetooth.service
-        echo "Bluetooth service enabled."
-    fi
-
-    # Set default applications
-    echo "Configuring default applications..."
-    if command -v zathura &>/dev/null; then
-        echo "Setting Zathura as the default PDF viewer..."
-        xdg-mime default org.pwmt.zathura.desktop application/pdf
-    fi
-
-    if command -v thorium-browser &>/dev/null; then
-        echo "Setting thorium-browser as the default browser..."
-        xdg-settings set default-web-browser thorium-browser.desktop 2>/dev/null || true
     fi
 fi
 
@@ -326,22 +290,37 @@ if [ "$install_kde" = true ]; then
     echo ""
     echo "Installing KDE Plasma desktop environment..."
     if [ -f "$SCRIPT_DIR/desktop/kde.sh" ]; then
-        source "$SCRIPT_DIR/desktop/kde.sh"
+        bash "$SCRIPT_DIR/desktop/kde.sh"
     else
         echo "Error: desktop/kde.sh not found."
         exit 1
     fi
-    install_if_needed "${kde_plasma_packages[@]}"
 fi
 
-# Install paru if not present
-if ! command -v paru &>/dev/null; then
-    echo ""
-    install_paru || {
-        echo "Failed to install paru. AUR packages will not be installed."
-        exit 1
-    }
-fi
+# Install selected AUR helper(s)
+case "$aur_choice" in
+1)
+    if [ -f "$SCRIPT_DIR/apps/paru.sh" ]; then
+        bash "$SCRIPT_DIR/apps/paru.sh"
+    fi
+    ;;
+2)
+    if [ -f "$SCRIPT_DIR/apps/yay.sh" ]; then
+        bash "$SCRIPT_DIR/apps/yay.sh"
+    fi
+    ;;
+3)
+    if [ -f "$SCRIPT_DIR/apps/paru.sh" ]; then
+        bash "$SCRIPT_DIR/apps/paru.sh"
+    fi
+    if [ -f "$SCRIPT_DIR/apps/yay.sh" ]; then
+        bash "$SCRIPT_DIR/apps/yay.sh"
+    fi
+    ;;
+*)
+    echo "Skipping AUR helper installation."
+    ;;
+esac
 
 # Install AUR packages
 echo ""
@@ -353,13 +332,6 @@ if [ "$install_coding" = true ]; then
     echo ""
     echo "Installing coding-specific AUR packages..."
     install_aur_packages "${aur_coding_packages[@]}"
-fi
-
-# Install gaming-specific AUR packages if selected
-if [ "$install_gaming" = true ]; then
-    echo ""
-    echo "Installing gaming-specific AUR packages..."
-    install_aur_packages "${gaming_aur_packages[@]}"
 fi
 
 # Install ASUS specific packages if selected
@@ -376,7 +348,7 @@ if [ "$install_virt" = true ]; then
     if [ -f "$SCRIPT_DIR/virt/vmware-workstation.sh" ]; then
         bash "$SCRIPT_DIR/virt/vmware-workstation.sh"
     else
-        install_aur_packages "${virt_packages[@]}"
+        echo "Error: virt/vmware-workstation.sh not found."
     fi
 fi
 

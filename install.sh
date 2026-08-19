@@ -1,6 +1,21 @@
 #!/usr/bin/env bash
-# ponytail: auto-detect distro via /etc/os-release stdlib sourcing & execute target installer dynamically
+# ============================================================================
+# Post-Installation Automation Suite (Universal Launcher)
+# Provides Archinstall-style interactive TUI with pure shell fallback.
+# ============================================================================
 set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# If Python 3 is available, launch the Archinstall-style TUI interface
+if command -v python3 &>/dev/null; then
+    exec python3 "$SCRIPT_DIR/install.py" "$@"
+fi
+
+# ============================================================================
+# FALLBACK: PURE SHELL EXECUTION (if python3 is not available)
+# ============================================================================
+echo "Python 3 not found. Falling back to native shell mode..."
 
 detect_distro() {
 	if [ -d "/data/data/com.termux" ] || [ -n "${TERMUX_VERSION:-}" ]; then
@@ -9,7 +24,6 @@ detect_distro() {
 	fi
 
 	if [ -f /etc/os-release ]; then
-		# ponytail: source /etc/os-release directly instead of parsing with grep/cut
 		local ID="" ID_LIKE=""
 		. /etc/os-release
 
@@ -65,10 +79,9 @@ fi
 
 mkdir -p "$HOME/Pictures/Screenshots"
 
-# ponytail: dynamic execution block replaces 60 lines of repetitive case statements
-SCRIPT="./$DISTRO_DIR/$DISTRO_DIR.sh"
+SCRIPT="$SCRIPT_DIR/$DISTRO_DIR/$DISTRO_DIR.sh"
 if [ -f "$SCRIPT" ]; then
-	(cd "$DISTRO_DIR" && ./"$DISTRO_DIR.sh") || { echo "Installation script failed for $DISTRO_DIR."; exit 1; }
+	(cd "$SCRIPT_DIR/$DISTRO_DIR" && ./"$DISTRO_DIR.sh") || { echo "Installation script failed for $DISTRO_DIR."; exit 1; }
 else
 	echo "Script $SCRIPT not found."
 	exit 1
