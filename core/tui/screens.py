@@ -53,7 +53,7 @@ class GlobalMenuScreen:
         # 1. Distribution
         items.append(MenuItem(
             key="distro",
-            label="Distribution / Target OS",
+            label="  Distribution / Target OS",
             value_display=f"[{distro.upper()}] {cfg.distro_name}",
             description="Active distribution workspace folder.",
             preview_lines=[
@@ -83,7 +83,7 @@ class GlobalMenuScreen:
             de_label = de_map.get(cfg.desktop_environment, "None")
             items.append(MenuItem(
                 key="desktop_environment",
-                label="Desktop Environment",
+                label="  Desktop Environment",
                 value_display=f"[{cfg.desktop_environment.upper()}]",
                 description="KDE Plasma or X11 Tiling setup from arch/desktop/.",
                 preview_lines=[
@@ -113,7 +113,7 @@ class GlobalMenuScreen:
 
             items.append(MenuItem(
                 key="hardware",
-                label="Hardware & Drivers (arch/hardware/)",
+                label="  Hardware & Drivers (arch/hardware/)",
                 value_display=f"[{hw_display}]",
                 description="ASUS ROG tools and AMD GPU acceleration.",
                 preview_lines=[
@@ -137,7 +137,7 @@ class GlobalMenuScreen:
 
             items.append(MenuItem(
                 key="virtualization",
-                label="Virtualization (arch/virt/)",
+                label="  Virtualization (arch/virt/)",
                 value_display=f"[{virt_display}]",
                 description="KVM/QEMU virt-manager and VMware Workstation.",
                 preview_lines=[
@@ -151,7 +151,7 @@ class GlobalMenuScreen:
             # 5. Docker (arch/apps/docker.sh)
             items.append(MenuItem(
                 key="docker_enabled",
-                label="Docker CE (arch/apps/docker.sh)",
+                label="  Docker CE (arch/apps/docker.sh)",
                 value_display="[Yes]" if cfg.docker_enabled else "[No]",
                 description="Docker Engine, Compose plugin, Buildx, and user group permissions.",
                 preview_lines=[
@@ -170,7 +170,7 @@ class GlobalMenuScreen:
             code_display = f"[{len(cfg.coding_tools)} tools]" if cfg.coding_enabled else "[No]"
             items.append(MenuItem(
                 key="coding",
-                label="Developer Tools (AUR)",
+                label="  Developer Tools (AUR)",
                 value_display=code_display,
                 description="VS Code, Cursor, Android Studio, Flutter, and Antigravity.",
                 preview_lines=[
@@ -190,7 +190,7 @@ class GlobalMenuScreen:
             # 7. Burp Suite Pro (arch/apps/burp/install.sh)
             items.append(MenuItem(
                 key="security_burp",
-                label="Burp Suite Pro (arch/apps/burp/)",
+                label="  Burp Suite Pro (arch/apps/burp/)",
                 value_display="[Yes]" if cfg.security_burp else "[No]",
                 description="OpenJDK 21, auto-download latest JAR via aria2c, launcher script, desktop entry.",
                 preview_lines=[
@@ -209,7 +209,7 @@ class GlobalMenuScreen:
             # 8. Gaming Stack (from arch/apps/gaming.sh)
             items.append(MenuItem(
                 key="gaming_enabled",
-                label="Gaming Stack & Wine",
+                label="  Gaming Stack & Wine",
                 value_display="[Yes]" if cfg.gaming_enabled else "[No]",
                 description="Wine-staging, Lutris, GameMode, Proton DXVK, and 32-bit graphics runtimes.",
                 preview_lines=[
@@ -226,7 +226,7 @@ class GlobalMenuScreen:
             # 9. AI / ML ROCm Stack (from arch/arch.sh ai_ml_packages)
             items.append(MenuItem(
                 key="ai_ml_enabled",
-                label="AI / ML Acceleration (ROCm)",
+                label="󰢩  AI / ML Acceleration (ROCm)",
                 value_display="[Yes]" if cfg.ai_ml_enabled else "[No]",
                 description="AMD ROCm SDK, PyTorch ROCm, and ONNX Runtime ROCm.",
                 preview_lines=[
@@ -248,7 +248,7 @@ class GlobalMenuScreen:
             }
             items.append(MenuItem(
                 key="aur_helper",
-                label="AUR Helper Selection",
+                label="  AUR Helper Selection",
                 value_display=f"[{cfg.aur_helper.upper()}]",
                 description="Select which AUR helper to install (Paru, Yay, or Both).",
                 preview_lines=[
@@ -270,7 +270,7 @@ class GlobalMenuScreen:
             # 11. Mirror Optimization (Reflector India)
             items.append(MenuItem(
                 key="repos_mirror_ranking",
-                label="Mirror Optimization (Reflector India)",
+                label="  Mirror Optimization (Reflector India)",
                 value_display="[Yes]" if cfg.repos_mirror_ranking else "[No]",
                 description="Ranks the fastest HTTPS mirrors strictly in India with 30s timeout.",
                 preview_lines=[
@@ -289,7 +289,7 @@ class GlobalMenuScreen:
         elif distro == "kali":
             items.append(MenuItem(
                 key="security_burp",
-                label="Burp Suite Pro (kali/apps/burp/)",
+                label="  Burp Suite Pro (kali/apps/burp/)",
                 value_display="[Yes]" if cfg.security_burp else "[No]",
                 description="Burp Suite Professional installer from kali/apps/burp/install.sh.",
                 preview_lines=["Script: kali/apps/burp/install.sh", f"Status: {'Yes' if cfg.security_burp else 'No'}"],
@@ -297,7 +297,7 @@ class GlobalMenuScreen:
             ))
             items.append(MenuItem(
                 key="kali_metapackages",
-                label="Kali Metapackages",
+                label="  Kali Metapackages",
                 value_display=f"[{', '.join(cfg.security_kali_metapackages) if cfg.security_kali_metapackages else 'None'}]",
                 description="kali-linux-everything, kali-linux-large, kali-linux-labs.",
                 preview_lines=[f"Active suites: {', '.join(cfg.security_kali_metapackages)}"],
@@ -305,7 +305,7 @@ class GlobalMenuScreen:
             ))
             items.append(MenuItem(
                 key="hardware_kali_wifi",
-                label="WiFi Driver (kali/hardware/wifi.sh)",
+                label="  WiFi Driver (kali/hardware/wifi.sh)",
                 value_display="[Yes]" if cfg.hardware_kali_wifi else "[No]",
                 description="Realtek 8821AU USB WiFi DKMS driver.",
                 preview_lines=["Script: kali/hardware/wifi.sh"],
@@ -313,7 +313,7 @@ class GlobalMenuScreen:
             ))
             items.append(MenuItem(
                 key="docker_enabled",
-                label="Docker CE (kali/apps/docker.sh)",
+                label="  Docker CE (kali/apps/docker.sh)",
                 value_display="[Yes]" if cfg.docker_enabled else "[No]",
                 description="Docker CE engine configured for Kali.",
                 preview_lines=["Script: kali/apps/docker.sh"],
@@ -326,7 +326,7 @@ class GlobalMenuScreen:
         elif distro == "debian":
             items.append(MenuItem(
                 key="debian_neovim",
-                label="Neovim Source (debian/apps/neovim.sh)",
+                label="  Neovim Source (debian/apps/neovim.sh)",
                 value_display="[Yes]" if "neovim" in cfg.coding_tools else "[No]",
                 description="Compiles latest Neovim from source.",
                 preview_lines=["Script: debian/apps/neovim.sh"],
@@ -334,7 +334,7 @@ class GlobalMenuScreen:
             ))
             items.append(MenuItem(
                 key="docker_enabled",
-                label="Docker CE (debian/apps/docker.sh)",
+                label="  Docker CE (debian/apps/docker.sh)",
                 value_display="[Yes]" if cfg.docker_enabled else "[No]",
                 description="Official Docker CE repository & engine.",
                 preview_lines=["Script: debian/apps/docker.sh"],
@@ -347,7 +347,7 @@ class GlobalMenuScreen:
         elif distro == "fedora":
             items.append(MenuItem(
                 key="fedora_core",
-                label="Fedora Setup (fedora/fedora.sh)",
+                label="  Fedora Setup (fedora/fedora.sh)",
                 value_display="[Yes]",
                 description="DNF optimizations, RPM Fusion, and COPR repos.",
                 preview_lines=["Script: fedora/fedora.sh", "Config: fedora/config/dnf.conf"],
@@ -355,7 +355,7 @@ class GlobalMenuScreen:
             ))
             items.append(MenuItem(
                 key="docker_enabled",
-                label="Docker CE (fedora/apps/docker.sh)",
+                label="  Docker CE (fedora/apps/docker.sh)",
                 value_display="[Yes]" if cfg.docker_enabled else "[No]",
                 description="Official Docker CE engine for Fedora.",
                 preview_lines=["Script: fedora/apps/docker.sh"],
@@ -368,7 +368,7 @@ class GlobalMenuScreen:
         elif distro == "termux":
             items.append(MenuItem(
                 key="termux_core",
-                label="Termux Setup (termux/termux.sh)",
+                label="  Termux Setup (termux/termux.sh)",
                 value_display="[Yes]",
                 description="Termux storage, zsh, tmux, python, and dotfiles.",
                 preview_lines=["Script: termux/termux.sh"],
@@ -376,7 +376,7 @@ class GlobalMenuScreen:
             ))
             items.append(MenuItem(
                 key="termux_font",
-                label="Nerd Font (termux/system/font.sh)",
+                label="  Nerd Font (termux/system/font.sh)",
                 value_display="[Yes]" if cfg.theme_nerd_fonts else "[No]",
                 description="JetBrains Mono Nerd Font for Termux.",
                 preview_lines=["Script: termux/system/font.sh"],
@@ -388,7 +388,7 @@ class GlobalMenuScreen:
         # ==========================================================
         items.append(MenuItem(
             key="action_install",
-            label="▶ Install",
+            label="🚀 Install",
             value_display="[Start post-installation]",
             description=f"Execute the post-installation plan using ./{distro}/ modular scripts.",
             preview_lines=[
@@ -426,7 +426,7 @@ class GlobalMenuScreen:
 
         items.append(MenuItem(
             key="action_abort",
-            label="✖ Abort",
+            label="✖  Abort",
             value_display="[Exit installer]",
             description="Exit without applying changes.",
             preview_lines=["Exit the post-installation suite."],
