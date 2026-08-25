@@ -6,18 +6,27 @@ Identifies distribution, CPU, GPU, chassis/vendor, virtualization environment, a
 
 from __future__ import annotations
 
+import getpass
 import os
 import platform
 import subprocess
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import List
 
 
 def _sh(cmd: str) -> str:
     """Run shell command safely and return stripped stdout."""
     try:
-        res = subprocess.check_output(cmd, shell=True, stderr=subprocess.DEVNULL, text=True)
-        return res.strip()
+        return subprocess.check_output(cmd, shell=True, stderr=subprocess.DEVNULL, text=True).strip()
+    except Exception:
+        return ""
+
+
+def _read_sys(path: str) -> str:
+    """Safely read sysfs text file."""
+    try:
+        return Path(path).read_text(encoding="utf-8", errors="ignore").strip()
     except Exception:
         return ""
 
@@ -45,24 +54,20 @@ class SystemInfo:
     is_laptop: bool = False
 
     # Virtualization
-    virt_type: str = "none"  # none, kvm, qemu, vmware, oracle, wsl, docker, etc.
+    virt_type: str = "none"
 
     # Session & Shell
-    session_type: str = "unknown"  # x11, wayland, tty
+    session_type: str = "unknown"
     current_shell: str = ""
 
 
-def _read_os_release() -> dict[str, str]:
-    data: dict[str, str] = {}
-    if os.path.exists("/etc/os-release"):
-        with open("/etc/os-release", "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line or line.startswith("#") or "=" not in line:
-                    continue
-                k, v = line.split("=", 1)
-                data[k.strip()] = v.strip().strip('"').strip("'")
-    return data
+def _get_os_release() -> dict[str, str]:
+    if hasattr(platform, "freedesktop_os_release"):
+        try:
+            return platform.freedesktop_os_release()
+        except OSError:
+            pass
+    return {}
 
 
 def detect_system() -> SystemInfo:
@@ -70,7 +75,7 @@ def detect_system() -> SystemInfo:
     info.kernel = platform.release()
     info.arch = platform.machine()
     info.hostname = platform.node()
-    info.username = os.getenv("SUDO_USER") or os.getenv("USER") or os.getenv("LOGNAME") or _sh("logname") or "user"
+    info.username = os.getenv("SUDO_USER") or os.getenv("USER") or getpass.getuser()
     info.is_root = (os.geteuid() == 0) if hasattr(os, "geteuid") else False
     info.session_type = os.getenv("XDG_SESSION_TYPE") or ("wayland" if "WAYLAND_DISPLAY" in os.environ else ("x11" if "DISPLAY" in os.environ else "tty"))
     info.current_shell = os.path.basename(os.getenv("SHELL") or "/bin/bash")
@@ -80,7 +85,7 @@ def detect_system() -> SystemInfo:
         info.distro_id = "termux"
         info.distro_name = "Termux (Android)"
     else:
-        os_rel = _read_os_release()
+        os_rel = _get_os_release()
         raw_id = os_rel.get("ID", "").lower()
         id_like = [x.lower() for x in os_rel.get("ID_LIKE", "").split()]
         info.distro_version = os_rel.get("VERSION_ID", "")
@@ -100,21 +105,20 @@ def detect_system() -> SystemInfo:
 
     # 2. CPU Detection
     try:
-        with open("/proc/cpuinfo", "r", encoding="utf-8") as f:
-            cpuinfo = f.read()
-            if "GenuineIntel" in cpuinfo:
-                info.cpu_vendor = "intel"
-            elif "AuthenticAMD" in cpuinfo:
-                info.cpu_vendor = "amd"
-            elif "ARM" in cpuinfo or "aarch64" in info.arch:
-                info.cpu_vendor = "arm"
-            else:
-                info.cpu_vendor = "other"
+        cpuinfo = Path("/proc/cpuinfo").read_text(encoding="utf-8", errors="ignore")
+        if "GenuineIntel" in cpuinfo:
+            info.cpu_vendor = "intel"
+        elif "AuthenticAMD" in cpuinfo:
+            info.cpu_vendor = "amd"
+        elif "ARM" in cpuinfo or "aarch64" in info.arch:
+            info.cpu_vendor = "arm"
+        else:
+            info.cpu_vendor = "other"
 
-            for line in cpuinfo.splitlines():
-                if "model name" in line:
-                    info.cpu_model = line.split(":", 1)[1].strip()
-                    break
+        for line in cpuinfo.splitlines():
+            if "model name" in line:
+                info.cpu_model = line.split(":", 1)[1].strip()
+                break
     except Exception:
         pass
 
@@ -135,35 +139,22 @@ def detect_system() -> SystemInfo:
                 info.gpu_vendors.append("virtual")
 
     # 4. Chassis / Laptop / Vendor detection
-    sys_vendor = _sh("cat /sys/class/dmi/id/sys_vendor 2>/dev/null")
-    product_name = _sh("cat /sys/class/dmi/id/product_name 2>/dev/null")
-    product_family = _sh("cat /sys/class/dmi/id/product_family 2>/dev/null")
-    chassis_type = _sh("cat /sys/class/dmi/id/chassis_type 2>/dev/null")
+    sys_vendor = _read_sys("/sys/class/dmi/id/sys_vendor")
+    product_name = _read_sys("/sys/class/dmi/id/product_name")
+    product_family = _read_sys("/sys/class/dmi/id/product_family")
+    chassis_type = _read_sys("/sys/class/dmi/id/chassis_type")
 
     info.chassis_vendor = sys_vendor
     info.chassis_model = product_name or product_family
 
-    combined_vendor_info = f"{sys_vendor} {product_name} {product_family}".lower()
-    if any(x in combined_vendor_info for x in ["asus", "rog", "tuf", "zephyrus", "strix", "zenbook"]):
-        info.is_asus = True
+    combined = f"{sys_vendor} {product_name} {product_family}".lower()
+    info.is_asus = any(x in combined for x in ["asus", "rog", "tuf", "zephyrus", "strix", "zenbook"])
 
-    # Check if laptop (chassis_type 8, 9, 10, 11, 14, 30, 31, 32 or battery presence)
     if chassis_type in {"8", "9", "10", "11", "14", "30", "31", "32"} or os.path.exists("/sys/class/power_supply/BAT0") or os.path.exists("/sys/class/power_supply/BAT1"):
         info.is_laptop = True
 
     # 5. Virtualization detection
-    virt = _sh("systemd-detect-virt 2>/dev/null")
-    info.virt_type = virt if virt else "none"
+    info.virt_type = _sh("systemd-detect-virt 2>/dev/null") or "none"
 
     return info
 
-
-if __name__ == "__main__":
-    sysinfo = detect_system()
-    print(f"Distro: {sysinfo.distro_name} (ID: {sysinfo.distro_id})")
-    print(f"Kernel: {sysinfo.kernel} [{sysinfo.arch}]")
-    print(f"User: {sysinfo.username} (Root: {sysinfo.is_root})")
-    print(f"CPU: {sysinfo.cpu_model} [{sysinfo.cpu_vendor}]")
-    print(f"GPUs: {sysinfo.gpu_vendors} -> {sysinfo.gpu_descriptions}")
-    print(f"Chassis: {sysinfo.chassis_model or 'Generic'} (ASUS: {sysinfo.is_asus}, Laptop: {sysinfo.is_laptop})")
-    print(f"Virt: {sysinfo.virt_type}")

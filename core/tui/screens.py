@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import curses
 import os
+import re
 import queue
 import threading
 import time
@@ -18,7 +19,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from core.config import PostInstallConfig
 from core.detector import SystemInfo, detect_system
-from core.runner import ExecutionEvent, ExecutionPlan, StepStatus, run_plan
+from core.runner import ExecutionEvent, ExecutionPlan, StepStatus, discover_extra_scripts, run_plan
 from core.tui.colors import Colors
 from core.tui.widgets import draw_box, draw_footer, draw_header, safe_addstr
 
@@ -37,10 +38,11 @@ class MenuItem:
 class GlobalMenuScreen:
     """The central Archinstall-style configuration menu screen."""
 
-    def __init__(self, stdscr: curses.window, config: PostInstallConfig, sysinfo: SystemInfo):
+    def __init__(self, stdscr: curses.window, config: PostInstallConfig, sysinfo: SystemInfo, base_dir: Optional[Path] = None):
         self.stdscr = stdscr
         self.config = config
         self.sysinfo = sysinfo
+        self.base_dir = base_dir or Path(__file__).resolve().parent.parent.parent
         self.cursor_idx = 0
         self.scroll_offset = 0
 
@@ -244,7 +246,8 @@ class GlobalMenuScreen:
             aur_map = {
                 "paru": "Paru (Rust, Recommended)",
                 "yay": "Yay (Go)",
-                "both": "Both (Paru + Yay)"
+                "both": "Both (Paru + Yay)",
+                "none": "None / Skip"
             }
             items.append(MenuItem(
                 key="aur_helper",
@@ -384,11 +387,30 @@ class GlobalMenuScreen:
             ))
 
         # ==========================================================
+        # AUTO-DISCOVERED EXTRA APP SCRIPTS (ANY DISTRO: <distro>/apps/)
+        # ==========================================================
+        discovered = discover_extra_scripts(self.base_dir, distro)
+        if discovered:
+            enabled_count = sum(1 for s in discovered if s in cfg.extra_scripts)
+            items.append(MenuItem(
+                key="extra_scripts",
+                label=f"  Extra App Scripts ({distro}/apps/)",
+                value_display=f"[{enabled_count}/{len(discovered)}]",
+                description=f"Auto-discovered install scripts from {distro}/apps/. Toggle individually.",
+                preview_lines=[
+                    f"Discovered scripts (drop a .sh file in {distro}/apps/ to add more):",
+                    "",
+                    *[f" • {s}.sh {'[Enabled]' if s in cfg.extra_scripts else '[Disabled]'}" for s in discovered]
+                ],
+                action_type="multiselect"
+            ))
+
+        # ==========================================================
         # ACTION BUTTONS AT BOTTOM
         # ==========================================================
         items.append(MenuItem(
             key="action_install",
-            label="🚀 Install",
+            label="  Install",
             value_display="[Start post-installation]",
             description=f"Execute the post-installation plan using ./{distro}/ modular scripts.",
             preview_lines=[
@@ -406,7 +428,7 @@ class GlobalMenuScreen:
 
         items.append(MenuItem(
             key="action_save",
-            label="💾 Save Configuration",
+            label="  Save Configuration",
             value_display="[Save to JSON]",
             description="Export all configured options to a JSON profile.",
             preview_lines=["Save your current settings to a JSON profile."],
@@ -416,7 +438,7 @@ class GlobalMenuScreen:
 
         items.append(MenuItem(
             key="action_load",
-            label="📂 Load Configuration",
+            label="  Load Configuration",
             value_display="[Load from JSON]",
             description="Import a previously saved JSON configuration file.",
             preview_lines=["Import settings from a local JSON file."],
@@ -426,7 +448,7 @@ class GlobalMenuScreen:
 
         items.append(MenuItem(
             key="action_abort",
-            label="✖  Abort",
+            label="  Abort",
             value_display="[Exit installer]",
             description="Exit without applying changes.",
             preview_lines=["Exit the post-installation suite."],
@@ -576,32 +598,8 @@ class GlobalMenuScreen:
             # Handle Keys (with Full Vim Keybindings)
             key = self.stdscr.getch()
 
-            # Navigation: Down (j / Down Arrow)
-            if key in (curses.KEY_DOWN, ord('j'), ord('J')):
-                self.cursor_idx = (self.cursor_idx + 1) % total_items
-
-            # Navigation: Up (k / Up Arrow)
-            elif key in (curses.KEY_UP, ord('k'), ord('K')):
-                self.cursor_idx = (self.cursor_idx - 1) % total_items
-
-            # Jump to top: g / Home
-            elif key in (curses.KEY_HOME, ord('g')):
-                self.cursor_idx = 0
-
-            # Jump to bottom: G / End
-            elif key in (curses.KEY_END, ord('G')):
-                self.cursor_idx = total_items - 1
-
-            # Half-page down: Ctrl+d (4) / Page Down (curses.KEY_NPAGE) / Ctrl+f (6)
-            elif key in (4, 6, curses.KEY_NPAGE):
-                self.cursor_idx = min(total_items - 1, self.cursor_idx + max(1, visible_rows // 2))
-
-            # Half-page up: Ctrl+u (21) / Page Up (curses.KEY_PPAGE) / Ctrl+b (2)
-            elif key in (21, 2, curses.KEY_PPAGE):
-                self.cursor_idx = max(0, self.cursor_idx - max(1, visible_rows // 2))
-
             # Toggle Boolean / Quick Checkmark: Space or x
-            elif key in (ord(' '), ord('x'), ord('X')):
+            if key in (ord(' '), ord('x'), ord('X')):
                 cur_key = selected_item.key
                 if cur_key == "docker_enabled":
                     self.config.docker_enabled = not self.config.docker_enabled
@@ -617,10 +615,8 @@ class GlobalMenuScreen:
             # Select / Open Submenu: Enter or l (Vim forward) or Right Arrow
             elif key in (10, 13, curses.KEY_ENTER, ord('l'), curses.KEY_RIGHT):
                 action_res = self._handle_item_select(selected_item)
-                if action_res == "install":
-                    return "install"
-                elif action_res == "exit":
-                    return "exit"
+                if action_res in ("install", "exit"):
+                    return action_res
 
             # Save Config: s / S
             elif key in (ord('s'), ord('S')):
@@ -635,6 +631,9 @@ class GlobalMenuScreen:
                 confirm = ConfirmScreen(self.stdscr, "Exit Installer?", "Are you sure you want to exit without applying changes?").run()
                 if confirm:
                     return "exit"
+
+            else:
+                self.cursor_idx = _handle_nav(key, self.cursor_idx, total_items, max(1, visible_rows // 2))
 
     def _handle_item_select(self, item: MenuItem) -> Optional[str]:
         k = item.key
@@ -722,16 +721,25 @@ class GlobalMenuScreen:
         elif k == "ai_ml_enabled":
             self.config.ai_ml_enabled = not self.config.ai_ml_enabled
 
+        elif k == "extra_scripts":
+            discovered = discover_extra_scripts(self.base_dir, self.config.distro)
+            options = [
+                (s, f"{s}.sh", s in self.config.extra_scripts) for s in discovered
+            ]
+            res = SelectListScreen(self.stdscr, "Extra App Scripts (arch/apps/)", options).run()
+            if res is not None:
+                self.config.extra_scripts = res
+
         elif k == "aur_helper":
             options = [
                 ("paru", "Paru (Rust, fast, feature-rich - Recommended)"),
                 ("yay", "Yay (Go, classic Arch AUR helper)"),
-                ("both", "Both (Install both Paru and Yay)")
+                ("both", "Both (Install both Paru and Yay)"),
+                ("none", "None / Skip AUR Helper")
             ]
             sel = OptionListScreen(self.stdscr, "Select AUR Helper (arch/apps/)", options, self.config.aur_helper).run()
             if sel:
                 self.config.aur_helper = sel
-                self.config.repos_aur_paru = True
 
         elif k == "repos_mirror_ranking":
             self.config.repos_mirror_ranking = not self.config.repos_mirror_ranking
@@ -773,6 +781,24 @@ class GlobalMenuScreen:
                 ConfirmScreen(self.stdscr, "Load Error", f"Failed to parse configuration: {e}", is_alert=True).run()
 
 
+def _handle_nav(key: int, idx: int, total: int, step: int = 3) -> int:
+    if total <= 0:
+        return 0
+    if key in (curses.KEY_DOWN, ord('j'), ord('J')):
+        return (idx + 1) % total
+    if key in (curses.KEY_UP, ord('k'), ord('K')):
+        return (idx - 1) % total
+    if key in (curses.KEY_HOME, ord('g')):
+        return 0
+    if key in (curses.KEY_END, ord('G')):
+        return total - 1
+    if key in (4, 6, curses.KEY_NPAGE):
+        return min(total - 1, idx + step)
+    if key in (21, 2, curses.KEY_PPAGE):
+        return max(0, idx - step)
+    return idx
+
+
 class OptionListScreen:
     """Single-selection radio screen with Vim navigation (j/k, g/G, l/Enter)."""
 
@@ -781,11 +807,7 @@ class OptionListScreen:
         self.title = title
         self.options = options
         self.current_val = current_val
-        self.cursor_idx = 0
-        for i, (k, _) in enumerate(options):
-            if k == current_val:
-                self.cursor_idx = i
-                break
+        self.cursor_idx = next((i for i, (k, _) in enumerate(options) if k == current_val), 0)
 
     def run(self) -> Optional[str]:
         curses.curs_set(0)
@@ -805,45 +827,19 @@ class OptionListScreen:
 
             for i, (k, label) in enumerate(self.options):
                 is_selected = (i == self.cursor_idx)
-                is_active = (k == self.current_val)
-                radio = "(*)" if is_active else "( )"
+                radio = "(*)" if k == self.current_val else "( )"
                 line = f" {radio} {label}"
-
                 attr = Colors.highlight(bold=True) if is_selected else Colors.normal()
                 safe_addstr(self.stdscr, box_y + 2 + i, box_x + 2, line.ljust(box_w - 4), attr)
 
             self.stdscr.refresh()
             key = self.stdscr.getch()
 
-            # Down: j / Down Arrow
-            if key in (curses.KEY_DOWN, ord('j'), ord('J')):
-                self.cursor_idx = (self.cursor_idx + 1) % len(self.options)
-
-            # Up: k / Up Arrow
-            elif key in (curses.KEY_UP, ord('k'), ord('K')):
-                self.cursor_idx = (self.cursor_idx - 1) % len(self.options)
-
-            # Top: g / Home
-            elif key in (curses.KEY_HOME, ord('g')):
-                self.cursor_idx = 0
-
-            # Bottom: G / End
-            elif key in (curses.KEY_END, ord('G')):
-                self.cursor_idx = len(self.options) - 1
-
-            # Half-page scroll
-            elif key in (4, 6, curses.KEY_NPAGE):
-                self.cursor_idx = min(len(self.options) - 1, self.cursor_idx + 3)
-            elif key in (21, 2, curses.KEY_PPAGE):
-                self.cursor_idx = max(0, self.cursor_idx - 3)
-
-            # Select & Confirm: Enter, l, Space
-            elif key in (10, 13, curses.KEY_ENTER, ord('l'), ord(' ')):
+            if key in (10, 13, curses.KEY_ENTER, ord('l'), ord(' ')):
                 return self.options[self.cursor_idx][0]
-
-            # Cancel / Back: Esc, h, q
-            elif key in (ord('q'), ord('Q'), ord('h'), 27):
+            if key in (ord('q'), ord('Q'), ord('h'), 27):
                 return None
+            self.cursor_idx = _handle_nav(key, self.cursor_idx, len(self.options))
 
 
 class SelectListScreen:
@@ -888,50 +884,21 @@ class SelectListScreen:
             self.stdscr.refresh()
             key = self.stdscr.getch()
 
-            # Down: j / Down Arrow
-            if key in (curses.KEY_DOWN, ord('j'), ord('J')):
-                self.cursor_idx = (self.cursor_idx + 1) % len(self.options)
-
-            # Up: k / Up Arrow
-            elif key in (curses.KEY_UP, ord('k'), ord('K')):
-                self.cursor_idx = (self.cursor_idx - 1) % len(self.options)
-
-            # Top: g / Home
-            elif key in (curses.KEY_HOME, ord('g')):
-                self.cursor_idx = 0
-
-            # Bottom: G / End
-            elif key in (curses.KEY_END, ord('G')):
-                self.cursor_idx = len(self.options) - 1
-
-            # Half-page scroll
-            elif key in (4, 6, curses.KEY_NPAGE):
-                self.cursor_idx = min(len(self.options) - 1, self.cursor_idx + 3)
-            elif key in (21, 2, curses.KEY_PPAGE):
-                self.cursor_idx = max(0, self.cursor_idx - 3)
-
-            # Toggle checkmark: Space or x
-            elif key in (ord(' '), ord('x'), ord('X')):
+            if key in (ord(' '), ord('x'), ord('X')):
                 cur_k = self.options[self.cursor_idx][0]
                 self.selected[cur_k] = not self.selected.get(cur_k, False)
-
-            # Select All: a
             elif key in (ord('a'), ord('A')):
                 for k, _, _ in self.options:
                     self.selected[k] = True
-
-            # Clear All: c
             elif key in (ord('c'), ord('C')):
                 for k, _, _ in self.options:
                     self.selected[k] = False
-
-            # Confirm / Save: Enter or o
             elif key in (10, 13, curses.KEY_ENTER):
                 return [k for k, _, _ in self.options if self.selected.get(k, False)]
-
-            # Cancel / Back: Esc, h, q
             elif key in (27, ord('q'), ord('Q'), ord('h')):
                 return None
+            else:
+                self.cursor_idx = _handle_nav(key, self.cursor_idx, len(self.options))
 
 
 class InputScreen:
@@ -1085,6 +1052,17 @@ class ExecutionScreen:
         self.log_scroll_offset = 0
         self.auto_scroll = True
         self.event_queue: queue.Queue[ExecutionEvent] = queue.Queue()
+        self._progress_re = re.compile(
+            r"^\s*\d+[\s.%].*(?:Total|Received|Xferd|Speed|ETA|[kMGT]i?B[/\s])"  # curl/wget progress
+            r"|^\s*\d+\s+[\d.]+[kMGT]?\s+\d+"                                    # curl compact progress
+            r"|^\(?\d+/\d+\)\s*(?:downloading|installing|upgrading|loading)"       # pacman/paru progress bars
+            r"|^\s*(?:Downloading|Fetching|Collecting)\s.+\s\d+%"                  # pip/npm progress
+            r"|^\s*\d+%\s*\|"                                                      # pip-style bar
+        , re.IGNORECASE)
+
+    def _is_progress_line(self, text: str) -> bool:
+        """Detect repetitive download/build progress lines (curl, wget, pacman, pip)."""
+        return bool(self._progress_re.search(text))
 
     def _worker(self) -> None:
         try:
@@ -1109,14 +1087,20 @@ class ExecutionScreen:
                     event = self.event_queue.get_nowait()
                     self.current_step_idx = event.step_index
                     if event.event_type == "output":
-                        self.log_lines.append(event.message)
+                        # Collapse consecutive download progress lines into one
+                        if (self._is_progress_line(event.message)
+                                and self.log_lines
+                                and self._is_progress_line(self.log_lines[-1])):
+                            self.log_lines[-1] = event.message
+                        else:
+                            self.log_lines.append(event.message)
                     elif event.event_type == "step_start":
                         self.log_lines.append(f"==> {event.step.title}")
                     elif event.event_type == "step_complete":
                         self.log_lines.append(f"✓ Completed: {event.step.title} ({event.step.duration:.1f}s)")
                     elif event.event_type == "step_fail":
                         self.has_errors = True
-                        self.log_lines.append(f"✖ ERROR: {event.step.title}")
+                        self.log_lines.append(f"✗ ERROR: {event.step.title}")
                     elif event.event_type == "plan_complete":
                         self.plan_completed = True
                 except queue.Empty:
@@ -1192,7 +1176,7 @@ class ExecutionScreen:
                 l_attr = Colors.normal()
                 if l_text.startswith("✓"):
                     l_attr = Colors.success(bold=True)
-                elif l_text.startswith("✖") or "ERROR" in l_text:
+                elif l_text.startswith("✗") or "ERROR" in l_text:
                     l_attr = Colors.error(bold=True)
                 elif l_text.startswith("==>") or l_text.startswith("[EXEC]"):
                     l_attr = Colors.accent(bold=True)

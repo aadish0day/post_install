@@ -19,7 +19,35 @@ from pathlib import Path
 from core.config import PostInstallConfig
 from core.detector import SystemInfo, detect_system
 
-ANSI_REGEX = re.compile(r"\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)?|\x1b\[[0-?]*[ -/]*[@-~]|\x1b[ -/]*[@-~]")
+ANSI_REGEX = re.compile(r"\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)?|\x1b\[[0-?]*[ -/]*[@-~]|\x1b[ -/]*[@-~]|[\x00-\x08\x0e-\x1f]")
+
+# Scripts in apps/ already handled by dedicated config flags / steps, per distro.
+# Any .sh file NOT in the distro's set gets auto-discovered as an optional extra.
+_MANAGED_APP_SCRIPTS: dict[str, set[str]] = {
+    "arch": {"docker.sh", "gaming.sh", "paru.sh", "yay.sh"},
+    "kali": {"docker.sh"},
+    "debian": {"docker.sh", "neovim.sh"},
+    "fedora": {"docker.sh"},
+    "termux": set(),
+}
+_MANAGED_APP_DIRS = {"burp"}
+
+
+def discover_extra_scripts(base_dir: Path, distro: str) -> list[str]:
+    """Scan <distro>/apps/ for .sh scripts not managed by hardcoded steps.
+
+    Returns a sorted list of script stems (e.g. ["xdm", "someapp"]).
+    """
+    apps_dir = base_dir / distro / "apps"
+    if not apps_dir.is_dir():
+        return []
+    managed = _MANAGED_APP_SCRIPTS.get(distro, set())
+    found = []
+    for entry in apps_dir.iterdir():
+        if entry.is_file() and entry.suffix == ".sh" and entry.name not in managed:
+            found.append(entry.stem)
+        # skip managed subdirs like burp/
+    return sorted(found)
 
 
 def clean_output_line(raw_line: str) -> str:
@@ -45,7 +73,6 @@ class Step:
     description: str
     commands: List[str] = field(default_factory=list)
     cwd: Optional[str] = None
-    requires_root: bool = False
     status: StepStatus = StepStatus.PENDING
     error_message: Optional[str] = None
     duration: float = 0.0
@@ -89,8 +116,7 @@ class ExecutionPlan:
                         "sudo pacman -S --needed reflector --noconfirm --overwrite '*'",
                         "timeout 30s sudo reflector --latest 10 --fastest 5 --protocol https --connection-timeout 5 --download-timeout 5 --threads 8 --country India --sort rate --save /etc/pacman.d/mirrorlist || echo 'Reflector timed out or failed; keeping existing mirrorlist.'",
                         "sudo pacman -Syu --noconfirm --overwrite '*'"
-                    ],
-                    requires_root=True
+                    ]
                 ))
 
             # 2. Base packages & terminal stack from arch/arch.sh
@@ -104,14 +130,13 @@ class ExecutionPlan:
                     "fluidsynth fzf gcc gettext git git-lfs gst-libav gst-plugins-ugly gvfs gvfs-afc gvfs-gphoto2 gvfs-mtp gvfs-nfs "
                     "gvfs-smb highlight htop img2pdf imagemagick inxi jq jpegoptim kitty less libavtp libdca libgme liblrdf libltc "
                     "libtool linux-headers lsd lz4 make man-db man-pages maven mediainfo mjpegtools mkinitcpio mpv mpv-mpris ncdu "
-                    "neovim nodejs noto-fonts noto-fonts-cjk noto-fonts-emoji noto-fonts-extra npm obs-studio p7zip pacman-contrib pacutils "
+                    "neovim nodejs noto-fonts noto-fonts-cjk noto-fonts-emoji noto-fonts-extra npm obs-studio 7zip pacman-contrib pacutils "
                     "papirus-icon-theme parallel pipewire pipewire-alsa pipewire-audio pipewire-jack lib32-pipewire-jack pipewire-pulse pipewire-zeroconf pipewire-libcamera "
                     "pkgfile plocate playerctl pv qalculate-qt qbittorrent ripgrep sd spandsp starship soundtouch svt-hevc tar "
                     "tree tree-sitter-cli trash-cli tmux ttf-jetbrains-mono ttf-jetbrains-mono-nerd tumbler unzip wireplumber xz "
                     "yazi yt-dlp zip zoxide zsh zstd dosfstools usbutils lazydocker opencode github-cli",
                     "if command -v git &>/dev/null && command -v git-lfs &>/dev/null; then git lfs install --skip-repo; fi"
-                ],
-                requires_root=True
+                ]
             ))
 
             # 3. AUR Helper(s) (arch/apps/paru.sh & arch/apps/yay.sh)
@@ -143,14 +168,13 @@ class ExecutionPlan:
                     commands=[
                         "sudo pacman -S --needed --noconfirm --overwrite '*' "
                         "xf86-video-amdgpu amd-ucode mesa lib32-mesa vulkan-radeon lib32-vulkan-radeon "
-                        "radeontop libva-mesa-driver lib32-libva-mesa-driver mesa-utils mesa-demos "
+                        "radeontop mesa-utils mesa-demos "
                         "vulkan-mesa-layers lib32-mesa-utils lib32-mesa-demos lib32-vulkan-mesa-layers glu lib32-glu",
                         'if [ -f /etc/default/grub ]; then '
                         '  sudo sed -i \'s|^GRUB_CMDLINE_LINUX_DEFAULT=".*"|GRUB_CMDLINE_LINUX_DEFAULT="quiet splash loglevel=3 amd_pstate=active amd_prefcore=enable"|\' /etc/default/grub && '
                         '  sudo grub-mkconfig -o /boot/grub/grub.cfg || true; '
                         'fi'
-                    ],
-                    requires_root=True
+                    ]
                 ))
 
             # 5. ASUS ROG Hardware & Power Tools (arch/hardware/asus.sh)
@@ -161,8 +185,7 @@ class ExecutionPlan:
                     title="Configure ASUS ROG & asusctl Tooling (arch/hardware/asus.sh)",
                     description="Adds OGC repo, installs asusctl/rog-control-center, fan curves, and battery limit.",
                     commands=[f'bash "{asus_script}"'],
-                    cwd=str(arch_dir),
-                    requires_root=True
+                    cwd=str(arch_dir)
                 ))
 
             # 6. Desktop Environment (arch/desktop/kde.sh or arch/desktop/tiling.sh)
@@ -173,8 +196,7 @@ class ExecutionPlan:
                     title="Install KDE Plasma Desktop (arch/desktop/kde.sh)",
                     description="Installs Plasma Desktop, Wayland/X11 sessions, Dolphin, Kate, and KDE apps.",
                     commands=[f'bash "{kde_script}"'],
-                    cwd=str(arch_dir),
-                    requires_root=True
+                    cwd=str(arch_dir)
                 ))
             elif cfg.desktop_environment == "tiling":
                 tiling_script = arch_dir / "desktop/tiling.sh"
@@ -194,8 +216,7 @@ class ExecutionPlan:
                     title="Setup KVM, QEMU & virt-manager (arch/virt/kvm-qemu.sh)",
                     description="Installs QEMU desktop, virt-manager, libvirt network bridge and user groups.",
                     commands=[f'bash "{kvm_script}"'],
-                    cwd=str(arch_dir),
-                    requires_root=True
+                    cwd=str(arch_dir)
                 ))
 
             if cfg.virt_vmware_workstation:
@@ -216,12 +237,11 @@ class ExecutionPlan:
                     title="Install Docker Engine & Buildx (arch/apps/docker.sh)",
                     description="Installs Docker, Docker Compose, Buildx, enables service and adds user to docker group.",
                     commands=[f'bash "{docker_script}"'],
-                    cwd=str(arch_dir),
-                    requires_root=True
+                    cwd=str(arch_dir)
                 ))
 
             # 10. Coding Stack from arch/arch.sh
-            if cfg.coding_enabled:
+            if cfg.coding_enabled and cfg.aur_helper != "none":
                 self.steps.append(Step(
                     step_id="arch_coding_aur",
                     title="Install Developer & Coding Suite (AUR)",
@@ -269,26 +289,29 @@ class ExecutionPlan:
                         "rocm-llvm rocm-opencl-runtime rocm-opencl-sdk rocm-hip-sdk rocm-ml-libraries "
                         "rocm-openmp hipify-clang rocminfo opencl-headers libclc ocl-icd python-pytorch-rocm python-onnxruntime-rocm"
                     ],
-                    cwd=str(arch_dir),
-                    requires_root=True
+                    cwd=str(arch_dir)
                 ))
 
             # 14. Essential AUR Tools from arch/arch.sh
-            self.steps.append(Step(
-                step_id="arch_general_aur",
-                title="Install Essential AUR Productivity Tools",
-                description="Installs AnyDesk, LocalSend, Thorium, Zen Browser, Vesktop, and gallery-dl.",
-                commands=[
-                    "if command -v paru &>/dev/null; then "
-                    "  paru -S --needed --noconfirm advcpmv ani-cli anydesk-bin gallery-dl-bin localsend-bin markitdown-bin thorium-browser-bin vesktop-bin zen-browser-bin || true; "
-                    "elif command -v yay &>/dev/null; then "
-                    "  yay -S --needed --noconfirm advcpmv ani-cli anydesk-bin gallery-dl-bin localsend-bin markitdown-bin thorium-browser-bin vesktop-bin zen-browser-bin || true; "
-                    "fi"
-                ],
-                cwd=str(arch_dir)
-            ))
+            if cfg.aur_helper != "none":
+                self.steps.append(Step(
+                    step_id="arch_general_aur",
+                    title="Install Essential AUR Productivity Tools",
+                    description="Installs AnyDesk, LocalSend, Thorium, Zen Browser, Vesktop, and gallery-dl.",
+                    commands=[
+                        "if command -v paru &>/dev/null; then "
+                        "  paru -S --needed --noconfirm advcpmv ani-cli anydesk-bin gallery-dl-bin localsend-bin markitdown-bin thorium-browser-bin vesktop-bin zen-browser-bin || true; "
+                        "elif command -v yay &>/dev/null; then "
+                        "  yay -S --needed --noconfirm advcpmv ani-cli anydesk-bin gallery-dl-bin localsend-bin markitdown-bin thorium-browser-bin vesktop-bin zen-browser-bin || true; "
+                        "fi"
+                    ],
+                    cwd=str(arch_dir)
+                ))
 
-            # 15. Services and Shell Configuration from arch/arch.sh
+            # 15. Auto-discovered extra app scripts from arch/apps/
+            self._append_extra_scripts_steps(arch_dir, "arch")
+
+            # 16. Services and Shell Configuration from arch/arch.sh
             self.steps.append(Step(
                 step_id="arch_services_shell",
                 title="Configure Services & Default Shell (arch/arch.sh)",
@@ -322,8 +345,7 @@ class ExecutionPlan:
                     'mkdir -p ~/cybersec',
                     'if [ ! -d ~/dotfile ]; then git clone https://github.com/aadish0day/dotfile.git ~/dotfile && (cd ~/dotfile && [ -f link.sh ] && ./link.sh || true); fi'
                 ],
-                cwd=str(kali_dir),
-                requires_root=True
+                cwd=str(kali_dir)
             ))
 
             if cfg.security_kali_metapackages:
@@ -333,8 +355,7 @@ class ExecutionPlan:
                     title="Install Kali Metapackages",
                     description=f"Installs selected security suites: {', '.join(pkgs)}.",
                     commands=[f"sudo nala install -y {' '.join(pkgs)}"],
-                    cwd=str(kali_dir),
-                    requires_root=True
+                    cwd=str(kali_dir)
                 ))
 
             if cfg.hardware_kali_wifi:
@@ -344,8 +365,7 @@ class ExecutionPlan:
                     title="Install Realtek WiFi Driver (kali/hardware/wifi.sh)",
                     description="Compiles and loads Realtek RTL8821AU DKMS wireless driver.",
                     commands=[f'bash "{wifi_script}"'],
-                    cwd=str(kali_dir),
-                    requires_root=True
+                    cwd=str(kali_dir)
                 ))
 
             if cfg.docker_enabled:
@@ -355,8 +375,7 @@ class ExecutionPlan:
                     title="Install Docker CE on Kali (kali/apps/docker.sh)",
                     description="Configures Debian Bookworm repository for Docker CE on Kali Rolling.",
                     commands=[f'bash "{docker_script}"'],
-                    cwd=str(kali_dir),
-                    requires_root=True
+                    cwd=str(kali_dir)
                 ))
 
             if cfg.security_burp:
@@ -378,6 +397,9 @@ class ExecutionPlan:
                     cwd=str(kali_dir)
                 ))
 
+            # Auto-discovered extra app scripts from kali/apps/
+            self._append_extra_scripts_steps(kali_dir, "kali")
+
         # ====================================================================
         # DEBIAN / UBUNTU WORKFLOW (STRICTLY FROM debian/ DIRECTORY)
         # ====================================================================
@@ -393,8 +415,7 @@ class ExecutionPlan:
                     "sudo nala install -y ranger ncdu mpv maven yt-dlp gallery-dl htop fzf git git-lfs unzip nodejs flameshot xclip ueberzug highlight atool mediainfo android-tools-adb android-tools-fastboot img2pdf zathura zathura-pdf-poppler obs-studio picom nitrogen xss-lock qalculate-gtk libreoffice bluez bat alacritty jpegoptim zip tar p7zip zstd lz4 xz-utils trash-cli python3-pip",
                     "if ! command -v starship &>/dev/null; then curl -sS https://starship.rs/install.sh | sh -s -- -y; fi"
                 ],
-                cwd=str(debian_dir),
-                requires_root=True
+                cwd=str(debian_dir)
             ))
 
             if "neovim" in cfg.coding_tools:
@@ -414,8 +435,7 @@ class ExecutionPlan:
                     title="Install Docker CE & Plugins (debian/apps/docker.sh)",
                     description="Adds official Docker apt keyring and installs docker-ce, compose and buildx.",
                     commands=[f'bash "{docker_script}"'],
-                    cwd=str(debian_dir),
-                    requires_root=True
+                    cwd=str(debian_dir)
                 ))
 
             if cfg.repos_pacstall:
@@ -430,6 +450,9 @@ class ExecutionPlan:
                     cwd=str(debian_dir)
                 ))
 
+            # Auto-discovered extra app scripts from debian/apps/
+            self._append_extra_scripts_steps(debian_dir, "debian")
+
         # ====================================================================
         # FEDORA WORKFLOW (STRICTLY FROM fedora/ DIRECTORY)
         # ====================================================================
@@ -441,8 +464,7 @@ class ExecutionPlan:
                 title="Fedora Optimization & RPM Fusion (fedora/fedora.sh)",
                 description="Tunes DNF for parallel downloads, installs RPM Fusion, COPR starship, and dev tools.",
                 commands=[f'bash "{fedora_script}"'],
-                cwd=str(fedora_dir),
-                requires_root=True
+                cwd=str(fedora_dir)
             ))
 
             if cfg.docker_enabled:
@@ -452,9 +474,11 @@ class ExecutionPlan:
                     title="Install Docker CE on Fedora (fedora/apps/docker.sh)",
                     description="Configures official Docker CE repo and starts docker.service.",
                     commands=[f'bash "{docker_script}"'],
-                    cwd=str(fedora_dir),
-                    requires_root=True
+                    cwd=str(fedora_dir)
                 ))
+
+            # Auto-discovered extra app scripts from fedora/apps/
+            self._append_extra_scripts_steps(fedora_dir, "fedora")
 
         # ====================================================================
         # TERMUX WORKFLOW (STRICTLY FROM termux/ DIRECTORY)
@@ -479,6 +503,27 @@ class ExecutionPlan:
                     commands=[f'bash "{font_script}"'],
                     cwd=str(termux_dir)
                 ))
+
+            # Auto-discovered extra app scripts from termux/apps/
+            self._append_extra_scripts_steps(termux_dir, "termux")
+
+    def _append_extra_scripts_steps(self, distro_dir: Path, distro_name: str) -> None:
+        if self.config.extra_scripts:
+            apps_dir = distro_dir / "apps"
+            if not apps_dir.is_dir():
+                return
+            managed = _MANAGED_APP_SCRIPTS.get(distro_name, set())
+            for script_name in sorted(self.config.extra_scripts):
+                script_path = apps_dir / f"{script_name}.sh"
+                if script_path.is_file() and script_path.name not in managed:
+                    nice_name = script_name.replace("_", " ").replace("-", " ").title()
+                    self.steps.append(Step(
+                        step_id=f"{distro_name}_extra_{script_name}",
+                        title=f"Install {nice_name} ({distro_name}/apps/{script_name}.sh)",
+                        description=f"Auto-discovered script: {distro_name}/apps/{script_name}.sh",
+                        commands=[f'bash "{script_path}"'],
+                        cwd=str(distro_dir)
+                    ))
 
 
 def run_plan(plan: ExecutionPlan, dry_run: bool = False) -> Generator[ExecutionEvent, None, None]:
@@ -528,23 +573,18 @@ def run_plan(plan: ExecutionPlan, dry_run: bool = False) -> Generator[ExecutionE
                             if not data:
                                 break
                             buf += data.decode("utf-8", errors="replace")
-                            while "\n" in buf or "\r" in buf:
-                                idx_n = buf.find("\n")
-                                idx_r = buf.find("\r")
-                                if idx_n != -1 and (idx_r == -1 or idx_n < idx_r):
-                                    line = buf[:idx_n]
-                                    buf = buf[idx_n + 1:]
-                                else:
-                                    line = buf[:idx_r]
-                                    buf = buf[idx_r + 1:]
+                            lines = buf.splitlines(keepends=True)
+                            if lines and not (lines[-1].endswith("\n") or lines[-1].endswith("\r")):
+                                buf = lines.pop()
+                            else:
+                                buf = ""
+                            for line in lines:
                                 clean_line = clean_output_line(line)
                                 if clean_line:
                                     yield ExecutionEvent(event_type="output", step_index=idx, step=step, message=clean_line)
                         except OSError:
-                            # Child closed slave
                             break
                     elif proc.poll() is not None:
-                        # Drain remaining bytes
                         try:
                             data = os.read(master_fd, 4096)
                             if data:

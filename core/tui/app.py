@@ -59,7 +59,7 @@ class PostInstallTUI:
 
         # 3. Main Global Menu loop
         while True:
-            menu = GlobalMenuScreen(stdscr, config, sysinfo)
+            menu = GlobalMenuScreen(stdscr, config, sysinfo, base_dir=self.base_dir)
             action = menu.run()
 
             if action == "exit" or action is None:

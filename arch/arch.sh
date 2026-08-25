@@ -168,7 +168,7 @@ packages=(
     fluidsynth fzf gcc gettext git git-lfs gst-libav gst-plugins-ugly gvfs gvfs-afc gvfs-gphoto2 gvfs-mtp gvfs-nfs
     gvfs-smb highlight htop img2pdf imagemagick inxi jq jpegoptim kitty less libavtp libdca libgme liblrdf libltc
     libtool linux-headers lsd lz4 make man-db man-pages maven mediainfo mjpegtools mkinitcpio mpv mpv-mpris ncdu
-    neovim nodejs noto-fonts noto-fonts-cjk noto-fonts-emoji noto-fonts-extra npm obs-studio p7zip pacman-contrib pacutils
+    neovim nodejs noto-fonts noto-fonts-cjk noto-fonts-emoji noto-fonts-extra npm obs-studio 7zip pacman-contrib pacutils
     papirus-icon-theme parallel pipewire pipewire-alsa pipewire-audio pipewire-jack lib32-pipewire-jack pipewire-pulse pipewire-zeroconf pipewire-libcamera
     pkgfile plocate playerctl pv qalculate-qt qbittorrent ripgrep sd spandsp starship soundtouch svt-hevc tar
     tree tree-sitter-cli trash-cli tmux ttf-jetbrains-mono ttf-jetbrains-mono-nerd tumbler unzip wireplumber xz
@@ -214,7 +214,7 @@ asus_packages=(
 # List of AMD GPU and related runtime packages
 amd_packages=(
     xf86-video-amdgpu amd-ucode mesa lib32-mesa vulkan-radeon lib32-vulkan-radeon
-    radeontop libva-mesa-driver lib32-libva-mesa-driver mesa-utils mesa-demos
+    radeontop mesa-utils mesa-demos
     vulkan-mesa-layers lib32-mesa-utils lib32-mesa-demos lib32-vulkan-mesa-layers
     glu lib32-glu
     # mesa-vdpau lib32-mesa-vdpau

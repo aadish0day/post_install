@@ -16,12 +16,12 @@ kvm_packages=(
     virt-viewer
     dnsmasq
     vde2
-    iptables-nft
+    iptables
     nftables
     openbsd-netcat
     libguestfs
     swtpm
-    ovmf
+    edk2-ovmf
 )
 
 echo "Installing KVM and QEMU packages..."
