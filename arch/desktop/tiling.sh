@@ -11,16 +11,18 @@ ARCH_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 # List of X11 tiling desktop essentials
 x11_tilling_depen=(
     accountsservice acpi alsa-firmware archlinux-xdg-menu arandr awesome-terminal-fonts
-    bluez bluez-utils blueman brightnessctl clipmenu dex ding-libs dmidecode dmraid dmenu
-    dnssec-anchors dracut dunst feh flameshot fsarchiver gammastep gssproxy gtksourceview3
-    haveged hdparm hwdetect hwinfo inetutils jemalloc libgsf libinstpatch liblqr
+    bluez bluez-utils blueman brightnessctl cantarell-fonts clipmenu dex ding-libs dmidecode dmraid dmenu
+    dnssec-anchors dracut dunst feh ffmpegthumbnailer flameshot fsarchiver gammastep gssproxy gtksourceview3
+    gvfs gvfs-afc gvfs-gphoto2 gvfs-mtp gvfs-nfs gvfs-smb
+    haveged hdparm hwdetect hwinfo inetutils jemalloc kitty libgsf libinstpatch liblqr
     libmaxminddb libmbim libopenraw libpipeline libqmi libqrtr-glib libwnck3 libx86emu
-    libxres logrotate lsb-release modemmanager netctl network-manager-applet nitrogen ntp
-    numlockx nwg-look os-prober perl-xml-writer picom polkit-gnome polybar poppler-glib
+    libxres logrotate lsb-release modemmanager mpv-mpris netctl network-manager-applet nitrogen ntp
+    numlockx noto-fonts noto-fonts-cjk noto-fonts-emoji noto-fonts-extra nwg-look os-prober perl-xml-writer
+    papirus-icon-theme picom playerctl polkit-gnome polybar poppler-glib
     ppp python-annotated-types python-defusedxml python-orjson python-pyaml python-pydantic
-    python-pydantic-core python-pyqt5 python-pyqt5-sip python-typing_extensions rofi scrot
-    sg3_utils sysstat systemd-resolvconf tcl thunar thunar-archive-plugin thunar-volman
-    ttf-opensans usb_modeswitch wmname xarchiver xbindkeys xclip xdg-desktop-portal
+    python-pydantic-core python-pyqt5 python-pyqt5-sip python-typing_extensions qalculate-qt qbittorrent rofi scrot
+    sg3_utils sysstat systemd-resolvconf tcl thunar thunar-archive-plugin thunar-volman tumbler
+    ttf-jetbrains-mono ttf-jetbrains-mono-nerd ttf-opensans usb_modeswitch wmname xarchiver xbindkeys xclip xdg-desktop-portal
     xdg-desktop-portal-gtk xdg-user-dirs-gtk xfce4-terminal xorg-xbacklight xorg-xdpyinfo xss-lock
     zathura zathura-cb zathura-djvu zathura-pdf-poppler zathura-ps
 )

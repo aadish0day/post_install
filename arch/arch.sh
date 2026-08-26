@@ -164,14 +164,14 @@ install_aur_packages() {
 
 # List of general packages
 packages=(
-    android-tools aria2 atool bat cantarell-fonts chromaprint doxygen duf fastfetch fd ffmpegthumbnailer
-    fluidsynth fzf gcc gettext git git-lfs gst-libav gst-plugins-ugly gvfs gvfs-afc gvfs-gphoto2 gvfs-mtp gvfs-nfs
-    gvfs-smb highlight htop img2pdf imagemagick inxi jq jpegoptim kitty less libavtp libdca libgme liblrdf libltc
-    libtool linux-headers lsd lz4 make man-db man-pages maven mediainfo mjpegtools mkinitcpio mpv mpv-mpris ncdu
-    neovim nodejs noto-fonts noto-fonts-cjk noto-fonts-emoji noto-fonts-extra npm obs-studio 7zip pacman-contrib pacutils
-    papirus-icon-theme parallel pipewire pipewire-alsa pipewire-audio pipewire-jack lib32-pipewire-jack pipewire-pulse pipewire-zeroconf pipewire-libcamera
-    pkgfile plocate playerctl pv qalculate-qt qbittorrent ripgrep sd spandsp starship soundtouch svt-hevc tar
-    tree tree-sitter-cli trash-cli tmux ttf-jetbrains-mono ttf-jetbrains-mono-nerd tumbler unzip wireplumber xz
+    android-tools aria2 atool bat chromaprint doxygen duf fastfetch fd
+    fluidsynth fzf gcc gettext git git-lfs gst-libav gst-plugins-ugly
+    highlight htop img2pdf imagemagick inxi jq jpegoptim less libavtp libdca libgme liblrdf libltc
+    libtool linux-headers lsd lz4 make man-db man-pages maven mediainfo mjpegtools mkinitcpio mpv ncdu
+    neovim nodejs npm obs-studio 7zip pacman-contrib pacutils
+    parallel pipewire pipewire-alsa pipewire-audio pipewire-jack lib32-pipewire-jack pipewire-pulse pipewire-zeroconf pipewire-libcamera
+    pkgfile plocate pv ripgrep sd spandsp starship soundtouch svt-hevc tar
+    tree tree-sitter-cli trash-cli tmux unzip wireplumber xz
     yazi yt-dlp zip zoxide zsh zstd dosfstools usbutils lazydocker opencode github-cli
 )
 
