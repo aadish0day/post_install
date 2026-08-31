@@ -138,6 +138,18 @@ if [[ $install_docker_input =~ ^[Yy]$ ]]; then
     fi
 fi
 
+# Ask about LazyDocker
+echo ""
+read -rp "Do you want to install LazyDocker (TUI for Docker)? (y/n): " install_lzd_input
+if [[ $install_lzd_input =~ ^[Yy]$ ]]; then
+    log "Installing LazyDocker..."
+    if [ -f "$SCRIPT_DIR/apps/lazydocker.sh" ]; then
+        bash "$SCRIPT_DIR/apps/lazydocker.sh"
+    else
+        log "Error: apps/lazydocker.sh not found."
+    fi
+fi
+
 # Clean up
 sudo nala clean || true
 log "Kali Linux setup completed successfully!"
