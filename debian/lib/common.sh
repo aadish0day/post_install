@@ -70,8 +70,13 @@ _APT_UPDATED=0
 
 apt_update() {
     if [ "$_APT_UPDATED" = "0" ]; then
-        log "Updating apt package lists..."
-        $SUDO apt-get update -qq
+        if command -v nala >/dev/null 2>&1; then
+            log "Updating package lists with nala..."
+            $SUDO nala update
+        else
+            log "Updating apt package lists..."
+            $SUDO apt-get update -qq
+        fi
         _APT_UPDATED=1
     fi
 }
@@ -126,8 +131,13 @@ apt_install() {
         return 0
     fi
 
-    log "Installing ${#pkgs[@]} packages with apt..."
-    $SUDO apt-get install -y "${pkgs[@]}"
+    if command -v nala >/dev/null 2>&1; then
+        log "Installing ${#pkgs[@]} packages with nala..."
+        $SUDO nala install -y "${pkgs[@]}"
+    else
+        log "Installing ${#pkgs[@]} packages with apt..."
+        $SUDO apt-get install -y "${pkgs[@]}"
+    fi
 }
 
 # install_deb_url URL [NAME] : download a .deb and install it with dependencies.
@@ -150,9 +160,16 @@ install_deb_url() {
     chmod 644 "$tmp/pkg.deb"
     chmod 755 "$tmp"
     apt_update
-    if ! $SUDO apt-get install -y "$tmp/pkg.deb"; then
-        rm -rf "$tmp"
-        return 1
+    if command -v nala >/dev/null 2>&1; then
+        if ! $SUDO nala install -y "$tmp/pkg.deb"; then
+            rm -rf "$tmp"
+            return 1
+        fi
+    else
+        if ! $SUDO apt-get install -y "$tmp/pkg.deb"; then
+            rm -rf "$tmp"
+            return 1
+        fi
     fi
     rm -rf "$tmp"
 }
@@ -162,9 +179,7 @@ add_apt_repo() {
     local name="$1" key_url="$2" line="$3"
     local keyring="/etc/apt/keyrings/${name}.gpg" tmp
     command -v gpg >/dev/null 2>&1 || {
-        _APT_UPDATED=0
-        apt_update
-        $SUDO apt-get install -y gnupg
+        apt_install gnupg
     }
     $SUDO install -m 0755 -d /etc/apt/keyrings
     tmp="$(mktemp)"
@@ -203,12 +218,7 @@ github_asset_url() {
 # ----------------------------------------------------------------------------
 ensure_flatpak() {
     if ! command -v flatpak >/dev/null 2>&1; then
-        if is_simulate; then
-            apt_install flatpak
-            return 0
-        fi
-        apt_update
-        $SUDO apt-get install -y flatpak
+        apt_install flatpak
     fi
     command -v flatpak >/dev/null 2>&1 || return 0
     $SUDO flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
