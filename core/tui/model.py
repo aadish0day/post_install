@@ -689,13 +689,20 @@ def install_summary(config: PostInstallConfig, plan: ExecutionPlan) -> str:
 
 _PROGRESS_RE = re.compile(
     r"^\s*\d+[\s.%].*(?:Total|Received|Xferd|Speed|ETA|[kMGT]i?B[/\s])"  # curl/wget progress
+    r"|^\s*%\s*Total\b|^\s*Dload\s+Upload\b"                             # curl progress table header
     r"|^\s*\d+\s+[\d.]+[kMGT]?\s+\d+"                                    # curl compact progress
     r"|^\(?\d+/\d+\)\s*(?:downloading|installing|upgrading|loading)"       # pacman/paru progress bars
     r"|^\s*(?:Downloading|Fetching|Collecting)\s.+\s\d+%"                  # pip/npm progress
     r"|^\s*\d+%\s*\|"                                                      # pip-style bar
+    r"|^\s*(?:Reading package lists|Building dependency tree|Reading state information)\b"  # apt cache scanning
+    r"|^\s*Progress:\s*\[\s*\d+%"                                         # dpkg progress bar
+    r"|^\s*\(\s*Reading database\s*\.\.\."                                 # dpkg database scan
+    r"|(?:\.\.\.|\b)\s*\d+%\s*$"                                          # any line ending in percent progress
+    r"|\[\s*\d+%\s*\]"                                                    # [ 50%] style progress
 , re.IGNORECASE)
 
 
 def is_progress_line(text: str) -> bool:
-    """Detect repetitive download/build progress lines (curl, wget, pacman, pip)."""
+    """Detect repetitive download/build/package progress lines (apt, curl, wget, pacman, pip)."""
     return bool(_PROGRESS_RE.search(text))
+

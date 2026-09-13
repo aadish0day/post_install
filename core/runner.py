@@ -85,6 +85,7 @@ class ExecutionEvent:
     step: Step
     message: str = ""
     timestamp: float = field(default_factory=time.time)
+    is_transient: bool = False
 
 
 class ExecutionPlan:
@@ -604,9 +605,16 @@ def run_plan(plan: ExecutionPlan, dry_run: bool = False) -> Generator[ExecutionE
                             else:
                                 buf = ""
                             for line in lines:
+                                is_transient = line.endswith("\r") and not line.endswith("\n")
                                 clean_line = clean_output_line(line)
                                 if clean_line:
-                                    yield ExecutionEvent(event_type="output", step_index=idx, step=step, message=clean_line)
+                                    yield ExecutionEvent(
+                                        event_type="output",
+                                        step_index=idx,
+                                        step=step,
+                                        message=clean_line,
+                                        is_transient=is_transient,
+                                    )
                         except OSError:
                             break
                     elif proc.poll() is not None:

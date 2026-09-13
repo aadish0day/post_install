@@ -561,8 +561,8 @@ class ExecutionScreen(Screen[bool]):
         self.current = event.step_index
 
         if event.event_type == "output":
-            if is_progress_line(event.message):
-                # Keep download bars on one live line instead of flooding the log
+            if event.is_transient or is_progress_line(event.message):
+                # Keep download/build progress on one live line instead of flooding the log
                 progress.update(event.message)
             else:
                 style = "white"
@@ -577,9 +577,11 @@ class ExecutionScreen(Screen[bool]):
             progress.update("")
             log.write(Text(f"==> {event.step.title}", style="bold blue"))
         elif event.event_type == "step_complete":
+            progress.update("")
             log.write(Text(f"✓ Completed: {event.step.title} ({event.step.duration:.1f}s)", style="bold green"))
         elif event.event_type == "step_fail":
             self.has_errors = True
+            progress.update("")
             log.write(Text(f"✗ ERROR: {event.step.title}", style="bold red"))
             if event.step.error_message:
                 log.write(Text(event.step.error_message, style="red"))

@@ -536,12 +536,14 @@ class ExecutionScreen:
                     self.current_step_idx = event.step_index
                     if event.event_type == "output":
                         # Collapse consecutive download progress lines into one
-                        if (is_progress_line(event.message)
+                        is_prog = event.is_transient or is_progress_line(event.message)
+                        if (is_prog
                                 and self.log_lines
-                                and is_progress_line(self.log_lines[-1])):
+                                and (is_progress_line(self.log_lines[-1]) or getattr(self, "_last_was_transient", False))):
                             self.log_lines[-1] = event.message
                         else:
                             self.log_lines.append(event.message)
+                        self._last_was_transient = is_prog
                     elif event.event_type == "step_start":
                         self.log_lines.append(f"==> {event.step.title}")
                     elif event.event_type == "step_complete":

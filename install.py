@@ -29,6 +29,7 @@ from core.config import PostInstallConfig
 from core.detector import detect_system
 from core.runner import ExecutionPlan, StepStatus, run_plan
 from core.tui.app import run_tui, textual_available
+from core.tui.model import is_progress_line
 
 
 def run_headless_cli(config: PostInstallConfig, base_dir: Path, dry_run: bool = False) -> int:
@@ -51,14 +52,32 @@ def run_headless_cli(config: PostInstallConfig, base_dir: Path, dry_run: bool = 
     has_errors = False
     start_time = time.time()
 
+    last_was_progress = False
     for event in run_plan(plan, dry_run=dry_run):
         if event.event_type == "step_start":
+            if last_was_progress:
+                print()
+                last_was_progress = False
             print(f"\n==> [{event.step_index + 1}/{len(plan.steps)}] {event.step.title}")
         elif event.event_type == "output":
-            print(f"    {event.message}")
+            if event.is_transient or is_progress_line(event.message):
+                if sys.stdout.isatty():
+                    print(f"\r\033[K    {event.message}", end="", flush=True)
+                    last_was_progress = True
+            else:
+                if last_was_progress:
+                    print()
+                    last_was_progress = False
+                print(f"    {event.message}")
         elif event.event_type == "step_complete":
+            if last_was_progress:
+                print()
+                last_was_progress = False
             print(f"    ✓ Success ({event.step.duration:.1f}s)")
         elif event.event_type == "step_fail":
+            if last_was_progress:
+                print()
+                last_was_progress = False
             has_errors = True
             print(f"    ✖ FAILED: {event.step.title}")
             if event.step.error_message:
