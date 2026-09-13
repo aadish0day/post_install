@@ -1,22 +1,40 @@
 #!/usr/bin/env python3
 """
 Main TUI Application controller for the post-installation suite.
-Provides the entry point for curses.wrapper and orchestrates the user interaction flow.
+Launches the Textual (archinstall-style) interface when Textual is installed,
+otherwise falls back to the built-in curses interface.
 """
 
 from __future__ import annotations
 
 import curses
+import importlib.metadata
+import importlib.util
 import os
-import sys
 from pathlib import Path
 from typing import Optional
 
 from core.config import PostInstallConfig
-from core.detector import SystemInfo, detect_system
+from core.detector import detect_system
 from core.runner import ExecutionPlan
 from core.tui.colors import Colors
+from core.tui.model import FINISH_MESSAGE, MenuState, install_summary
 from core.tui.screens import ConfirmScreen, ExecutionScreen, GlobalMenuScreen
+
+
+def load_initial_state(base_dir: Path, config_path: Optional[str], distro_override: Optional[str]) -> MenuState:
+    """Detect the system and build the starting configuration for either front-end."""
+    sysinfo = detect_system()
+
+    if config_path and os.path.isfile(config_path):
+        config = PostInstallConfig.load_json(config_path)
+    else:
+        config = PostInstallConfig.default_for_system(sysinfo)
+
+    if distro_override:
+        config.set_distro(distro_override)
+
+    return MenuState(config=config, sysinfo=sysinfo, base_dir=base_dir)
 
 
 class PostInstallTUI:
@@ -37,86 +55,61 @@ class PostInstallTUI:
         Colors.init()
         curses.curs_set(0)
 
-        # 1. System auto-detection
-        sysinfo = detect_system()
+        state = load_initial_state(self.base_dir, self.config_path, self.distro_override)
 
-        # 2. Configuration initialization
-        if self.config_path and os.path.isfile(self.config_path):
-            config = PostInstallConfig.load_json(self.config_path)
-        else:
-            config = PostInstallConfig.default_for_system(sysinfo)
-
-        if self.distro_override:
-            config.distro = self.distro_override
-            names = {
-                "arch": "Arch Linux",
-                "debian": "Debian / Ubuntu",
-                "fedora": "Fedora",
-                "kali": "Kali Linux",
-                "termux": "Termux"
-            }
-            config.distro_name = names.get(self.distro_override, self.distro_override.capitalize())
-
-        # 3. Main Global Menu loop
+        # Main Global Menu loop
         while True:
-            menu = GlobalMenuScreen(stdscr, config, sysinfo, base_dir=self.base_dir)
+            menu = GlobalMenuScreen(stdscr, state)
             action = menu.run()
 
             if action == "exit" or action is None:
                 return 0
 
             elif action == "install":
-                # Build execution plan
-                plan = ExecutionPlan(config, self.base_dir, sysinfo)
-
-                # Format confirmation summary
-                summary_lines = [
-                    f"Target Distribution:  {config.distro_name} ({config.distro})",
-                    f"Desktop Environment:  {config.desktop_environment.upper()}",
-                    f"Total Planned Steps:  {len(plan.steps)}",
-                    "",
-                    "Active Modules to Execute:"
-                ]
-                for s in plan.steps[:6]:
-                    summary_lines.append(f" • {s.title}")
-                if len(plan.steps) > 6:
-                    summary_lines.append(f" • ... and {len(plan.steps) - 6} additional steps")
-
-                summary_lines.extend([
-                    "",
-                    "Would you like to start the post-installation process?"
-                ])
+                plan = ExecutionPlan(state.config, self.base_dir, state.sysinfo)
 
                 confirm = ConfirmScreen(
                     stdscr,
                     "Confirm Post-Installation Setup",
-                    "\n".join(summary_lines)
+                    install_summary(state.config, plan)
                 ).run()
 
                 if confirm:
-                    # Run execution screen
                     exec_screen = ExecutionScreen(stdscr, plan, dry_run=self.dry_run)
                     success = exec_screen.run()
 
-                    # Final finish alert
                     status_title = "Installation Complete!" if success else "Installation Completed with Warnings"
-                    msg = (
-                        "Post-installation configuration has finished successfully!\n\n"
-                        "Please restart your session or reboot your system\n"
-                        "for all user permissions, group memberships, and\n"
-                        "system services to take full effect."
-                    )
-                    ConfirmScreen(stdscr, status_title, msg, is_alert=True).run()
+                    ConfirmScreen(stdscr, status_title, FINISH_MESSAGE, is_alert=True).run()
                     return 0 if success else 1
+
+
+TEXTUAL_MIN_MAJOR = 2  # tested with Textual 2.1 and 8.2
+
+
+def textual_available() -> bool:
+    if importlib.util.find_spec("textual") is None:
+        return False
+    try:
+        major = int(importlib.metadata.version("textual").split(".")[0])
+    except (importlib.metadata.PackageNotFoundError, ValueError):
+        return False
+    return major >= TEXTUAL_MIN_MAJOR
 
 
 def run_tui(
     base_dir: Optional[Path] = None,
     config_path: Optional[str] = None,
     dry_run: bool = False,
-    distro_override: Optional[str] = None
+    distro_override: Optional[str] = None,
+    frontend: str = "auto",
 ) -> int:
-    """Wrapper function to safely launch the TUI with terminal cleanup."""
+    """Launch the TUI. frontend: "auto" (Textual if installed), "textual", or "curses"."""
+    base_dir = base_dir or Path(__file__).resolve().parent.parent.parent
+
+    if frontend == "textual" or (frontend == "auto" and textual_available()):
+        from core.tui.textual_app import run_textual_tui
+        return run_textual_tui(base_dir, config_path, dry_run, distro_override)
+
     app = PostInstallTUI(base_dir, config_path, dry_run, distro_override)
     try:
         return curses.wrapper(app.start)

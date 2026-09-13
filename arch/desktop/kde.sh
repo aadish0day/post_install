@@ -16,7 +16,7 @@ kde_plasma_packages=(
     mesa libva-utils vulkan-radeon vulkan-tools dosfstools sshfs kdeconnect
     kclock
     # KDE specific apps
-    dolphin kate konsole ark kdenlive ffmpegthumbs
+    dolphin kate konsole ark kdenlive ffmpegthumbs koko
 )
 
 # 1. Install KDE Plasma packages from official repositories

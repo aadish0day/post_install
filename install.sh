@@ -7,9 +7,37 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Install Textual (the archinstall-style interface) if it's missing or too old.
+# Failures are non-fatal: install.py falls back to the curses interface.
+ensure_textual() {
+	python3 -c 'import sys, importlib.metadata as m; sys.exit(int(m.version("textual").split(".")[0]) < 2)' &>/dev/null && return 0
+
+	echo "Installing Textual for the archinstall-style interface..."
+	if [ -d "/data/data/com.termux" ] || [ -n "${TERMUX_VERSION:-}" ]; then
+		pip install --quiet textual
+	elif command -v pacman &>/dev/null; then
+		sudo pacman -S --needed --noconfirm python-textual
+	elif command -v apt-get &>/dev/null; then
+		sudo apt-get install -y python3-textual
+	elif command -v dnf &>/dev/null; then
+		sudo dnf install -y python3-textual
+	else
+		python3 -m pip install --user --quiet textual
+	fi || echo "Could not install Textual; using the classic curses interface."
+}
+
 # If Python 3 is available, launch the Archinstall-style TUI interface
 if command -v python3 &>/dev/null; then
-    exec python3 "$SCRIPT_DIR/install.py" "$@"
+	needs_tui=true
+	[ -t 0 ] && [ -t 1 ] || needs_tui=false
+	for arg in "$@"; do
+		case "$arg" in
+		--headless | --cli | --save-config* | curses | --tui=curses) needs_tui=false ;;
+		esac
+	done
+	[ "$needs_tui" = true ] && ensure_textual
+
+	exec python3 "$SCRIPT_DIR/install.py" "$@"
 fi
 
 # ============================================================================

@@ -28,7 +28,7 @@ if str(SCRIPT_DIR) not in sys.path:
 from core.config import PostInstallConfig
 from core.detector import detect_system
 from core.runner import ExecutionPlan, StepStatus, run_plan
-from core.tui.app import run_tui
+from core.tui.app import run_tui, textual_available
 
 
 def run_headless_cli(config: PostInstallConfig, base_dir: Path, dry_run: bool = False) -> int:
@@ -84,6 +84,7 @@ def main() -> int:
 Examples:
   ./install.sh                              # Start Archinstall interactive TUI
   python3 install.py --dry-run              # Preview plan in TUI without changes
+  python3 install.py --tui curses           # Force the classic curses interface
   python3 install.py --config my_conf.json  # Run unattended installation with JSON
   python3 install.py --save-config out.json # Export auto-detected preset to JSON
         """
@@ -93,6 +94,8 @@ Examples:
     parser.add_argument("--distro", choices=["arch", "debian", "fedora", "kali", "termux"], help="Override detected distribution")
     parser.add_argument("--save-config", type=str, help="Export default/detected configuration to JSON file and exit")
     parser.add_argument("--headless", "--cli", action="store_true", help="Run in non-interactive CLI mode")
+    parser.add_argument("--tui", choices=["auto", "textual", "curses"], default="auto",
+                        help="Interface: Textual (archinstall-style) when installed, else curses (default: auto)")
 
     args = parser.parse_args()
 
@@ -117,12 +120,17 @@ Examples:
             cfg.set_distro(args.distro)
         return run_headless_cli(cfg, SCRIPT_DIR, dry_run=args.dry_run)
 
-    # Launch full Archinstall-style Curses TUI
+    if args.tui == "textual" and not textual_available():
+        print("Textual is not installed (python-textual >= 2.0). Install it or use --tui curses.", file=sys.stderr)
+        return 1
+
+    # Launch the Archinstall-style TUI (Textual, or curses fallback)
     return run_tui(
         base_dir=SCRIPT_DIR,
         config_path=args.config,
         dry_run=args.dry_run,
-        distro_override=args.distro
+        distro_override=args.distro,
+        frontend=args.tui,
     )
 
 

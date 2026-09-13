@@ -7,456 +7,70 @@ with full Vim keybindings navigation (h/j/k/l, g/G, Ctrl+d/u, Space/x).
 
 from __future__ import annotations
 
+import asyncio
 import curses
-import os
-import re
 import queue
 import threading
 import time
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from core.config import PostInstallConfig
-from core.detector import SystemInfo, detect_system
-from core.runner import ExecutionEvent, ExecutionPlan, StepStatus, discover_extra_scripts, run_plan
+from core.detector import SystemInfo
+from core.runner import ExecutionEvent, ExecutionPlan, StepStatus, run_plan
+from core.tui.model import (
+    EXIT_MESSAGE,
+    EXIT_TITLE,
+    MenuState,
+    build_menu_items,
+    handle_item_select,
+    is_progress_line,
+    load_config,
+    quick_toggle,
+    save_config,
+)
 from core.tui.colors import Colors
 from core.tui.widgets import draw_box, draw_footer, draw_header, safe_addstr
 
 
-@dataclass
-class MenuItem:
-    key: str
-    label: str
-    value_display: str
-    description: str
-    preview_lines: List[str] = field(default_factory=list)
-    action_type: str = "custom"
-    is_action: bool = False
+class CursesPrompter:
+    """Prompter implementation backed by the curses dialog screens."""
+
+    def __init__(self, stdscr: curses.window):
+        self.stdscr = stdscr
+
+    async def select_one(self, title: str, options: List[Tuple[str, str]], current: Optional[str]) -> Optional[str]:
+        return OptionListScreen(self.stdscr, title, options, current or "").run()
+
+    async def select_many(self, title: str, options: List[Tuple[str, str, bool]]) -> Optional[List[str]]:
+        return SelectListScreen(self.stdscr, title, options).run()
+
+    async def ask_text(self, title: str, prompt: str, default: str = "") -> Optional[str]:
+        return InputScreen(self.stdscr, title, prompt, default).run()
+
+    async def confirm(self, title: str, message: str) -> bool:
+        return ConfirmScreen(self.stdscr, title, message).run()
+
+    async def notify(self, title: str, message: str) -> None:
+        ConfirmScreen(self.stdscr, title, message, is_alert=True).run()
 
 
 class GlobalMenuScreen:
     """The central Archinstall-style configuration menu screen."""
 
-    def __init__(self, stdscr: curses.window, config: PostInstallConfig, sysinfo: SystemInfo, base_dir: Optional[Path] = None):
+    def __init__(self, stdscr: curses.window, state: MenuState):
         self.stdscr = stdscr
-        self.config = config
-        self.sysinfo = sysinfo
-        self.base_dir = base_dir or Path(__file__).resolve().parent.parent.parent
+        self.state = state
+        self.ui = CursesPrompter(stdscr)
         self.cursor_idx = 0
         self.scroll_offset = 0
 
-    def _build_menu_items(self) -> List[MenuItem]:
-        cfg = self.config
-        info = self.sysinfo
-        distro = cfg.distro
-        items: List[MenuItem] = []
+    @property
+    def config(self) -> PostInstallConfig:
+        return self.state.config
 
-        # 1. Distribution
-        items.append(MenuItem(
-            key="distro",
-            label="  Distribution / Target OS",
-            value_display=f"[{distro.upper()}] {cfg.distro_name}",
-            description="Active distribution workspace folder.",
-            preview_lines=[
-                f"Active OS Folder: ./{distro}/",
-                f"Target OS:        {cfg.distro_name}",
-                f"Detected System:  {info.distro_name} ({info.distro_id})",
-                f"Host CPU:         {info.cpu_model or info.cpu_vendor.upper()}",
-                f"Host GPU:         {', '.join(info.gpu_descriptions) if info.gpu_descriptions else 'Generic'}",
-                "",
-                "When on Arch, the installer executes ONLY modular scripts from arch/:",
-                " • arch/arch.sh",
-                " • arch/desktop/kde.sh & arch/desktop/tiling.sh",
-                " • arch/hardware/asus.sh & arch/hardware/touchpad.sh",
-                " • arch/virt/kvm-qemu.sh & arch/virt/vmware-workstation.sh",
-                " • arch/apps/docker.sh",
-                " • arch/apps/burp/install.sh"
-            ],
-            action_type="radio"
-        ))
-
-        # ==========================================================
-        # ARCH LINUX SPECIFIC MENU ITEMS (STRICTLY arch/ CONTENT)
-        # ==========================================================
-        if distro == "arch":
-            # 2. Desktop Environment (arch/desktop/kde.sh or arch/desktop/tiling.sh)
-            de_map = {"kde": "KDE Plasma (arch/desktop/kde.sh)", "tiling": "X11 Tiling (arch/desktop/tiling.sh)", "none": "None (Skip Desktop)"}
-            de_label = de_map.get(cfg.desktop_environment, "None")
-            items.append(MenuItem(
-                key="desktop_environment",
-                label="  Desktop Environment",
-                value_display=f"[{cfg.desktop_environment.upper()}]",
-                description="KDE Plasma or X11 Tiling setup from arch/desktop/.",
-                preview_lines=[
-                    f"Current selection: {de_label}",
-                    "",
-                    "Modular scripts in arch/desktop/:",
-                    " • KDE Plasma (arch/desktop/kde.sh):",
-                    "   Plasma desktop, Wayland/X11 sessions, Dolphin, Kate, Konsole, Ark, KDE Connect, portal services",
-                    "",
-                    " • X11 Tiling (arch/desktop/tiling.sh):",
-                    "   Polybar, Picom compositor, Rofi, Dunst, Feh, Zathura, i3lock-color, Dracula GTK,",
-                    "   and Precision Touchpad configuration (arch/hardware/touchpad.sh)",
-                    "",
-                    " • None:",
-                    "   Skip desktop environment setup"
-                ],
-                action_type="radio"
-            ))
-
-            # 3. Hardware Drivers (arch/hardware/asus.sh & AMD GPU)
-            hw_tags = []
-            if cfg.hardware_asus:
-                hw_tags.append(f"ASUS ROG ({cfg.hardware_asus_battery_limit}%)")
-            if cfg.hardware_amd_gpu:
-                hw_tags.append("AMD GPU")
-            hw_display = ", ".join(hw_tags) if hw_tags else "[None]"
-
-            items.append(MenuItem(
-                key="hardware",
-                label="  Hardware & Drivers (arch/hardware/)",
-                value_display=f"[{hw_display}]",
-                description="ASUS ROG tools and AMD GPU acceleration.",
-                preview_lines=[
-                    f"Detected Chassis: {info.chassis_model or 'Generic'} (ASUS: {info.is_asus})",
-                    f"Detected GPU:     {', '.join(info.gpu_descriptions) if info.gpu_descriptions else 'Generic'}",
-                    "",
-                    "Modular scripts in arch/hardware/:",
-                    f" • ASUS ROG (arch/hardware/asus.sh): {'[Yes] asusctl, fan curves, ' + str(cfg.hardware_asus_battery_limit) + '% limit' if cfg.hardware_asus else '[No]'}",
-                    f" • AMD GPU Drivers: {'[Yes] Mesa, Vulkan-Radeon, amd_pstate GRUB' if cfg.hardware_amd_gpu else '[No]'}"
-                ],
-                action_type="multiselect"
-            ))
-
-            # 4. Virtualization (arch/virt/kvm-qemu.sh & vmware-workstation.sh)
-            virt_tags = []
-            if cfg.virt_kvm_qemu:
-                virt_tags.append("KVM/QEMU")
-            if cfg.virt_vmware_workstation:
-                virt_tags.append("VMware Host")
-            virt_display = ", ".join(virt_tags) if virt_tags else "[None]"
-
-            items.append(MenuItem(
-                key="virtualization",
-                label="  Virtualization (arch/virt/)",
-                value_display=f"[{virt_display}]",
-                description="KVM/QEMU virt-manager and VMware Workstation.",
-                preview_lines=[
-                    "Modular scripts in arch/virt/:",
-                    f" • KVM/QEMU (arch/virt/kvm-qemu.sh): {'[Yes] virt-manager, libvirtd bridge network' if cfg.virt_kvm_qemu else '[No]'}",
-                    f" • VMware Workstation (arch/virt/vmware-workstation.sh): {'[Yes] AUR build & kernel modules' if cfg.virt_vmware_workstation else '[No]'}"
-                ],
-                action_type="multiselect"
-            ))
-
-            # 5. Docker (arch/apps/docker.sh)
-            items.append(MenuItem(
-                key="docker_enabled",
-                label="  Docker CE (arch/apps/docker.sh)",
-                value_display="[Yes]" if cfg.docker_enabled else "[No]",
-                description="Docker Engine, Compose plugin, Buildx, and user group permissions.",
-                preview_lines=[
-                    "Script: arch/apps/docker.sh",
-                    f"Status: {'Yes' if cfg.docker_enabled else 'No'}",
-                    "",
-                    "Configures:",
-                    " • docker, docker-compose, docker-buildx",
-                    f" • sudo usermod -aG docker {info.username}",
-                    " • sudo systemctl enable --now docker.service"
-                ],
-                action_type="toggle"
-            ))
-
-            # 6. Coding Tools (from arch/arch.sh aur_coding_packages)
-            code_display = f"[{len(cfg.coding_tools)} tools]" if cfg.coding_enabled else "[No]"
-            items.append(MenuItem(
-                key="coding",
-                label="  Developer Tools (AUR)",
-                value_display=code_display,
-                description="VS Code, Cursor, Android Studio, Flutter, and Antigravity.",
-                preview_lines=[
-                    "Packages from arch/arch.sh (aur_coding_packages):",
-                    f" • Active: {', '.join(cfg.coding_tools) if cfg.coding_tools else 'None'}",
-                    "",
-                    "Available AUR Packages:",
-                    " • visual-studio-code-bin",
-                    " • cursor-bin",
-                    " • android-studio",
-                    " • flutter-bin",
-                    " • antigravity-cli & antigravity-ide"
-                ],
-                action_type="multiselect"
-            ))
-
-            # 7. Burp Suite Pro (arch/apps/burp/install.sh)
-            items.append(MenuItem(
-                key="security_burp",
-                label="  Burp Suite Pro (arch/apps/burp/)",
-                value_display="[Yes]" if cfg.security_burp else "[No]",
-                description="OpenJDK 21, auto-download latest JAR via aria2c, launcher script, desktop entry.",
-                preview_lines=[
-                    "Script: arch/apps/burp/install.sh",
-                    f"Status: {'Yes' if cfg.security_burp else 'No'}",
-                    "",
-                    "Workflow:",
-                    " • Installs jdk21-openjdk, git, aria2",
-                    " • Clones Burpsuite loader and downloads latest release JAR",
-                    " • Creates launcher binary: ~/.local/bin/burpsuitepro",
-                    " • Creates desktop entry: ~/.local/share/applications/burpsuitepro.desktop"
-                ],
-                action_type="toggle"
-            ))
-
-            # 8. Gaming Stack (from arch/apps/gaming.sh)
-            items.append(MenuItem(
-                key="gaming_enabled",
-                label="  Gaming Stack & Wine",
-                value_display="[Yes]" if cfg.gaming_enabled else "[No]",
-                description="Wine-staging, Lutris, GameMode, Proton DXVK, and 32-bit graphics runtimes.",
-                preview_lines=[
-                    "Packages from arch/apps/gaming.sh:",
-                    f"Status: {'Yes' if cfg.gaming_enabled else 'No'}",
-                    "",
-                    "Includes:",
-                    " • wine-staging, winetricks, wine-mono, wine-gecko, lutris, gamemode, umu-launcher",
-                    " • dxvk-gplasync-bin, lib32-vulkan-radeon, lib32-mesa"
-                ],
-                action_type="toggle"
-            ))
-
-            # 9. AI / ML ROCm Stack (from arch/arch.sh ai_ml_packages)
-            items.append(MenuItem(
-                key="ai_ml_enabled",
-                label="󰢩  AI / ML Acceleration (ROCm)",
-                value_display="[Yes]" if cfg.ai_ml_enabled else "[No]",
-                description="AMD ROCm SDK, PyTorch ROCm, and ONNX Runtime ROCm.",
-                preview_lines=[
-                    "Packages from arch/arch.sh (ai_ml_packages):",
-                    f"Status: {'Yes' if cfg.ai_ml_enabled else 'No'}",
-                    "",
-                    "Includes:",
-                    " • rocm-hip-sdk, rocm-opencl-sdk, rocm-ml-libraries",
-                    " • python-pytorch-rocm, python-onnxruntime-rocm"
-                ],
-                action_type="toggle"
-            ))
-
-            # 10. AUR Helper Selection (arch/apps/paru.sh & arch/apps/yay.sh)
-            aur_map = {
-                "paru": "Paru (Rust, Recommended)",
-                "yay": "Yay (Go)",
-                "both": "Both (Paru + Yay)",
-                "none": "None / Skip"
-            }
-            items.append(MenuItem(
-                key="aur_helper",
-                label="  AUR Helper Selection",
-                value_display=f"[{cfg.aur_helper.upper()}]",
-                description="Select which AUR helper to install (Paru, Yay, or Both).",
-                preview_lines=[
-                    f"Active Helper: {aur_map.get(cfg.aur_helper, cfg.aur_helper.upper())}",
-                    "",
-                    "Modular Scripts in arch/apps/:",
-                    " • Paru (arch/apps/paru.sh):",
-                    "   Modern Rust-based AUR helper with fast paru-bin support.",
-                    "",
-                    " • Yay (arch/apps/yay.sh):",
-                    "   Classic Go-based AUR helper with fast yay-bin support.",
-                    "",
-                    " • Both (Paru + Yay):",
-                    "   Installs both Paru and Yay side-by-side."
-                ],
-                action_type="radio"
-            ))
-
-            # 11. Mirror Optimization (Reflector India)
-            items.append(MenuItem(
-                key="repos_mirror_ranking",
-                label="  Mirror Optimization (Reflector India)",
-                value_display="[Yes]" if cfg.repos_mirror_ranking else "[No]",
-                description="Ranks the fastest HTTPS mirrors strictly in India with 30s timeout.",
-                preview_lines=[
-                    "Configuration: arch/arch.sh & Reflector",
-                    f"Status: {'Yes (Strictly India mirrors)' if cfg.repos_mirror_ranking else 'No'}",
-                    "",
-                    "Command:",
-                    "sudo reflector --country India --latest 10 --fastest 5 --sort rate --save /etc/pacman.d/mirrorlist"
-                ],
-                action_type="toggle"
-            ))
-
-        # ==========================================================
-        # KALI LINUX SPECIFIC MENU ITEMS (STRICTLY kali/ CONTENT)
-        # ==========================================================
-        elif distro == "kali":
-            items.append(MenuItem(
-                key="security_burp",
-                label="  Burp Suite Pro (kali/apps/burp/)",
-                value_display="[Yes]" if cfg.security_burp else "[No]",
-                description="Burp Suite Professional installer from kali/apps/burp/install.sh.",
-                preview_lines=["Script: kali/apps/burp/install.sh", f"Status: {'Yes' if cfg.security_burp else 'No'}"],
-                action_type="toggle"
-            ))
-            items.append(MenuItem(
-                key="kali_metapackages",
-                label="  Kali Metapackages",
-                value_display=f"[{', '.join(cfg.security_kali_metapackages) if cfg.security_kali_metapackages else 'None'}]",
-                description="kali-linux-everything, kali-linux-large, kali-linux-labs.",
-                preview_lines=[f"Active suites: {', '.join(cfg.security_kali_metapackages)}"],
-                action_type="multiselect"
-            ))
-            items.append(MenuItem(
-                key="hardware_kali_wifi",
-                label="  WiFi Driver (kali/hardware/wifi.sh)",
-                value_display="[Yes]" if cfg.hardware_kali_wifi else "[No]",
-                description="Realtek 8821AU USB WiFi DKMS driver.",
-                preview_lines=["Script: kali/hardware/wifi.sh"],
-                action_type="toggle"
-            ))
-            items.append(MenuItem(
-                key="docker_enabled",
-                label="  Docker CE (kali/apps/docker.sh)",
-                value_display="[Yes]" if cfg.docker_enabled else "[No]",
-                description="Docker CE engine configured for Kali.",
-                preview_lines=["Script: kali/apps/docker.sh"],
-                action_type="toggle"
-            ))
-
-        # ==========================================================
-        # DEBIAN / UBUNTU MENU ITEMS (STRICTLY debian/ CONTENT)
-        # ==========================================================
-        elif distro == "debian":
-            items.append(MenuItem(
-                key="debian_neovim",
-                label="  Neovim Source (debian/apps/neovim.sh)",
-                value_display="[Yes]" if "neovim" in cfg.coding_tools else "[No]",
-                description="Compiles latest Neovim from source.",
-                preview_lines=["Script: debian/apps/neovim.sh"],
-                action_type="toggle"
-            ))
-            items.append(MenuItem(
-                key="docker_enabled",
-                label="  Docker CE (debian/apps/docker.sh)",
-                value_display="[Yes]" if cfg.docker_enabled else "[No]",
-                description="Official Docker CE repository & engine.",
-                preview_lines=["Script: debian/apps/docker.sh"],
-                action_type="toggle"
-            ))
-
-        # ==========================================================
-        # FEDORA MENU ITEMS (STRICTLY fedora/ CONTENT)
-        # ==========================================================
-        elif distro == "fedora":
-            items.append(MenuItem(
-                key="fedora_core",
-                label="  Fedora Setup (fedora/fedora.sh)",
-                value_display="[Yes]",
-                description="DNF optimizations, RPM Fusion, and COPR repos.",
-                preview_lines=["Script: fedora/fedora.sh", "Config: fedora/config/dnf.conf"],
-                action_type="toggle"
-            ))
-            items.append(MenuItem(
-                key="docker_enabled",
-                label="  Docker CE (fedora/apps/docker.sh)",
-                value_display="[Yes]" if cfg.docker_enabled else "[No]",
-                description="Official Docker CE engine for Fedora.",
-                preview_lines=["Script: fedora/apps/docker.sh"],
-                action_type="toggle"
-            ))
-
-        # ==========================================================
-        # TERMUX MENU ITEMS (STRICTLY termux/ CONTENT)
-        # ==========================================================
-        elif distro == "termux":
-            items.append(MenuItem(
-                key="termux_core",
-                label="  Termux Setup (termux/termux.sh)",
-                value_display="[Yes]",
-                description="Termux storage, zsh, tmux, python, and dotfiles.",
-                preview_lines=["Script: termux/termux.sh"],
-                action_type="toggle"
-            ))
-            items.append(MenuItem(
-                key="termux_font",
-                label="  Nerd Font (termux/system/font.sh)",
-                value_display="[Yes]" if cfg.theme_nerd_fonts else "[No]",
-                description="JetBrains Mono Nerd Font for Termux.",
-                preview_lines=["Script: termux/system/font.sh"],
-                action_type="toggle"
-            ))
-
-        # ==========================================================
-        # AUTO-DISCOVERED EXTRA APP SCRIPTS (ANY DISTRO: <distro>/apps/)
-        # ==========================================================
-        discovered = discover_extra_scripts(self.base_dir, distro)
-        if discovered:
-            enabled_count = sum(1 for s in discovered if s in cfg.extra_scripts)
-            items.append(MenuItem(
-                key="extra_scripts",
-                label=f"  Extra App Scripts ({distro}/apps/)",
-                value_display=f"[{enabled_count}/{len(discovered)}]",
-                description=f"Auto-discovered install scripts from {distro}/apps/. Toggle individually.",
-                preview_lines=[
-                    f"Discovered scripts (drop a .sh file in {distro}/apps/ to add more):",
-                    "",
-                    *[f" • {s}.sh {'[Enabled]' if s in cfg.extra_scripts else '[Disabled]'}" for s in discovered]
-                ],
-                action_type="multiselect"
-            ))
-
-        # ==========================================================
-        # ACTION BUTTONS AT BOTTOM
-        # ==========================================================
-        items.append(MenuItem(
-            key="action_install",
-            label="  Install",
-            value_display="[Start post-installation]",
-            description=f"Execute the post-installation plan using ./{distro}/ modular scripts.",
-            preview_lines=[
-                "========================================",
-                f"   READY TO RUN ./{distro.upper()}/ POST-INSTALL",
-                "========================================",
-                f"Target OS: {cfg.distro_name}",
-                "",
-                "Press ENTER or 'l' to review planned steps",
-                "and execute the automated installer."
-            ],
-            action_type="action",
-            is_action=True
-        ))
-
-        items.append(MenuItem(
-            key="action_save",
-            label="  Save Configuration",
-            value_display="[Save to JSON]",
-            description="Export all configured options to a JSON profile.",
-            preview_lines=["Save your current settings to a JSON profile."],
-            action_type="action",
-            is_action=True
-        ))
-
-        items.append(MenuItem(
-            key="action_load",
-            label="  Load Configuration",
-            value_display="[Load from JSON]",
-            description="Import a previously saved JSON configuration file.",
-            preview_lines=["Import settings from a local JSON file."],
-            action_type="action",
-            is_action=True
-        ))
-
-        items.append(MenuItem(
-            key="action_abort",
-            label="  Abort",
-            value_display="[Exit installer]",
-            description="Exit without applying changes.",
-            preview_lines=["Exit the post-installation suite."],
-            action_type="action",
-            is_action=True
-        ))
-
-        return items
+    @property
+    def sysinfo(self) -> SystemInfo:
+        return self.state.sysinfo
 
     def run(self) -> Optional[str]:
         """Main event loop for the Global Menu with full Vim keybinding support."""
@@ -478,7 +92,7 @@ class GlobalMenuScreen:
                     return "exit"
                 continue
 
-            items = self._build_menu_items()
+            items = build_menu_items(self.state)
             total_items = len(items)
             self.cursor_idx = max(0, min(self.cursor_idx, total_items - 1))
 
@@ -600,185 +214,30 @@ class GlobalMenuScreen:
 
             # Toggle Boolean / Quick Checkmark: Space or x
             if key in (ord(' '), ord('x'), ord('X')):
-                cur_key = selected_item.key
-                if cur_key == "docker_enabled":
-                    self.config.docker_enabled = not self.config.docker_enabled
-                elif cur_key == "security_burp":
-                    self.config.security_burp = not self.config.security_burp
-                elif cur_key == "gaming_enabled":
-                    self.config.gaming_enabled = not self.config.gaming_enabled
-                elif cur_key == "ai_ml_enabled":
-                    self.config.ai_ml_enabled = not self.config.ai_ml_enabled
-                elif cur_key == "hardware_kali_wifi":
-                    self.config.hardware_kali_wifi = not self.config.hardware_kali_wifi
+                quick_toggle(self.state, selected_item.key)
 
             # Select / Open Submenu: Enter or l (Vim forward) or Right Arrow
             elif key in (10, 13, curses.KEY_ENTER, ord('l'), curses.KEY_RIGHT):
-                action_res = self._handle_item_select(selected_item)
+                action_res = asyncio.run(handle_item_select(self.state, selected_item, self.ui))
                 if action_res in ("install", "exit"):
                     return action_res
 
             # Save Config: s / S
             elif key in (ord('s'), ord('S')):
-                self._save_config_prompt()
+                asyncio.run(save_config(self.state, self.ui))
 
             # Load Config: o / O
             elif key in (ord('o'), ord('O')):
-                self._load_config_prompt()
+                asyncio.run(load_config(self.state, self.ui))
 
             # Exit / Back: Esc / q / Q
             elif key in (ord('q'), ord('Q'), 27):
-                confirm = ConfirmScreen(self.stdscr, "Exit Installer?", "Are you sure you want to exit without applying changes?").run()
+                confirm = ConfirmScreen(self.stdscr, EXIT_TITLE, EXIT_MESSAGE).run()
                 if confirm:
                     return "exit"
 
             else:
                 self.cursor_idx = _handle_nav(key, self.cursor_idx, total_items, max(1, visible_rows // 2))
-
-    def _handle_item_select(self, item: MenuItem) -> Optional[str]:
-        k = item.key
-
-        if k == "action_install":
-            return "install"
-        elif k == "action_save":
-            self._save_config_prompt()
-        elif k == "action_load":
-            self._load_config_prompt()
-        elif k == "action_abort":
-            confirm = ConfirmScreen(self.stdscr, "Exit Installer?", "Are you sure you want to exit without applying changes?").run()
-            if confirm:
-                return "exit"
-
-        elif k == "distro":
-            options = [
-                ("arch", "Arch Linux (arch/ modular folder)"),
-                ("debian", "Debian / Ubuntu (debian/ modular folder)"),
-                ("fedora", "Fedora (fedora/ modular folder)"),
-                ("kali", "Kali Linux (kali/ modular folder)"),
-                ("termux", "Termux (termux/ modular folder)")
-            ]
-            sel = OptionListScreen(self.stdscr, "Select Active Distribution Folder", options, self.config.distro).run()
-            if sel:
-                self.config.set_distro(sel)
-
-        elif k == "desktop_environment":
-            options = [
-                ("kde", "KDE Plasma (arch/desktop/kde.sh)"),
-                ("tiling", "X11 Tiling Window Manager (arch/desktop/tiling.sh)"),
-                ("none", "None / Headless (Skip desktop environment setup)")
-            ]
-            sel = OptionListScreen(self.stdscr, "Select Desktop Environment (arch/desktop/)", options, self.config.desktop_environment).run()
-            if sel:
-                self.config.desktop_environment = sel
-
-        elif k == "hardware":
-            options = [
-                ("asus", "ASUS ROG Tools & Fan Curves (arch/hardware/asus.sh)", self.config.hardware_asus),
-                ("amd", "AMD GPU Drivers & Kernel Optimization (Mesa, Vulkan, GRUB)", self.config.hardware_amd_gpu)
-            ]
-            res = SelectListScreen(self.stdscr, "Hardware & Drivers (arch/hardware/)", options).run()
-            if res is not None:
-                self.config.hardware_asus = "asus" in res
-                self.config.hardware_amd_gpu = "amd" in res
-
-                if self.config.hardware_asus:
-                    limit_str = InputScreen(self.stdscr, "ASUS Battery Limit", "Enter battery charge threshold percentage (50-100):", str(self.config.hardware_asus_battery_limit)).run()
-                    if limit_str and limit_str.isdigit():
-                        self.config.hardware_asus_battery_limit = max(50, min(100, int(limit_str)))
-
-        elif k == "virtualization":
-            options = [
-                ("kvm", "KVM / QEMU & virt-manager (arch/virt/kvm-qemu.sh)", self.config.virt_kvm_qemu),
-                ("vmware_host", "VMware Workstation Host (arch/virt/vmware-workstation.sh)", self.config.virt_vmware_workstation)
-            ]
-            res = SelectListScreen(self.stdscr, "Virtualization Setup (arch/virt/)", options).run()
-            if res is not None:
-                self.config.virt_kvm_qemu = "kvm" in res
-                self.config.virt_vmware_workstation = "vmware_host" in res
-
-        elif k == "docker_enabled":
-            self.config.docker_enabled = not self.config.docker_enabled
-
-        elif k == "coding":
-            options = [
-                ("vscode", "Visual Studio Code (visual-studio-code-bin)", "vscode" in self.config.coding_tools),
-                ("cursor", "Cursor AI Code Editor (cursor-bin)", "cursor" in self.config.coding_tools),
-                ("android_studio", "Android Studio (android-studio)", "android_studio" in self.config.coding_tools),
-                ("flutter", "Flutter SDK (flutter-bin)", "flutter" in self.config.coding_tools),
-                ("antigravity", "Antigravity CLI & IDE", "antigravity" in self.config.coding_tools)
-            ]
-            res = SelectListScreen(self.stdscr, "Developer & Coding Stack (arch/arch.sh aur_coding_packages)", options).run()
-            if res is not None:
-                self.config.coding_tools = res
-                self.config.coding_enabled = len(res) > 0
-
-        elif k == "security_burp":
-            self.config.security_burp = not self.config.security_burp
-
-        elif k == "gaming_enabled":
-            self.config.gaming_enabled = not self.config.gaming_enabled
-
-        elif k == "ai_ml_enabled":
-            self.config.ai_ml_enabled = not self.config.ai_ml_enabled
-
-        elif k == "extra_scripts":
-            discovered = discover_extra_scripts(self.base_dir, self.config.distro)
-            options = [
-                (s, f"{s}.sh", s in self.config.extra_scripts) for s in discovered
-            ]
-            res = SelectListScreen(self.stdscr, "Extra App Scripts (arch/apps/)", options).run()
-            if res is not None:
-                self.config.extra_scripts = res
-
-        elif k == "aur_helper":
-            options = [
-                ("paru", "Paru (Rust, fast, feature-rich - Recommended)"),
-                ("yay", "Yay (Go, classic Arch AUR helper)"),
-                ("both", "Both (Install both Paru and Yay)"),
-                ("none", "None / Skip AUR Helper")
-            ]
-            sel = OptionListScreen(self.stdscr, "Select AUR Helper (arch/apps/)", options, self.config.aur_helper).run()
-            if sel:
-                self.config.aur_helper = sel
-
-        elif k == "repos_mirror_ranking":
-            self.config.repos_mirror_ranking = not self.config.repos_mirror_ranking
-
-        elif k == "kali_metapackages":
-            options = [
-                ("everything", "kali-linux-everything (All Kali tools, ~10GB+)", "everything" in self.config.security_kali_metapackages),
-                ("large", "kali-linux-large (Extended default toolset)", "large" in self.config.security_kali_metapackages),
-                ("labs", "kali-linux-labs (Vulnerable testing environments)", "labs" in self.config.security_kali_metapackages)
-            ]
-            res = SelectListScreen(self.stdscr, "Kali Linux Metapackages", options).run()
-            if res is not None:
-                self.config.security_kali_metapackages = res
-
-        elif k == "hardware_kali_wifi":
-            self.config.hardware_kali_wifi = not self.config.hardware_kali_wifi
-
-        return None
-
-    def _save_config_prompt(self) -> None:
-        target = InputScreen(self.stdscr, "Save Configuration Profile", "Enter file path to save JSON config:", "config.json").run()
-        if target:
-            try:
-                self.config.save_json(target)
-                ConfirmScreen(self.stdscr, "Configuration Saved", f"Successfully saved configuration profile to:\n{os.path.abspath(target)}", is_alert=True).run()
-            except Exception as e:
-                ConfirmScreen(self.stdscr, "Save Error", f"Failed to save configuration: {e}", is_alert=True).run()
-
-    def _load_config_prompt(self) -> None:
-        target = InputScreen(self.stdscr, "Load Configuration Profile", "Enter file path of JSON config to load:", "config.json").run()
-        if target:
-            if not os.path.isfile(target):
-                ConfirmScreen(self.stdscr, "File Not Found", f"No file found at: {target}", is_alert=True).run()
-                return
-            try:
-                self.config = PostInstallConfig.load_json(target)
-                ConfirmScreen(self.stdscr, "Configuration Loaded", f"Successfully loaded configuration profile from:\n{os.path.abspath(target)}", is_alert=True).run()
-            except Exception as e:
-                ConfirmScreen(self.stdscr, "Load Error", f"Failed to parse configuration: {e}", is_alert=True).run()
 
 
 def _handle_nav(key: int, idx: int, total: int, step: int = 3) -> int:
@@ -1052,17 +511,6 @@ class ExecutionScreen:
         self.log_scroll_offset = 0
         self.auto_scroll = True
         self.event_queue: queue.Queue[ExecutionEvent] = queue.Queue()
-        self._progress_re = re.compile(
-            r"^\s*\d+[\s.%].*(?:Total|Received|Xferd|Speed|ETA|[kMGT]i?B[/\s])"  # curl/wget progress
-            r"|^\s*\d+\s+[\d.]+[kMGT]?\s+\d+"                                    # curl compact progress
-            r"|^\(?\d+/\d+\)\s*(?:downloading|installing|upgrading|loading)"       # pacman/paru progress bars
-            r"|^\s*(?:Downloading|Fetching|Collecting)\s.+\s\d+%"                  # pip/npm progress
-            r"|^\s*\d+%\s*\|"                                                      # pip-style bar
-        , re.IGNORECASE)
-
-    def _is_progress_line(self, text: str) -> bool:
-        """Detect repetitive download/build progress lines (curl, wget, pacman, pip)."""
-        return bool(self._progress_re.search(text))
 
     def _worker(self) -> None:
         try:
@@ -1088,9 +536,9 @@ class ExecutionScreen:
                     self.current_step_idx = event.step_index
                     if event.event_type == "output":
                         # Collapse consecutive download progress lines into one
-                        if (self._is_progress_line(event.message)
+                        if (is_progress_line(event.message)
                                 and self.log_lines
-                                and self._is_progress_line(self.log_lines[-1])):
+                                and is_progress_line(self.log_lines[-1])):
                             self.log_lines[-1] = event.message
                         else:
                             self.log_lines.append(event.message)

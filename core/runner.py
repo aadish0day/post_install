@@ -26,8 +26,8 @@ ANSI_REGEX = re.compile(r"\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)?|\x1b\[[0-?]*[ -/]*[
 _MANAGED_APP_SCRIPTS: dict[str, set[str]] = {
     "arch": {"docker.sh", "gaming.sh", "paru.sh", "yay.sh"},
     "kali": {"docker.sh"},
-    "debian": {"docker.sh", "neovim.sh"},
-    "fedora": {"docker.sh"},
+    "debian": {"docker.sh", "neovim.sh", "coding.sh", "gaming.sh", "aiml.sh", "productivity.sh"},
+    "fedora": {"docker.sh", "coding.sh", "gaming.sh", "aiml.sh", "productivity.sh"},
     "termux": set(),
 }
 _MANAGED_APP_DIRS = {"burp"}
@@ -159,22 +159,34 @@ class ExecutionPlan:
                     cwd=str(arch_dir)
                 ))
 
-            # 4. AMD GPU optimization from arch/arch.sh
+            # 4. CPU/GPU vendor drivers (arch/hardware/gpu/amd.sh, nvidia.sh, intel.sh)
             if cfg.hardware_amd_gpu:
+                amd_script = arch_dir / "hardware/gpu/amd.sh"
                 self.steps.append(Step(
                     step_id="arch_amd_gpu",
-                    title="AMD GPU Drivers & Kernel Optimization",
-                    description="Installs Mesa, Vulkan-Radeon, VA-API, and tunes GRUB for AMD P-State.",
-                    commands=[
-                        "sudo pacman -S --needed --noconfirm --overwrite '*' "
-                        "xf86-video-amdgpu amd-ucode mesa lib32-mesa vulkan-radeon lib32-vulkan-radeon "
-                        "radeontop mesa-utils mesa-demos "
-                        "vulkan-mesa-layers lib32-mesa-utils lib32-mesa-demos lib32-vulkan-mesa-layers glu lib32-glu",
-                        'if [ -f /etc/default/grub ]; then '
-                        '  sudo sed -i \'s|^GRUB_CMDLINE_LINUX_DEFAULT=".*"|GRUB_CMDLINE_LINUX_DEFAULT="quiet splash loglevel=3 amd_pstate=active amd_prefcore=enable"|\' /etc/default/grub && '
-                        '  sudo grub-mkconfig -o /boot/grub/grub.cfg || true; '
-                        'fi'
-                    ]
+                    title="AMD CPU/GPU Drivers & Kernel Optimization (arch/hardware/gpu/amd.sh)",
+                    description="Installs amd-ucode, Mesa, Vulkan-Radeon, VA-API, and tunes GRUB for AMD P-State."
+                                + (" Also installs AMD Pro AUR packages (AMF, OpenCL, OGLP)." if cfg.hardware_amd_pro else ""),
+                    commands=[f'bash "{amd_script}"' + (" --pro" if cfg.hardware_amd_pro else "")],
+                    cwd=str(arch_dir)
+                ))
+            if cfg.hardware_intel_gpu:
+                intel_script = arch_dir / "hardware/gpu/intel.sh"
+                self.steps.append(Step(
+                    step_id="arch_intel_gpu",
+                    title="Intel CPU/GPU Drivers (arch/hardware/gpu/intel.sh)",
+                    description="Installs intel-ucode, Mesa, Vulkan-Intel, and intel-media-driver.",
+                    commands=[f'bash "{intel_script}"'],
+                    cwd=str(arch_dir)
+                ))
+            if cfg.hardware_nvidia_gpu:
+                nvidia_script = arch_dir / "hardware/gpu/nvidia.sh"
+                self.steps.append(Step(
+                    step_id="arch_nvidia_gpu",
+                    title="NVIDIA GPU Drivers (arch/hardware/gpu/nvidia.sh)",
+                    description="Installs nvidia-open-dkms, nvidia-utils, laptop power config, and suspend services.",
+                    commands=[f'bash "{nvidia_script}"'],
+                    cwd=str(arch_dir)
                 ))
 
             # 5. ASUS ROG Hardware & Power Tools (arch/hardware/asus.sh)
@@ -183,8 +195,8 @@ class ExecutionPlan:
                 self.steps.append(Step(
                     step_id="arch_asus_rog",
                     title="Configure ASUS ROG & asusctl Tooling (arch/hardware/asus.sh)",
-                    description="Adds OGC repo, installs asusctl/rog-control-center, fan curves, and battery limit.",
-                    commands=[f'bash "{asus_script}"'],
+                    description="Installs asusctl/rog-control-center, fan curves, and battery limit.",
+                    commands=[f'bash "{asus_script}" {int(cfg.hardware_asus_battery_limit)}'],
                     cwd=str(arch_dir)
                 ))
 
@@ -401,84 +413,10 @@ class ExecutionPlan:
             self._append_extra_scripts_steps(kali_dir, "kali")
 
         # ====================================================================
-        # DEBIAN / UBUNTU WORKFLOW (STRICTLY FROM debian/ DIRECTORY)
+        # DEBIAN / UBUNTU & FEDORA WORKFLOWS (modular layout mirroring arch/)
         # ====================================================================
-        elif distro == "debian":
-            debian_dir = self.base_dir / "debian"
-            self.steps.append(Step(
-                step_id="debian_base",
-                title="Debian/Ubuntu Setup (debian/debian.sh)",
-                description="Installs Nala package manager, development libraries, and desktop utilities.",
-                commands=[
-                    "sudo apt update && sudo apt install -y nala",
-                    "sudo nala update && sudo nala upgrade -y",
-                    "sudo nala install -y ranger ncdu mpv maven yt-dlp gallery-dl htop fzf git git-lfs unzip nodejs flameshot xclip ueberzug highlight atool mediainfo android-tools-adb android-tools-fastboot img2pdf zathura zathura-pdf-poppler obs-studio picom nitrogen xss-lock qalculate-gtk libreoffice bluez bat alacritty jpegoptim zip tar p7zip zstd lz4 xz-utils trash-cli python3-pip",
-                    "if ! command -v starship &>/dev/null; then curl -sS https://starship.rs/install.sh | sh -s -- -y; fi"
-                ],
-                cwd=str(debian_dir)
-            ))
-
-            if "neovim" in cfg.coding_tools:
-                nvim_script = debian_dir / "apps/neovim.sh"
-                self.steps.append(Step(
-                    step_id="debian_neovim_source",
-                    title="Compile & Install Neovim (debian/apps/neovim.sh)",
-                    description="Builds Neovim from GitHub master with release optimization.",
-                    commands=[f'bash "{nvim_script}"'],
-                    cwd=str(debian_dir)
-                ))
-
-            if cfg.docker_enabled:
-                docker_script = debian_dir / "apps/docker.sh"
-                self.steps.append(Step(
-                    step_id="debian_docker",
-                    title="Install Docker CE & Plugins (debian/apps/docker.sh)",
-                    description="Adds official Docker apt keyring and installs docker-ce, compose and buildx.",
-                    commands=[f'bash "{docker_script}"'],
-                    cwd=str(debian_dir)
-                ))
-
-            if cfg.repos_pacstall:
-                self.steps.append(Step(
-                    step_id="debian_pacstall",
-                    title="Install Pacstall Package Manager",
-                    description="Installs Pacstall (AUR for Debian/Ubuntu) and ani-cli.",
-                    commands=[
-                        'sudo bash -c "$(curl -fsSL https://pacstall.dev/q/install)" || true',
-                        'pacstall -I ani-cli-bin -P || true'
-                    ],
-                    cwd=str(debian_dir)
-                ))
-
-            # Auto-discovered extra app scripts from debian/apps/
-            self._append_extra_scripts_steps(debian_dir, "debian")
-
-        # ====================================================================
-        # FEDORA WORKFLOW (STRICTLY FROM fedora/ DIRECTORY)
-        # ====================================================================
-        elif distro == "fedora":
-            fedora_dir = self.base_dir / "fedora"
-            fedora_script = fedora_dir / "fedora.sh"
-            self.steps.append(Step(
-                step_id="fedora_core_setup",
-                title="Fedora Optimization & RPM Fusion (fedora/fedora.sh)",
-                description="Tunes DNF for parallel downloads, installs RPM Fusion, COPR starship, and dev tools.",
-                commands=[f'bash "{fedora_script}"'],
-                cwd=str(fedora_dir)
-            ))
-
-            if cfg.docker_enabled:
-                docker_script = fedora_dir / "apps/docker.sh"
-                self.steps.append(Step(
-                    step_id="fedora_docker",
-                    title="Install Docker CE on Fedora (fedora/apps/docker.sh)",
-                    description="Configures official Docker CE repo and starts docker.service.",
-                    commands=[f'bash "{docker_script}"'],
-                    cwd=str(fedora_dir)
-                ))
-
-            # Auto-discovered extra app scripts from fedora/apps/
-            self._append_extra_scripts_steps(fedora_dir, "fedora")
+        elif distro in ("debian", "fedora"):
+            self._append_modular_steps(distro)
 
         # ====================================================================
         # TERMUX WORKFLOW (STRICTLY FROM termux/ DIRECTORY)
@@ -506,6 +444,93 @@ class ExecutionPlan:
 
             # Auto-discovered extra app scripts from termux/apps/
             self._append_extra_scripts_steps(termux_dir, "termux")
+
+    def _append_modular_steps(self, distro: str) -> None:
+        """Debian/Fedora plan: same module order as arch/, scripts under <distro>/."""
+        cfg = self.config
+        d = self.base_dir / distro
+        label = {"debian": "Debian/Ubuntu", "fedora": "Fedora"}[distro]
+
+        def add(step_id: str, rel: str, title: str, description: str, args: str = "") -> None:
+            script = d / rel
+            self.steps.append(Step(
+                step_id=f"{distro}_{step_id}",
+                title=f"{title} ({distro}/{rel})",
+                description=description,
+                commands=[f'bash "{script}"' + (f" {args}" if args else "")],
+                cwd=str(d)
+            ))
+
+        # 1. Package manager & repositories
+        if distro == "fedora":
+            add("dnf", "system/dnf.sh", "Optimize DNF", "Parallel downloads, fastest mirror and sane defaults for dnf5.")
+            add("repos", "system/repos.sh", "Enable RPM Fusion, COPR & Codecs", "RPM Fusion free/nonfree, COPR repos and full ffmpeg codecs.")
+        else:
+            add("repos", "system/repos.sh", "Enable contrib/non-free & i386", "Enables contrib, non-free, non-free-firmware (universe/multiverse on Ubuntu), i386 and nala.")
+
+        # 2. Extra package sources (AUR-like helpers)
+        if distro == "debian" and cfg.repos_pacstall:
+            add("pacstall", "system/pacstall.sh", "Install Pacstall (AUR for Debian)", "Installs Pacstall, used for apps not packaged in Debian.")
+        if cfg.repos_flatpak:
+            add("flatpak", "system/flatpak.sh", "Setup Flatpak & Flathub", "Installs Flatpak and adds the Flathub remote.")
+
+        # 3. Base packages
+        add("base_packages", "system/base.sh", f"Install {label} Base Packages & Utilities",
+            "Core CLI tools, fonts, sound, and utilities matching the Arch base set.")
+
+        # 4. CPU/GPU vendor drivers & ASUS tools
+        if cfg.hardware_amd_gpu:
+            add("amd_gpu", "hardware/gpu/amd.sh", "AMD CPU/GPU Drivers & Kernel Optimization",
+                "Installs AMD microcode, firmware, Mesa Vulkan/VA-API, and amd_pstate kernel args.")
+        if cfg.hardware_intel_gpu:
+            add("intel_gpu", "hardware/gpu/intel.sh", "Intel CPU/GPU Drivers", "Installs Intel microcode, media driver, and Mesa Vulkan.")
+        if cfg.hardware_nvidia_gpu:
+            add("nvidia_gpu", "hardware/gpu/nvidia.sh", "NVIDIA GPU Drivers", "Installs the NVIDIA driver, power management config, and suspend services.")
+        if cfg.hardware_asus:
+            add("asus_rog", "hardware/asus.sh", "Configure ASUS ROG & asusctl Tooling",
+                "Installs asusctl/rog-control-center, fan curves, and battery limit.", str(int(cfg.hardware_asus_battery_limit)))
+
+        # 5. Desktop environment
+        if cfg.desktop_environment == "kde":
+            add("de_kde", "desktop/kde.sh", "Install KDE Plasma Desktop", "Installs Plasma Desktop, SDDM, Dolphin, Kate, and KDE apps.")
+        elif cfg.desktop_environment == "tiling":
+            add("de_tiling", "desktop/tiling.sh", "Install X11 Tiling Window Manager & Touchpad",
+                "Installs Polybar, Picom, Rofi, Dunst, Feh, Zathura, i3lock-color, Dracula GTK, and configures X11 touchpad.")
+
+        # 6. Virtualization
+        if cfg.virt_kvm_qemu:
+            add("virt_kvm", "virt/kvm-qemu.sh", "Setup KVM, QEMU & virt-manager", "Installs QEMU/KVM, libvirt, virt-manager, UEFI firmware and user groups.")
+        if cfg.virt_vmware_workstation:
+            add("virt_vmware", "virt/vmware-workstation.sh", "Install VMware Workstation",
+                "Installs build dependencies and runs a downloaded VMware Workstation bundle.")
+
+        # 7. Docker
+        if cfg.docker_enabled:
+            add("docker", "apps/docker.sh", "Install Docker CE & Plugins", "Official Docker CE repo, Compose and Buildx, docker group.")
+
+        # 8. Developer tools
+        if cfg.coding_enabled and cfg.coding_tools:
+            add("coding", "apps/coding.sh", "Install Developer & Coding Suite",
+                f"Installs: {', '.join(cfg.coding_tools)}.", " ".join(cfg.coding_tools))
+
+        # 9. Gaming
+        if cfg.gaming_enabled:
+            add("gaming", "apps/gaming.sh", "Setup Gaming Stack", "Wine, Winetricks, Steam, Lutris, GameMode, MangoHud, and umu-launcher.")
+
+        # 10. AI / ML
+        if cfg.ai_ml_enabled:
+            add("aiml", "apps/aiml.sh", "Install ROCm & AI/ML Acceleration Suite", "Installs ROCm runtime tools and PyTorch ROCm in ~/.venvs/rocm.")
+
+        # 11. Productivity apps (Arch AUR list equivalents)
+        if cfg.productivity_enabled:
+            add("productivity", "apps/productivity.sh", "Install Essential Productivity Apps",
+                "AnyDesk, LocalSend, Thorium, Zen Browser, Vesktop, Obsidian, ani-cli, gallery-dl, and markitdown.")
+
+        # 12. Auto-discovered extra app scripts
+        self._append_extra_scripts_steps(d, distro)
+
+        # 13. Shell & services
+        add("services_shell", "system/shell.sh", "Configure Services & Default Shell", "Starts xdg-desktop-portal services and sets default shell to Zsh.")
 
     def _append_extra_scripts_steps(self, distro_dir: Path, distro_name: str) -> None:
         if self.config.extra_scripts:

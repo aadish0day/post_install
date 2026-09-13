@@ -31,7 +31,10 @@ class PostInstallConfig:
     # Hardware & Power
     hardware_asus: bool = False
     hardware_asus_battery_limit: int = 85
-    hardware_amd_gpu: bool = False
+    hardware_amd_gpu: bool = False  # arch/hardware/gpu/amd.sh (AMD CPU and/or GPU)
+    hardware_amd_pro: bool = False  # amd.sh --pro (AMD Pro AUR packages)
+    hardware_nvidia_gpu: bool = False
+    hardware_intel_gpu: bool = False  # arch/hardware/gpu/intel.sh (Intel CPU and/or GPU)
     hardware_kali_wifi: bool = False
 
     # Virtualization & Containers
@@ -58,6 +61,7 @@ class PostInstallConfig:
     # Extra Stacks
     gaming_enabled: bool = False
     ai_ml_enabled: bool = False
+    productivity_enabled: bool = True  # debian/fedora apps/productivity.sh (Arch AUR app equivalents)
 
     # Auto-discovered extra app scripts (e.g. ["xdm", "someapp"])
     extra_scripts: list[str] = field(default_factory=list)
@@ -66,6 +70,7 @@ class PostInstallConfig:
     repos_mirror_ranking: bool = True
     aur_helper: str = "paru"  # paru, yay, both, none
     repos_pacstall: bool = False
+    repos_flatpak: bool = True  # debian/fedora system/flatpak.sh (Flathub)
     theme_nerd_fonts: bool = True
 
     def set_distro(self, distro_id: str) -> None:
@@ -84,7 +89,9 @@ class PostInstallConfig:
         if cfg.distro == "arch":
             cfg.desktop_environment = "kde"
             cfg.hardware_asus = info.is_asus
-            cfg.hardware_amd_gpu = "amd" in info.gpu_vendors
+            cfg.hardware_amd_gpu = "amd" in info.gpu_vendors or info.cpu_vendor == "amd"
+            cfg.hardware_nvidia_gpu = "nvidia" in info.gpu_vendors
+            cfg.hardware_intel_gpu = "intel" in info.gpu_vendors or info.cpu_vendor == "intel"
             cfg.virt_kvm_qemu = True
             cfg.gaming_enabled = True
             cfg.ai_ml_enabled = "amd" in info.gpu_vendors and not info.virt_type.startswith("vm")
@@ -99,14 +106,17 @@ class PostInstallConfig:
             cfg.security_searchsploit_update = True
             cfg.repos_mirror_ranking = False
 
-        elif cfg.distro == "debian":
+        elif cfg.distro in ("debian", "fedora"):
+            # Same modular layout as arch/, but don't assume a desktop is wanted
             cfg.desktop_environment = "none"
-            cfg.repos_pacstall = True
-
-        elif cfg.distro == "fedora":
-            cfg.desktop_environment = "none"
-            cfg.gaming_enabled = True
-            cfg.repos_mirror_ranking = True
+            cfg.hardware_asus = info.is_asus
+            cfg.hardware_amd_gpu = "amd" in info.gpu_vendors or info.cpu_vendor == "amd"
+            cfg.hardware_nvidia_gpu = "nvidia" in info.gpu_vendors
+            cfg.hardware_intel_gpu = "intel" in info.gpu_vendors or info.cpu_vendor == "intel"
+            cfg.gaming_enabled = cfg.distro == "fedora"
+            cfg.repos_flatpak = True
+            cfg.repos_pacstall = cfg.distro == "debian"
+            cfg.repos_mirror_ranking = False
 
         elif cfg.distro == "termux":
             cfg.desktop_environment = "none"

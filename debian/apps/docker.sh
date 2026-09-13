@@ -1,44 +1,40 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Function to log script actions
-log() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1"
-}
+# ============================================================================
+# DOCKER CE (official Docker apt repository)
+# ============================================================================
 
-log "Installing Docker on Debian/Ubuntu..."
+# shellcheck source=../lib/common.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/common.sh"
 
-# Determine the distribution name for the repo
-DISTRO_ID=$(. /etc/os-release && echo "$ID")
-case "$DISTRO_ID" in
-ubuntu) repo_distro="ubuntu" ;;
-*) repo_distro="debian" ;;
-esac
+log "Installing Docker CE on Debian/Ubuntu..."
 
-# Add Docker's official GPG key:
-sudo apt-get update
-sudo apt-get install -y ca-certificates curl
-sudo install -m 0755 -d /etc/apt/keyrings
-sudo curl -fsSL "https://download.docker.com/linux/$repo_distro/gpg" -o /etc/apt/keyrings/docker.asc
-sudo chmod a+r /etc/apt/keyrings/docker.asc
+if is_ubuntu; then
+    repo_distro="ubuntu"
+else
+    repo_distro="debian"
+fi
+codename="$(os_codename)"
+arch="$(dpkg --print-architecture)"
 
-# Add the repository to Apt sources:
-echo \
-    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/$repo_distro \
-  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" |
-    sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
-sudo apt-get update
+# Remove conflicting distro packages
+conflicts=(docker.io docker-doc docker-compose podman-docker containerd runc)
+installed_conflicts=()
+for p in "${conflicts[@]}"; do
+    pkg_installed "$p" && installed_conflicts+=("$p")
+done
+if [ "${#installed_conflicts[@]}" -gt 0 ] && ! is_simulate; then
+    log "Removing conflicting packages: ${installed_conflicts[*]}"
+    $SUDO apt-get remove -y "${installed_conflicts[@]}"
+fi
 
-# Install Docker packages
-sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin docker-ce-rootless-extras docker-model-plugin
+add_apt_repo docker "https://download.docker.com/linux/${repo_distro}/gpg" \
+    "deb [arch=${arch} signed-by={keyring}] https://download.docker.com/linux/${repo_distro} ${codename} stable"
 
-# Enable and start Docker service
-log "Enabling and starting Docker service..."
-sudo systemctl enable --now docker
+apt_install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin docker-ce-rootless-extras
 
-# Configure permissions
-log "Adding user $USER to the docker group..."
-sudo usermod -aG docker "$USER"
+enable_service docker.service --now
+add_user_group docker
 
-log "Docker installation and configuration complete."
-log "Please log out and log back in for group changes to take effect."
+log "Docker installation complete. Log out and back in for docker group membership."

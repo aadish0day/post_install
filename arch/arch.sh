@@ -86,13 +86,21 @@ aur_choice="${aur_choice:-1}"
 install_gaming=false
 prompt_yes_no "Do you want to install gaming packages?" && install_gaming=true
 install_asus=false
-prompt_yes_no "Do you want to install ASUS specific drivers?" && install_asus=true
+prompt_yes_no "Do you want to install ASUS ROG tools (asusctl, fan curves, battery limit)?" && install_asus=true
 install_virt=false
 prompt_yes_no "Do you want to install virtualization packages (VMware Workstation and Open VM Tools)?" && install_virt=true
 install_docker=false
 prompt_yes_no "Do you want to install Docker?" && install_docker=true
 install_amd=false
-prompt_yes_no "Do you want to install AMD GPU drivers and runtimes (Vulkan/OpenCL/VA-API/VDPAU)?" && install_amd=true
+install_amd_pro=false
+if prompt_yes_no "Do you want to install AMD CPU/GPU drivers (amd-ucode, Mesa, Vulkan, amd_pstate)?"; then
+    install_amd=true
+    prompt_yes_no "Also install AMD Pro AUR packages (AMF, OpenCL, OGLP)?" && install_amd_pro=true
+fi
+install_intel=false
+prompt_yes_no "Do you want to install Intel CPU/GPU drivers (intel-ucode, Mesa, Vulkan, VA-API)?" && install_intel=true
+install_nvidia=false
+prompt_yes_no "Do you want to install NVIDIA GPU drivers (nvidia-open-dkms)?" && install_nvidia=true
 install_aiml=false
 prompt_yes_no "Do you want to install AI/ML packages (ROCm, PyTorch, ONNX Runtime, etc.)?" && install_aiml=true
 install_coding=false
@@ -123,10 +131,12 @@ esac
 echo "Desktop Environment: $de_name"
 echo "AUR Helper: $aur_name"
 echo "Gaming Packages: $([ "$install_gaming" = true ] && echo "Yes" || echo "No")"
-echo "ASUS Drivers: $([ "$install_asus" = true ] && echo "Yes" || echo "No")"
+echo "ASUS ROG Tools: $([ "$install_asus" = true ] && echo "Yes" || echo "No")"
 echo "Virtualization Packages: $([ "$install_virt" = true ] && echo "Yes" || echo "No")"
 echo "Docker: $([ "$install_docker" = true ] && echo "Yes" || echo "No")"
-echo "AMD Drivers: $([ "$install_amd" = true ] && echo "Yes" || echo "No")"
+echo "AMD Drivers: $([ "$install_amd" = true ] && { [ "$install_amd_pro" = true ] && echo "Yes (+ AMD Pro)" || echo "Yes"; } || echo "No")"
+echo "Intel Drivers: $([ "$install_intel" = true ] && echo "Yes" || echo "No")"
+echo "NVIDIA Drivers: $([ "$install_nvidia" = true ] && echo "Yes" || echo "No")"
 echo "AI/ML Packages: $([ "$install_aiml" = true ] && echo "Yes" || echo "No")"
 echo "Coding Packages: $([ "$install_coding" = true ] && echo "Yes" || echo "No")"
 echo "Burp Suite Professional: $([ "$install_burp" = true ] && echo "Yes" || echo "No")"
@@ -171,7 +181,7 @@ packages=(
     neovim nodejs npm obs-studio 7zip pacman-contrib pacutils
     parallel pipewire pipewire-alsa pipewire-audio pipewire-jack lib32-pipewire-jack pipewire-pulse pipewire-zeroconf pipewire-libcamera
     pkgfile plocate pv ripgrep sd spandsp starship soundtouch svt-hevc tar
-    tree tree-sitter-cli trash-cli tmux unzip wireplumber xz
+    tree tree-sitter-cli trash-cli tmux unzip wireplumber xz curl-impersonate
     yazi yt-dlp zip zoxide zsh zstd dosfstools usbutils lazydocker opencode github-cli
 )
 
@@ -201,25 +211,6 @@ aur_coding_packages=(
     "visual-studio-code-bin"
 )
 
-# List of ASUS specific packages
-asus_packages=(
-    "vulkan-amdgpu-pro"
-    "lib32-vulkan-amdgpu-pro"
-    "amdgpu-pro-oglp"
-    "lib32-amdgpu-pro-oglp"
-    "opencl-headers"
-    "amf-amdgpu-pro"
-)
-
-# List of AMD GPU and related runtime packages
-amd_packages=(
-    xf86-video-amdgpu amd-ucode mesa lib32-mesa vulkan-radeon lib32-vulkan-radeon
-    radeontop mesa-utils mesa-demos
-    vulkan-mesa-layers lib32-mesa-utils lib32-mesa-demos lib32-vulkan-mesa-layers
-    glu lib32-glu
-    # mesa-vdpau lib32-mesa-vdpau
-)
-
 # List of AI/ML and ROCm packages
 ai_ml_packages=(
     rocm-llvm rocm-opencl-runtime rocm-opencl-sdk rocm-hip-sdk rocm-ml-libraries
@@ -240,19 +231,6 @@ install_if_needed "${packages[@]}"
 if command -v git &>/dev/null && command -v git-lfs &>/dev/null; then
     echo "Initializing Git LFS..."
     git lfs install --skip-repo
-fi
-
-if [ "$install_amd" = true ]; then
-    echo ""
-    echo "Installing AMD GPU drivers and runtimes..."
-    install_if_needed "${amd_packages[@]}"
-
-    # Edit GRUB configuration to optimize for AMD
-    echo "Editing GRUB configuration..."
-    sudo sed -i 's|^GRUB_CMDLINE_LINUX_DEFAULT=".*"|GRUB_CMDLINE_LINUX_DEFAULT="quiet splash loglevel=3 amd_pstate=active amd_prefcore=enable"|' /etc/default/grub
-
-    # Regenerate the GRUB configuration
-    sudo grub-mkconfig -o /boot/grub/grub.cfg
 fi
 
 # Install gaming packages if selected
@@ -334,11 +312,48 @@ if [ "$install_coding" = true ]; then
     install_aur_packages "${aur_coding_packages[@]}"
 fi
 
-# Install ASUS specific packages if selected
+# Install CPU/GPU drivers and ASUS tools from hardware/ (after the AUR
+# helper, since amd.sh --pro builds AUR packages)
+if [ "$install_amd" = true ]; then
+    echo ""
+    echo "Installing AMD CPU/GPU drivers..."
+    amd_args=()
+    [ "$install_amd_pro" = true ] && amd_args+=(--pro)
+    if [ -f "$SCRIPT_DIR/hardware/gpu/amd.sh" ]; then
+        bash "$SCRIPT_DIR/hardware/gpu/amd.sh" "${amd_args[@]}"
+    else
+        echo "Error: hardware/gpu/amd.sh not found."
+    fi
+fi
+
+if [ "$install_intel" = true ]; then
+    echo ""
+    echo "Installing Intel CPU/GPU drivers..."
+    if [ -f "$SCRIPT_DIR/hardware/gpu/intel.sh" ]; then
+        bash "$SCRIPT_DIR/hardware/gpu/intel.sh"
+    else
+        echo "Error: hardware/gpu/intel.sh not found."
+    fi
+fi
+
+if [ "$install_nvidia" = true ]; then
+    echo ""
+    echo "Installing NVIDIA GPU drivers..."
+    if [ -f "$SCRIPT_DIR/hardware/gpu/nvidia.sh" ]; then
+        bash "$SCRIPT_DIR/hardware/gpu/nvidia.sh"
+    else
+        echo "Error: hardware/gpu/nvidia.sh not found."
+    fi
+fi
+
 if [ "$install_asus" = true ]; then
     echo ""
-    echo "Installing ASUS specific drivers..."
-    install_aur_packages "${asus_packages[@]}"
+    echo "Installing ASUS ROG tools..."
+    if [ -f "$SCRIPT_DIR/hardware/asus.sh" ]; then
+        bash "$SCRIPT_DIR/hardware/asus.sh"
+    else
+        echo "Error: hardware/asus.sh not found."
+    fi
 fi
 
 # Install virtualization packages if selected

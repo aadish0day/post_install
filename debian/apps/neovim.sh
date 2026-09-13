@@ -1,44 +1,33 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
-# Exit immediately if a command exits with a non-zero status.
-set -eo pipefail
+# ============================================================================
+# NEOVIM FROM SOURCE (latest stable release)
+# ============================================================================
 
-echo "Installing Neovim dependencies..."
-sudo nala install ninja-build gettext libtool libtool-bin autoconf automake cmake g++ pkg-config unzip curl doxygen npm
+# shellcheck source=../lib/common.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/common.sh"
 
-# Define the directory name to avoid repetition and where to clone
-NEOVIM_DIR="neovim"
-ORIGINAL_DIR=$(pwd) # Store the original directory
+log "Installing Neovim build dependencies..."
+apt_install ninja-build gettext libtool libtool-bin autoconf automake cmake g++ pkg-config unzip curl doxygen npm git
 
-# Clone the Neovim repository if it doesn't already exist
-if [ ! -d "$NEOVIM_DIR" ]; then
-    echo "Cloning Neovim..."
-    git clone https://github.com/neovim/neovim.git "$NEOVIM_DIR"
-else
-    echo "Directory $NEOVIM_DIR already exists, updating existing repository..."
-    cd "$NEOVIM_DIR"
-    git pull
-    cd "$ORIGINAL_DIR"
+if is_simulate; then
+    git ls-remote --tags --exit-code https://github.com/neovim/neovim.git refs/tags/stable >/dev/null ||
+        die "Neovim repository not reachable"
+    log "[simulate] would build and install Neovim (stable)"
+    exit 0
 fi
 
-# Change directory to the cloned repository
-cd "$NEOVIM_DIR" || exit 1 # Exit if changing directory fails
+BUILD_DIR="$(mktemp -d /tmp/neovim_build_XXXXXX)"
+trap 'rm -rf "$BUILD_DIR"' EXIT
 
-echo "Building Neovim..."
-# Build Neovim with standard Release configuration
-make CMAKE_BUILD_TYPE=Release
+log "Cloning Neovim (stable)..."
+git clone --depth 1 --branch stable https://github.com/neovim/neovim.git "$BUILD_DIR/neovim"
 
-echo "Installing Neovim..."
-# Install Neovim
-sudo make install
+log "Building Neovim..."
+make -C "$BUILD_DIR/neovim" CMAKE_BUILD_TYPE=Release -j"$(nproc)"
 
-# Return to the original directory
-cd "$ORIGINAL_DIR"
+log "Installing Neovim to /usr/local..."
+$SUDO make -C "$BUILD_DIR/neovim" install
 
-# Optionally, remove the Neovim clone directory
-if [ -d "$NEOVIM_DIR" ]; then
-    echo "Cleaning up installation files..."
-    rm -rf "$NEOVIM_DIR"
-fi
-
-echo "Neovim installation and cleanup completed successfully."
+log "Neovim installed: $(/usr/local/bin/nvim --version | head -n1)"

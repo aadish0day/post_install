@@ -15,10 +15,10 @@ Modular post-installation automation suite featuring an **`archinstall`-style in
 
 ## ✨ Features & Highlights
 
-- **`archinstall`-Style Interactive TUI**: Split-screen curses interface featuring dynamic hardware auto-detection, live contextual preview pane, colored `[Yes]` / `[No]` status indicators, and real-time execution monitoring.
+- **`archinstall`-Style Interactive TUI**: Built on [Textual](https://textual.textualize.io/) with archinstall's look — blue title bar, menu with a live preview pane, Yes/No button dialogs, key-hint footer, `/` search, and real-time execution monitoring. Falls back to a built-in curses interface when Textual isn't available.
 - **Hardware & Laptop Optimization**:
   - Auto-detects **ASUS ROG/TUF** laptops (`asusctl`, fan curves, custom battery charge thresholds).
-  - Auto-tunes **AMD GPU** drivers (Mesa, Vulkan-Radeon, VA-API, and `amd_pstate=active` GRUB parameters).
+  - Per-vendor CPU/GPU drivers: **AMD** (Mesa, Vulkan-Radeon, `amd_pstate` GRUB parameters, optional AMD Pro), **Intel** (Mesa, Vulkan-Intel, VA-API) and **NVIDIA** (`nvidia-open-dkms`, laptop power management).
   - Precision touchpad configuration (tapping, natural scrolling, palm rejection).
 - **AUR Helper Selection**: Choose between **Paru** (Rust, fast `paru-bin`), **Yay** (Go, fast `yay-bin`), or **Both** side-by-side.
 - **Strict India Mirror Optimization**: Ranks the fastest HTTPS mirrors strictly in India via `reflector` with parallel connections and safe timeout fallbacks.
@@ -33,7 +33,7 @@ Modular post-installation automation suite featuring an **`archinstall`-style in
   - **Themes & Shell**: Default Zsh shell, Starship prompt, JetBrains Mono Nerd Font, and Dracula GTK theme.
 - **JSON Configuration Profiles**: Export, import, and reuse customized installation plans (`--save-config` / `--config`).
 - **Dry-Run & Simulation**: Full simulation of planned steps and shell commands with zero system modifications (`--dry-run`).
-- **Zero External Python Dependencies**: Built entirely on Python 3 standard library (`curses`, `dataclasses`, `pty`).
+- **Minimal Python Dependencies**: Only `textual` for the TUI — `install.sh` installs it automatically (`python-textual` / `python3-textual` / pip). Headless mode and the curses fallback use only the standard library.
 
 ---
 
@@ -55,6 +55,8 @@ cd post_install
 python3 install.py --dry-run --headless
 ```
 
+Force a specific interface with `--tui textual` or `--tui curses` (default `auto` uses Textual when installed).
+
 ### 3. Unattended Automated Run with JSON Profile
 
 ```bash
@@ -69,6 +71,8 @@ python3 install.py --config my_profile.json --headless
 
 ## 🎮 TUI Controls & Vim Keybindings
 
+The Textual interface shows the available keys in its footer (`F1` for full help, `Ctrl+Q` to quit). The table below applies to both interfaces unless noted.
+
 | Keybinding | Action |
 |---|---|
 | `j` / `↓` | Move Cursor Down |
@@ -81,6 +85,7 @@ python3 install.py --config my_profile.json --headless
 | `Ctrl+u` / `PageUp` | Half-Page Scroll Up |
 | `Space` / `x` | Toggle Checkbox `[✓]` / Toggle `[Yes]`/`[No]` |
 | `a` / `c` | Select All / Clear All (in checklists) |
+| `/` | Search / filter the main menu (Textual) |
 | `s` | Save Configuration Profile to JSON |
 | `o` | Load Configuration Profile from JSON |
 | `y` / `n` | Confirm (Yes) / Cancel (No) in confirmation dialogs |
@@ -99,10 +104,12 @@ post_install/
 │   ├── config.py                  # Dataclass configuration model & JSON manager
 │   ├── runner.py                  # PTY real-time execution engine & step streamer
 │   └── tui/
-│       ├── colors.py              # Curses color palette (Yes/No, Highlight, Accents)
-│       ├── widgets.py             # Unicode box drawing, headers, footers
-│       ├── screens.py             # GlobalMenu, OptionList, SelectList, Input, Confirm
-│       └── app.py                 # TUI lifecycle & state management
+│       ├── model.py               # Shared menu items, previews & actions (both interfaces)
+│       ├── textual_app.py         # Archinstall-style Textual interface
+│       ├── colors.py              # Curses fallback color palette
+│       ├── widgets.py             # Curses fallback box drawing, headers, footers
+│       ├── screens.py             # Curses fallback screens
+│       └── app.py                 # TUI launcher (Textual or curses) & lifecycle
 ├── arch/                          # Arch Linux Modular Suite
 │   ├── arch.sh                    # Arch master setup script
 │   ├── apps/
@@ -116,7 +123,11 @@ post_install/
 │   │   └── tiling.sh              # X11 Tiling WM (Polybar, Picom, Rofi, i3lock-color)
 │   ├── hardware/
 │   │   ├── asus.sh                # ASUS ROG/TUF tools & fan curves
-│   │   └── touchpad.sh            # Libinput precision touchpad configuration
+│   │   ├── touchpad.sh            # Libinput precision touchpad configuration
+│   │   └── gpu/
+│   │       ├── amd.sh             # amd-ucode, Mesa/Vulkan, amd_pstate, optional AMD Pro (--pro)
+│   │       ├── intel.sh           # intel-ucode, Mesa/Vulkan-Intel, VA-API
+│   │       └── nvidia.sh          # nvidia-open-dkms, laptop power config, suspend services
 │   └── virt/
 │       ├── kvm-qemu.sh            # KVM/QEMU, libvirtd & virt-manager
 │       └── vmware-workstation.sh  # VMware Workstation Host installer

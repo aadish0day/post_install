@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ============================================================================
+# NVIDIA setup (Debian/Ubuntu)
+# Open kernel module (DKMS) from non-free, userspace drivers, laptop dynamic
+# power management and suspend/resume services.
+# ============================================================================
+
+# shellcheck source=../../lib/common.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../lib/common.sh"
+
+has_nvidia_gpu() { lspci 2>/dev/null | grep -Ei "vga|3d controller|display" | grep -qi "nvidia"; }
+is_laptop() { compgen -G "/sys/class/power_supply/BAT*" >/dev/null; }
+
+command -v lspci >/dev/null 2>&1 || apt_install pciutils
+
+if ! has_nvidia_gpu; then
+    log "No NVIDIA GPU detected - nothing to do."
+    exit 0
+fi
+
+log "NVIDIA GPU detected - installing drivers..."
+if is_ubuntu; then
+    apt_install ubuntu-drivers-common
+    if ! is_simulate && ! in_container; then
+        $SUDO ubuntu-drivers install
+    fi
+else
+    kernel_headers="linux-headers-$(dpkg --print-architecture)"
+    # nvidia-open-kernel-dkms supports Turing (GTX 16xx / RTX 20xx) and newer
+    apt_install "$kernel_headers" dkms nvidia-open-kernel-dkms nvidia-driver firmware-misc-nonfree \
+        nvidia-settings nvidia-vulkan-icd nvidia-suspend-common libnvidia-encode1 vulkan-tools
+fi
+
+if is_laptop && ! is_simulate; then
+    log "Laptop detected - enabling NVIDIA runtime D3 power management..."
+    echo 'options nvidia "NVreg_DynamicPowerManagement=0x02"' | $SUDO tee /etc/modprobe.d/nvidia-power.conf >/dev/null
+fi
+
+for svc in nvidia-suspend.service nvidia-hibernate.service nvidia-resume.service; do
+    enable_service "$svc"
+done
+
+log "NVIDIA setup completed. Reboot to load the new kernel module."
