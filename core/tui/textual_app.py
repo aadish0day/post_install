@@ -14,6 +14,7 @@ import time
 from pathlib import Path
 from typing import ClassVar, Generic, List, Optional, Tuple, TypeVar
 
+from rich.markup import escape
 from rich.text import Text
 from textual import on, work
 from textual.app import App, ComposeResult
@@ -534,7 +535,7 @@ class ExecutionScreen(Screen[bool]):
                 yield Rule(orientation="vertical")
                 with Vertical():
                     yield RichLog(id="log", wrap=True, markup=False, highlight=False, auto_scroll=True)
-                    yield Label("", id="progress")
+                    yield Label("", id="progress", markup=False)
         yield Footer()
 
     def on_mount(self) -> None:
@@ -556,39 +557,42 @@ class ExecutionScreen(Screen[bool]):
         self._finish_plan()
 
     def _on_event(self, event: ExecutionEvent) -> None:
-        log = self.query_one("#log", RichLog)
-        progress = self.query_one("#progress", Label)
-        self.current = event.step_index
+        try:
+            log = self.query_one("#log", RichLog)
+            progress = self.query_one("#progress", Label)
+            self.current = event.step_index
 
-        if event.event_type == "output":
-            if event.is_transient or is_progress_line(event.message):
-                # Keep download/build progress on one live line instead of flooding the log
-                progress.update(event.message)
-            else:
-                style = "white"
-                if event.message.startswith("[EXEC]"):
-                    style = "bold cyan"
-                elif event.message.startswith("[DRY-RUN]"):
-                    style = "bright_yellow"
-                elif "error" in event.message.lower():
-                    style = "red"
-                log.write(Text(event.message, style=style))
-        elif event.event_type == "step_start":
-            progress.update("")
-            log.write(Text(f"==> {event.step.title}", style="bold blue"))
-        elif event.event_type == "step_complete":
-            progress.update("")
-            log.write(Text(f"✓ Completed: {event.step.title} ({event.step.duration:.1f}s)", style="bold green"))
-        elif event.event_type == "step_fail":
-            self.has_errors = True
-            progress.update("")
-            log.write(Text(f"✗ ERROR: {event.step.title}", style="bold red"))
-            if event.step.error_message:
-                log.write(Text(event.step.error_message, style="red"))
-        elif event.event_type == "plan_complete":
-            self._finish_plan()
+            if event.event_type == "output":
+                if event.is_transient or is_progress_line(event.message):
+                    # Keep download/build progress on one live line instead of flooding the log
+                    progress.update(escape(event.message))
+                else:
+                    style = "white"
+                    if event.message.startswith("[EXEC]"):
+                        style = "bold cyan"
+                    elif event.message.startswith("[DRY-RUN]"):
+                        style = "bright_yellow"
+                    elif "error" in event.message.lower():
+                        style = "red"
+                    log.write(Text(event.message, style=style))
+            elif event.event_type == "step_start":
+                progress.update("")
+                log.write(Text(f"==> {event.step.title}", style="bold blue"))
+            elif event.event_type == "step_complete":
+                progress.update("")
+                log.write(Text(f"✓ Completed: {event.step.title} ({event.step.duration:.1f}s)", style="bold green"))
+            elif event.event_type == "step_fail":
+                self.has_errors = True
+                progress.update("")
+                log.write(Text(f"✗ ERROR: {event.step.title}", style="bold red"))
+                if event.step.error_message:
+                    log.write(Text(event.step.error_message, style="red"))
+            elif event.event_type == "plan_complete":
+                self._finish_plan()
 
-        self._render_steps()
+            self._render_steps()
+        except Exception:
+            pass
 
     def _finish_plan(self) -> None:
         self.done = True
