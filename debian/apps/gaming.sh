@@ -23,8 +23,11 @@ gaming_packages=(
     gamemode libgamemode0:i386 mangohud mangohud:i386 goverlay
     mesa-vulkan-drivers mesa-vulkan-drivers:i386 libvulkan1 libvulkan1:i386 vulkan-tools
     libgl1-mesa-dri:i386 libglx-mesa0:i386 ocl-icd-libopencl1 ocl-icd-libopencl1:i386
-    libasound2-plugins:i386 libpulse0:i386 libgnutls30t64:i386 libsdl2-2.0-0 libsdl2-2.0-0:i386
-    libva2 libva2:i386 libxcomposite1:i386 libsqlite3-0:i386 gstreamer1.0-plugins-base:i386
+    libasound2-plugins:i386 libpulse0:i386 libgnutls30:i386 libgnutls30t64:i386
+    libsdl2-2.0-0 libsdl2-2.0-0:i386 libva2 libva2:i386 libxcomposite1:i386
+    libsqlite3-0:i386 gstreamer1.0-plugins-base:i386
+    libldap-2.5-0:i386 libldap-2.4-2:i386 libgpg-error0:i386 libgpg-error0t64:i386
+    libxml2:i386 libfreetype6:i386 libdbus-1-3:i386
     v4l-utils python3-protobuf python3-pefile libayatana-appindicator3-1
 )
 

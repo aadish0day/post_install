@@ -55,11 +55,22 @@ tune_grub() {
     grub-mkconfig -o /boot/grub/grub.cfg || true
 }
 
+# ------------------------- Multilib -------------------------
+ensure_multilib() {
+    if ! grep -q "^\[multilib\]" /etc/pacman.conf; then
+        echo "Enabling multilib repository in /etc/pacman.conf..."
+        sed -i '/\[multilib\]/,/Include/s/^[#;]//' /etc/pacman.conf
+        pacman -Sy
+    fi
+}
+
 # ------------------------- GPU ------------------------------
 install_gpu() {
+    ensure_multilib
     echo "AMD GPU detected - installing Mesa/Vulkan/VA-API support..."
     pacman -S --noconfirm --needed \
-        linux-firmware mesa lib32-mesa vulkan-radeon lib32-vulkan-radeon vulkan-icd-loader \
+        linux-firmware mesa lib32-mesa vulkan-radeon lib32-vulkan-radeon \
+        vulkan-icd-loader lib32-vulkan-icd-loader \
         xf86-video-amdgpu vulkan-mesa-layers lib32-vulkan-mesa-layers \
         mesa-utils lib32-mesa-utils mesa-demos lib32-mesa-demos glu lib32-glu radeontop
 }

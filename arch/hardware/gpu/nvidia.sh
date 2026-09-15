@@ -24,13 +24,27 @@ require_root() {
     fi
 }
 
+# ------------------------- Multilib -------------------------
+ensure_multilib() {
+    if ! grep -q "^\[multilib\]" /etc/pacman.conf; then
+        echo "Enabling multilib repository in /etc/pacman.conf..."
+        sed -i '/\[multilib\]/,/Include/s/^[#;]//' /etc/pacman.conf
+        pacman -Sy
+    fi
+}
+
 # ------------------------- Drivers --------------------------
 install_drivers() {
+    ensure_multilib
     echo "NVIDIA GPU detected - installing NVIDIA drivers..."
     # nvidia-open-dkms supports Turing (GTX 16xx / RTX 20xx) and newer.
-    # Older cards need the legacy nvidia-*xx-dkms packages from the AUR.
+    # Older cards or non-open kernel setups can use nvidia-dkms.
+    local dkms_pkg="nvidia-open-dkms"
+    if ! pacman -Si "$dkms_pkg" &>/dev/null; then
+        dkms_pkg="nvidia-dkms"
+    fi
     pacman -S --noconfirm --needed \
-        linux-firmware linux-headers nvidia-open-dkms nvidia-utils lib32-nvidia-utils \
+        linux-firmware linux-headers "$dkms_pkg" nvidia-utils lib32-nvidia-utils \
         nvidia-settings vulkan-icd-loader lib32-vulkan-icd-loader
 }
 

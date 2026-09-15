@@ -30,11 +30,22 @@ install_cpu() {
     pacman -S --noconfirm --needed linux-firmware intel-ucode
 }
 
+# ------------------------- Multilib -------------------------
+ensure_multilib() {
+    if ! grep -q "^\[multilib\]" /etc/pacman.conf; then
+        echo "Enabling multilib repository in /etc/pacman.conf..."
+        sed -i '/\[multilib\]/,/Include/s/^[#;]//' /etc/pacman.conf
+        pacman -Sy
+    fi
+}
+
 # ------------------------- GPU ------------------------------
 install_gpu() {
+    ensure_multilib
     echo "Intel GPU detected - installing Mesa/Vulkan/VA-API support..."
     pacman -S --noconfirm --needed \
-        linux-firmware mesa lib32-mesa vulkan-intel lib32-vulkan-intel vulkan-icd-loader \
+        linux-firmware mesa lib32-mesa vulkan-intel lib32-vulkan-intel \
+        vulkan-icd-loader lib32-vulkan-icd-loader \
         intel-media-driver mesa-utils
 }
 

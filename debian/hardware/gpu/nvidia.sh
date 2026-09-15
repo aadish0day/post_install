@@ -20,9 +20,15 @@ if ! has_nvidia_gpu; then
     exit 0
 fi
 
-log "NVIDIA GPU detected - installing drivers..."
+if ! dpkg --print-foreign-architectures | grep -qx i386; then
+    log "Enabling i386 architecture for 32-bit graphics/Vulkan libraries..."
+    $SUDO dpkg --add-architecture i386
+    apt_force_update
+fi
+
+log "NVIDIA GPU detected - installing drivers and Vulkan support..."
 if is_ubuntu; then
-    apt_install ubuntu-drivers-common
+    apt_install ubuntu-drivers-common libvulkan1 libvulkan1:i386 vulkan-tools
     if ! is_simulate && ! in_container; then
         $SUDO ubuntu-drivers install
     fi
@@ -30,7 +36,8 @@ else
     kernel_headers="linux-headers-$(dpkg --print-architecture)"
     # nvidia-open-kernel-dkms supports Turing (GTX 16xx / RTX 20xx) and newer
     apt_install "$kernel_headers" dkms nvidia-open-kernel-dkms nvidia-driver firmware-misc-nonfree \
-        nvidia-settings nvidia-vulkan-icd nvidia-suspend-common libnvidia-encode1 vulkan-tools
+        nvidia-settings nvidia-vulkan-icd nvidia-driver-libs:i386 libvulkan1 libvulkan1:i386 \
+        nvidia-suspend-common libnvidia-encode1 vulkan-tools
 fi
 
 if is_laptop && ! is_simulate; then
