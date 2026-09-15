@@ -9,11 +9,18 @@ set -euo pipefail
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/common.sh"
 
 kvm_packages=(
-    qemu-system-x86 qemu-system-gui qemu-utils qemu-user-static
+    qemu-system-x86 qemu-system-gui qemu-utils
     libvirt-daemon-system libvirt-clients virt-manager virt-viewer virtinst
     dnsmasq-base bridge-utils vde2 iptables nftables netcat-openbsd
     libguestfs-tools swtpm swtpm-tools ovmf
 )
+
+# qemu-user-static was replaced by qemu-user-binfmt (Ubuntu 25.10+); the two conflict
+if apt_available qemu-user-static | grep -qx qemu-user-static; then
+    kvm_packages+=(qemu-user-static)
+else
+    kvm_packages+=(qemu-user-binfmt)
+fi
 
 log "Installing KVM and QEMU packages..."
 apt_install "${kvm_packages[@]}"

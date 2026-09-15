@@ -25,7 +25,8 @@ if has_intel_gpu; then
     log "Intel GPU detected - installing Mesa/Vulkan/VA-API support..."
     rpmfusion_enable
     dnf_install intel-gpu-firmware mesa-dri-drivers mesa-dri-drivers.i686 \
-        mesa-vulkan-drivers mesa-vulkan-drivers.i686 vulkan-tools libva-utils \
+        mesa-vulkan-drivers mesa-vulkan-drivers.i686 vulkan-loader vulkan-loader.i686 \
+        vulkan-tools libva-utils \
         intel-media-driver libva-intel-media-driver
     found=true
 fi

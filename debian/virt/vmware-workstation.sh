@@ -13,7 +13,9 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/common.sh"
 log "Installing VMware Workstation build prerequisites..."
 headers="linux-headers-$(dpkg --print-architecture)"
 is_ubuntu && headers="linux-headers-generic"
-apt_install build-essential "$headers" dkms libaio1t64 libpcsclite1 libgtkmm-3.0-1t64 libcanberra-gtk3-module bridge-utils
+# t64 names are trixie/noble+, the others bookworm/jammy; apt_install skips the missing ones
+apt_install build-essential "$headers" dkms libaio1t64 libaio1 libpcsclite1 \
+    libgtkmm-3.0-1t64 libgtkmm-3.0-1v5 libcanberra-gtk3-module bridge-utils
 
 bundle="${1:-}"
 if [ -z "$bundle" ]; then

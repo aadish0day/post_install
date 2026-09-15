@@ -17,7 +17,7 @@ command -v lspci >/dev/null 2>&1 || apt_install pciutils
 found=false
 if has_intel_cpu; then
     log "Intel CPU detected - installing microcode..."
-    apt_install intel-microcode firmware-linux-free
+    apt_install intel-microcode firmware-linux-free linux-firmware
     found=true
 fi
 
@@ -27,7 +27,7 @@ if has_intel_gpu; then
         $SUDO dpkg --add-architecture i386
         apt_force_update
     fi
-    apt_install firmware-misc-nonfree firmware-intel-graphics \
+    apt_install firmware-misc-nonfree firmware-intel-graphics linux-firmware \
         mesa-vulkan-drivers mesa-vulkan-drivers:i386 libvulkan1 libvulkan1:i386 vulkan-tools \
         libgl1-mesa-dri libgl1-mesa-dri:i386 intel-media-va-driver-non-free i965-va-driver-shaders \
         vainfo mesa-utils intel-gpu-tools

@@ -14,8 +14,8 @@ kde_plasma_packages=(
     plasma-discover-backend-flatpak kwin-x11 kwin-wayland sddm sddm-theme-breeze
     xdg-desktop-portal-kde
     rsync elisa gwenview koko kamoso okular libreoffice wl-clipboard qt6-tools-dev-tools
-    mesa-utils libva-utils mesa-vulkan-drivers vulkan-tools dosfstools sshfs kdeconnect kclock
-    kimageformat6-plugins qt6-image-formats-plugins
+    mesa-utils vainfo mesa-vulkan-drivers vulkan-tools dosfstools sshfs kdeconnect kclock
+    kimageformat6-plugins kimageformat-plugins qt6-image-formats-plugins
     # KDE specific apps
     dolphin kate konsole ark kdenlive ffmpegthumbs
 )

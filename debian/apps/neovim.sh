@@ -12,7 +12,8 @@ log "Installing Neovim build dependencies..."
 apt_install ninja-build gettext libtool libtool-bin autoconf automake cmake g++ pkg-config unzip curl doxygen npm git
 
 if is_simulate; then
-    git ls-remote --tags --exit-code https://github.com/neovim/neovim.git refs/tags/stable >/dev/null ||
+    # git is only simulated at this point, so check over HTTPS
+    url_ok https://github.com/neovim/neovim/releases/tag/stable >/dev/null ||
         die "Neovim repository not reachable"
     log "[simulate] would build and install Neovim (stable)"
     exit 0

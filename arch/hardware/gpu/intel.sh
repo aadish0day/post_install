@@ -35,7 +35,7 @@ ensure_multilib() {
     if ! grep -q "^\[multilib\]" /etc/pacman.conf; then
         echo "Enabling multilib repository in /etc/pacman.conf..."
         sed -i '/\[multilib\]/,/Include/s/^[#;]//' /etc/pacman.conf
-        pacman -Sy
+        pacman -Syu --noconfirm
     fi
 }
 

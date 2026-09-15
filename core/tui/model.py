@@ -57,7 +57,7 @@ MODULAR_DISTROS = ("arch", "debian", "fedora")
 CODING_SOURCES = {
     "arch": [" • visual-studio-code-bin", " • cursor-bin", " • claude-code", " • android-studio", " • flutter-bin", " • antigravity-cli & antigravity-ide"],
     "debian": [" • neovim (built from source)", " • VS Code (Pacstall vscode-deb / Microsoft repo)", " • Cursor (.deb)",
-               " • Claude Code (@anthropic-ai/claude-code npm)", " • Android Studio (Pacstall / Flathub)", " • Flutter (official tarball)", " • Antigravity (Google apt repo)"],
+               " • Claude Code (native installer)", " • Android Studio (Pacstall / Flathub)", " • Flutter (official tarball)", " • Antigravity (Google apt repo)"],
     "fedora": [" • neovim (dnf)", " • VS Code (Microsoft repo)", " • Cursor (.rpm)",
                " • Claude Code (@anthropic-ai/claude-code npm)", " • Android Studio (Flathub)", " • Flutter (official tarball)", " • Antigravity (Google rpm repo)"],
 }

@@ -17,6 +17,12 @@ gaming_packages=(
     mesa-dri-drivers.i686 gstreamer1-plugins-base gstreamer1-plugins-base.i686
     alsa-plugins-pulseaudio.i686 pipewire-alsa.i686 innoextract python3-protobuf python3-pefile
     steam
+    # Lutris Wine dependencies (32-bit libs Wine dlopen()s, so not pulled in by the wine package)
+    samba-winbind-clients giflib.i686 libpng.i686 libjpeg-turbo.i686 openldap.i686 gnutls.i686
+    mpg123-libs.i686 openal-soft.i686 libv4l.i686 pulseaudio-libs.i686 alsa-lib.i686
+    libgpg-error.i686 libgcrypt.i686 sqlite-libs.i686 libXcomposite.i686 libXinerama.i686
+    ncurses-libs.i686 ocl-icd.i686 libxslt.i686 libva.i686 gtk3.i686 gstreamer1.i686
+    sdl2-compat.i686 cups-libs.i686
 )
 
 log "Installing gaming packages..."

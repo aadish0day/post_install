@@ -96,12 +96,14 @@ install_claude_code() {
         log "Claude Code is already installed."
         return 0
     fi
-    if ! command -v npm >/dev/null 2>&1; then
-        log "Installing Node.js & npm..."
-        apt_install nodejs npm
+    # Native installer (the npm package is deprecated); installs to ~/.local/bin, no sudo
+    if is_simulate; then
+        url_ok https://claude.ai/install.sh >/dev/null || die "Claude Code installer not reachable"
+        log "[simulate] would install Claude Code with the native installer"
+        return 0
     fi
-    log "Installing Claude Code via npm..."
-    $SUDO npm install -g @anthropic-ai/claude-code
+    log "Installing Claude Code (native installer)..."
+    curl -fsSL https://claude.ai/install.sh | bash
 }
 
 for tool in "${tools[@]}"; do

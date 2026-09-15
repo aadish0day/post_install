@@ -29,7 +29,7 @@ ensure_multilib() {
     if ! grep -q "^\[multilib\]" /etc/pacman.conf; then
         echo "Enabling multilib repository in /etc/pacman.conf..."
         sed -i '/\[multilib\]/,/Include/s/^[#;]//' /etc/pacman.conf
-        pacman -Sy
+        pacman -Syu --noconfirm
     fi
 }
 
@@ -37,6 +37,13 @@ ensure_multilib() {
 install_drivers() {
     ensure_multilib
     echo "NVIDIA GPU detected - installing NVIDIA drivers..."
+    # Manjaro: mhwd matches the driver to its own kernels (linuxXY, not linux)
+    if command -v mhwd &>/dev/null; then
+        mhwd -a pci nonfree 0300
+        pacman -S --noconfirm --needed \
+            lib32-nvidia-utils nvidia-settings vulkan-icd-loader lib32-vulkan-icd-loader
+        return
+    fi
     # nvidia-open-dkms supports Turing (GTX 16xx / RTX 20xx) and newer.
     # Older cards or non-open kernel setups can use nvidia-dkms.
     local dkms_pkg="nvidia-open-dkms"

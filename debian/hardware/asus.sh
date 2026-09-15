@@ -21,7 +21,8 @@ apt_install git make cmake build-essential pkg-config clang libclang-dev libudev
     libpcre2-dev libgtk-3-dev power-profiles-daemon curl
 
 if is_simulate; then
-    git ls-remote --exit-code "$ASUSCTL_REPO" HEAD >/dev/null || die "asusctl repository not reachable"
+    # git is only simulated at this point, so check over HTTPS
+    url_ok "${ASUSCTL_REPO%.git}" >/dev/null || die "asusctl repository not reachable"
     url_ok https://sh.rustup.rs >/dev/null || die "rustup not reachable"
     log "[simulate] would build and install asusctl from $ASUSCTL_REPO"
     exit 0

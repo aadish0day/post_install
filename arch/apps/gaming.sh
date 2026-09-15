@@ -15,7 +15,7 @@ log "Starting Gaming Stack installation..."
 if ! grep -q "^\[multilib\]" /etc/pacman.conf; then
     log "Enabling multilib repository in /etc/pacman.conf..."
     sudo sed -i '/\[multilib\]/,/Include/s/^[#;]//' /etc/pacman.conf
-    sudo pacman -Sy
+    sudo pacman -Syu --noconfirm
 fi
 
 # List of official repository gaming packages (including Lutris Wine dependencies)

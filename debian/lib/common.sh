@@ -48,9 +48,10 @@ is_ubuntu() {
     [ "$id" = "ubuntu" ] || [[ " $id_like " == *" ubuntu "* ]]
 }
 
+# Codename of the Ubuntu/Debian base (Mint "wilma" -> "noble", LMDE "faye" -> "bookworm")
 os_codename() {
     # shellcheck disable=SC1091
-    . /etc/os-release && echo "${VERSION_CODENAME:-}"
+    . /etc/os-release && echo "${UBUNTU_CODENAME:-${DEBIAN_CODENAME:-${VERSION_CODENAME:-}}}"
 }
 
 # Download helper: download URL DEST
@@ -137,6 +138,16 @@ apt_install() {
     else
         log "Installing ${#pkgs[@]} packages with apt..."
         $SUDO apt-get install -y "${pkgs[@]}"
+    fi
+}
+
+# apt_remove PKG... : remove packages with nala when present, apt-get otherwise.
+apt_remove() {
+    [ "$#" -gt 0 ] || return 0
+    if command -v nala >/dev/null 2>&1; then
+        $SUDO nala remove -y "$@"
+    else
+        $SUDO apt-get remove -y "$@"
     fi
 }
 

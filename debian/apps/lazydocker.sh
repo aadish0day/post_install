@@ -3,7 +3,7 @@ set -euo pipefail
 
 # ============================================================================
 # LAZYDOCKER (terminal UI for Docker)
-# Pacstall lazydocker-bin, falling back to the GitHub release binary.
+# Static binary from the GitHub release.
 # ============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -38,11 +38,10 @@ install_from_github() {
 if command -v lazydocker >/dev/null 2>&1; then
     log "lazydocker is already installed: $(lazydocker --version 2>/dev/null | head -n1)"
 else
-    log "Installing lazydocker..."
-    pacstall_install lazydocker-bin || {
-        warn "Pacstall install failed, using the GitHub release instead."
-        install_from_github
-    }
+    # Not Pacstall: lazydocker-bin pulls in docker-bin, which replaces docker-ce
+    # from apps/docker.sh with its own (older, service-less) Docker build.
+    log "Installing lazydocker from the GitHub release..."
+    install_from_github
 fi
 
 # Shell alias

@@ -21,7 +21,7 @@ packages=(
     build-essential gcc make gettext libtool doxygen maven nodejs npm python3-pip pipx linux-headers-amd64
     # Media & documents
     mpv mpv-mpris mediainfo ffmpegthumbnailer imagemagick img2pdf jpegoptim highlight yt-dlp obs-studio
-    fluidsynth libdca0 libgme0 liblrdf0 libltc11 soundstretch libspandsp2t64 libchromaprint1 libavtp0
+    fluidsynth libdca0 libgme0 liblrdf0 libltc11 soundstretch libspandsp2t64 libspandsp2 libchromaprint1 libavtp0
     gstreamer1.0-libav gstreamer1.0-plugins-ugly
     # Audio (PipeWire stack)
     pipewire pipewire-audio pipewire-alsa pipewire-jack pipewire-pulse pipewire-libcamera wireplumber
@@ -68,6 +68,16 @@ if ! command -v starship >/dev/null 2>&1; then
         else
             curl -sS https://starship.rs/install.sh | sh -s -- -y
         fi
+    fi
+fi
+
+# fastfetch: apt on trixie/plucky+, upstream .deb on bookworm/noble
+if ! command -v fastfetch >/dev/null 2>&1 && ! apt_available fastfetch | grep -qx fastfetch; then
+    url="$(github_asset_url fastfetch-cli/fastfetch "fastfetch-linux-$(dpkg --print-architecture | sed 's/arm64/aarch64/')\.deb$")" || true
+    if [ -n "${url:-}" ]; then
+        install_deb_url "$url" fastfetch || warn "fastfetch installation failed"
+    else
+        warn "Could not resolve the latest fastfetch release."
     fi
 fi
 

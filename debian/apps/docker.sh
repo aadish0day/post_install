@@ -26,7 +26,7 @@ for p in "${conflicts[@]}"; do
 done
 if [ "${#installed_conflicts[@]}" -gt 0 ] && ! is_simulate; then
     log "Removing conflicting packages: ${installed_conflicts[*]}"
-    $SUDO nala remove -y "${installed_conflicts[@]}"
+    apt_remove "${installed_conflicts[@]}"
 fi
 
 add_apt_repo docker "https://download.docker.com/linux/${repo_distro}/gpg" \

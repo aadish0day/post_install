@@ -18,16 +18,21 @@ if ! dpkg --print-foreign-architectures | grep -qx i386; then
     apt_force_update
 fi
 
+# Lutris Wine dependencies: names differ across releases (bookworm/jammy vs the
+# t64 renames in trixie/noble+); apt_install skips whichever does not exist.
 gaming_packages=(
-    wine wine64 wine32:i386 winetricks innoextract cabextract
+    wine wine64 wine32:i386 winetricks innoextract cabextract winbind
     gamemode libgamemode0:i386 mangohud mangohud:i386 goverlay
     mesa-vulkan-drivers mesa-vulkan-drivers:i386 libvulkan1 libvulkan1:i386 vulkan-tools
     libgl1-mesa-dri:i386 libglx-mesa0:i386 ocl-icd-libopencl1 ocl-icd-libopencl1:i386
     libasound2-plugins:i386 libpulse0:i386 libgnutls30:i386 libgnutls30t64:i386
-    libsdl2-2.0-0 libsdl2-2.0-0:i386 libva2 libva2:i386 libxcomposite1:i386
-    libsqlite3-0:i386 gstreamer1.0-plugins-base:i386
-    libldap-2.5-0:i386 libldap-2.4-2:i386 libgpg-error0:i386 libgpg-error0t64:i386
-    libxml2:i386 libfreetype6:i386 libdbus-1-3:i386
+    libsdl2-2.0-0 libsdl2-2.0-0:i386 libva2 libva2:i386 libxcomposite1:i386 libxinerama1:i386
+    libsqlite3-0:i386 libgstreamer1.0-0:i386 gstreamer1.0-plugins-base:i386
+    libldap-2.5-0:i386 libldap2:i386 libgpg-error0:i386 libgcrypt20:i386
+    libxml2:i386 libxml2-16:i386 libxslt1.1:i386 libfreetype6:i386 libdbus-1-3:i386
+    libgif7:i386 libpng16-16:i386 libpng16-16t64:i386 libjpeg62-turbo:i386 libjpeg-turbo8:i386
+    libmpg123-0:i386 libmpg123-0t64:i386 libopenal1:i386 libv4l-0:i386 libv4l-0t64:i386
+    libncurses6:i386 libgtk-3-0:i386 libgtk-3-0t64:i386 libcups2:i386 libcups2t64:i386
     v4l-utils python3-protobuf python3-pefile libayatana-appindicator3-1
 )
 
@@ -58,12 +63,16 @@ fi
 # umu-launcher (Proton outside Steam, used by Lutris): upstream .deb per release
 log "Installing umu-launcher..."
 if ! command -v umu-run >/dev/null 2>&1; then
-    # shellcheck disable=SC1091
-    version_id="$(. /etc/os-release && echo "${VERSION_ID:-}")"
     if is_ubuntu; then
         umu_target="ubuntu-$(os_codename)"
     else
-        umu_target="debian-${version_id%%.*}"
+        # From the codename, not VERSION_ID (LMDE 6 is Debian 12)
+        case "$(os_codename)" in
+        bookworm) umu_target="debian-12" ;;
+        trixie) umu_target="debian-13" ;;
+        forky) umu_target="debian-14" ;;
+        *) umu_target="debian-unknown" ;;
+        esac
     fi
     url="$(github_asset_url Open-Wine-Components/umu-launcher "python3-umu-launcher_.*_amd64_${umu_target}\.deb$")" || true
     if [ -n "${url:-}" ]; then

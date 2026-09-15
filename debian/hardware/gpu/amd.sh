@@ -46,7 +46,7 @@ tune_grub() {
 found=false
 if has_amd_cpu; then
     log "AMD CPU detected - installing microcode and firmware..."
-    apt_install amd64-microcode firmware-linux-free
+    apt_install amd64-microcode firmware-linux-free linux-firmware
     tune_grub
     found=true
 fi
@@ -57,10 +57,11 @@ if has_amd_gpu; then
         $SUDO dpkg --add-architecture i386
         apt_force_update
     fi
-    apt_install firmware-amd-graphics \
+    apt_install firmware-amd-graphics linux-firmware \
         mesa-vulkan-drivers mesa-vulkan-drivers:i386 libvulkan1 libvulkan1:i386 vulkan-tools \
         libgl1-mesa-dri libgl1-mesa-dri:i386 libglx-mesa0 libglx-mesa0:i386 libglu1-mesa \
         mesa-va-drivers mesa-va-drivers:i386 mesa-vdpau-drivers mesa-vdpau-drivers:i386 \
+        mesa-libgallium mesa-libgallium:i386 \
         xserver-xorg-video-amdgpu vainfo mesa-utils radeontop
     found=true
 fi

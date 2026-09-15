@@ -31,12 +31,20 @@ if is_ubuntu; then
     apt_install ubuntu-drivers-common libvulkan1 libvulkan1:i386 vulkan-tools
     if ! is_simulate && ! in_container; then
         $SUDO ubuntu-drivers install
+        # 32-bit GL/Vulkan driver for Wine/Steam (only a Recommends of nvidia-driver-NNN)
+        nv_branch="$(dpkg-query -W -f='${db:Status-Abbrev} ${Package}\n' 'nvidia-driver-[0-9]*' 2>/dev/null |
+            awk '$1 == "ii" { print $2 }' | grep -oE '^nvidia-driver-[0-9]+' | grep -oE '[0-9]+$' | sort -n | tail -n1 || true)"
+        if [ -n "$nv_branch" ]; then
+            apt_install "libnvidia-gl-${nv_branch}:i386"
+        else
+            warn "No nvidia-driver-NNN package installed; skipping 32-bit NVIDIA libraries."
+        fi
     fi
 else
     kernel_headers="linux-headers-$(dpkg --print-architecture)"
     # nvidia-open-kernel-dkms supports Turing (GTX 16xx / RTX 20xx) and newer
     apt_install "$kernel_headers" dkms nvidia-open-kernel-dkms nvidia-driver firmware-misc-nonfree \
-        nvidia-settings nvidia-vulkan-icd nvidia-driver-libs:i386 libvulkan1 libvulkan1:i386 \
+        nvidia-settings nvidia-vulkan-icd nvidia-vulkan-icd:i386 nvidia-driver-libs:i386 libvulkan1 libvulkan1:i386 \
         nvidia-suspend-common libnvidia-encode1 vulkan-tools
 fi
 

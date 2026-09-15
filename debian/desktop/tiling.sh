@@ -29,7 +29,7 @@ apt_install "${x11_tiling_packages[@]}"
 # i3lock-color (Arch AUR): Pacstall builds it; conflicts with plain i3lock
 if pkg_installed i3lock && ! is_simulate; then
     log "Removing standard i3lock in favor of i3lock-color..."
-    $SUDO nala remove -y i3lock || true
+    apt_remove i3lock || true
 fi
 log "Installing i3lock-color..."
 pacstall_install i3lock-color || warn "i3lock-color could not be installed."
