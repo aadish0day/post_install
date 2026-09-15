@@ -35,6 +35,12 @@ if command -v starship >/dev/null 2>&1 && ! is_simulate; then
     append_line_once "$HOME/.bashrc" 'eval "$(starship init bash)"'
 fi
 
+# Nala as the default apt frontend
+if command -v nala >/dev/null 2>&1 && ! is_simulate; then
+    append_line_once "$HOME/.zshrc" 'alias apt='\''sudo nala'\'''
+    append_line_once "$HOME/.bashrc" 'alias apt='\''sudo nala'\'''
+fi
+
 # Start XDG desktop portal user services (socket-activated, so start only)
 if ! in_container && ! is_simulate && systemctl --user show-environment >/dev/null 2>&1; then
     for s in xdg-desktop-portal.service xdg-desktop-portal-gtk.service xdg-desktop-portal-kde.service; do

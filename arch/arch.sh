@@ -104,7 +104,7 @@ prompt_yes_no "Do you want to install NVIDIA GPU drivers (nvidia-open-dkms)?" &&
 install_aiml=false
 prompt_yes_no "Do you want to install AI/ML packages (ROCm, PyTorch, ONNX Runtime, etc.)?" && install_aiml=true
 install_coding=false
-prompt_yes_no "Do you want to install coding packages (VS Code, Android Studio, Flutter, etc.)?" && install_coding=true
+prompt_yes_no "Do you want to install coding packages (VS Code, Cursor, Claude Code, Android Studio, Flutter, etc.)?" && install_coding=true
 install_burp=false
 prompt_yes_no "Do you want to install Burp Suite Professional?" && install_burp=true
 
@@ -206,6 +206,7 @@ aur_coding_packages=(
     "antigravity-cli"
     "antigravity-ide"
     "android-studio"
+    "claude-code"
     "cursor-bin"
     "flutter-bin"
     "visual-studio-code-bin"
@@ -310,6 +311,11 @@ if [ "$install_coding" = true ]; then
     echo ""
     echo "Installing coding-specific AUR packages..."
     install_aur_packages "${aur_coding_packages[@]}"
+
+    # Configure Flutter group permissions & clean up unionfs cache if flutter was installed
+    if [ -f "$SCRIPT_DIR/apps/flutter.sh" ]; then
+        bash "$SCRIPT_DIR/apps/flutter.sh"
+    fi
 fi
 
 # Install CPU/GPU drivers and ASUS tools from hardware/ (after the AUR

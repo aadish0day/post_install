@@ -55,11 +55,11 @@ class Prompter(Protocol):
 MODULAR_DISTROS = ("arch", "debian", "fedora")
 
 CODING_SOURCES = {
-    "arch": [" • visual-studio-code-bin", " • cursor-bin", " • android-studio", " • flutter-bin", " • antigravity-cli & antigravity-ide"],
+    "arch": [" • visual-studio-code-bin", " • cursor-bin", " • claude-code", " • android-studio", " • flutter-bin", " • antigravity-cli & antigravity-ide"],
     "debian": [" • neovim (built from source)", " • VS Code (Pacstall vscode-deb / Microsoft repo)", " • Cursor (.deb)",
-               " • Android Studio (Pacstall / Flathub)", " • Flutter (official tarball)", " • Antigravity (Google apt repo)"],
+               " • Claude Code (@anthropic-ai/claude-code npm)", " • Android Studio (Pacstall / Flathub)", " • Flutter (official tarball)", " • Antigravity (Google apt repo)"],
     "fedora": [" • neovim (dnf)", " • VS Code (Microsoft repo)", " • Cursor (.rpm)",
-               " • Android Studio (Flathub)", " • Flutter (official tarball)", " • Antigravity (Google rpm repo)"],
+               " • Claude Code (@anthropic-ai/claude-code npm)", " • Android Studio (Flathub)", " • Flutter (official tarball)", " • Antigravity (Google rpm repo)"],
 }
 
 EXIT_TITLE = "Exit Installer?"
@@ -211,7 +211,7 @@ def build_menu_items(state: MenuState) -> List[MenuItem]:
             key="coding",
             label="  Developer Tools (AUR)",
             value_display=code_display,
-            description="VS Code, Cursor, Android Studio, Flutter, and Antigravity.",
+            description="VS Code, Cursor, Claude Code, Android Studio, Flutter, and Antigravity.",
             preview_lines=[
                 "Packages from arch/arch.sh (aur_coding_packages):" if is_arch else f"Script: {d}/apps/coding.sh",
                 f" • Active: {', '.join(cfg.coding_tools) if cfg.coding_tools else 'None'}",
@@ -607,6 +607,7 @@ async def handle_item_select(state: MenuState, item: MenuItem, ui: Prompter) -> 
         options += [
             ("vscode", "Visual Studio Code (visual-studio-code-bin)", "vscode" in cfg.coding_tools),
             ("cursor", "Cursor AI Code Editor (cursor-bin)", "cursor" in cfg.coding_tools),
+            ("claude_code", "Claude Code (claude-code)", "claude_code" in cfg.coding_tools),
             ("android_studio", "Android Studio (android-studio)", "android_studio" in cfg.coding_tools),
             ("flutter", "Flutter SDK (flutter-bin)", "flutter" in cfg.coding_tools),
             ("antigravity", "Antigravity CLI & IDE", "antigravity" in cfg.coding_tools)

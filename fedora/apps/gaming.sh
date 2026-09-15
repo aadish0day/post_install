@@ -20,7 +20,9 @@ gaming_packages=(
 )
 
 log "Installing gaming packages..."
-dnf_install "${gaming_packages[@]}"
+# de-skew multilib gstreamer (i686/x86_64 must share files at the same version)
+$SUDO dnf update -y --refresh gstreamer1-plugins-base &>/dev/null || true
+dnf_install --allowerasing "${gaming_packages[@]}"
 
 # umu-launcher: unified Proton launcher (Arch: umu-launcher)
 if rpm -q umu-launcher &>/dev/null; then

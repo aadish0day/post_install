@@ -258,13 +258,14 @@ class ExecutionPlan:
                 self.steps.append(Step(
                     step_id="arch_coding_aur",
                     title="Install Developer & Coding Suite (AUR)",
-                    description="Installs VS Code, Cursor, Android Studio, Flutter SDK, and Antigravity tooling.",
+                    description="Installs VS Code, Cursor, Claude Code, Android Studio, Flutter SDK, and Antigravity tooling.",
                     commands=[
                         "if command -v paru &>/dev/null; then "
-                        "  paru -S --needed --noconfirm visual-studio-code-bin cursor-bin android-studio flutter-bin antigravity-cli antigravity-ide || true; "
+                        "  paru -S --needed --noconfirm visual-studio-code-bin cursor-bin claude-code android-studio flutter-bin antigravity-cli antigravity-ide || true; "
                         "elif command -v yay &>/dev/null; then "
-                        "  yay -S --needed --noconfirm visual-studio-code-bin cursor-bin android-studio flutter-bin antigravity-cli antigravity-ide || true; "
-                        "fi"
+                        "  yay -S --needed --noconfirm visual-studio-code-bin cursor-bin claude-code android-studio flutter-bin antigravity-cli antigravity-ide || true; "
+                        "fi; "
+                        "if [ -f apps/flutter.sh ]; then bash apps/flutter.sh; fi"
                     ],
                     cwd=str(arch_dir)
                 ))

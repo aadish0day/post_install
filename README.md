@@ -26,7 +26,7 @@ Modular post-installation automation suite featuring an **`archinstall`-style in
   - **Desktop Environments**: KDE Plasma (`arch/desktop/kde.sh`), X11 Tiling Window Manager (`arch/desktop/tiling.sh`), or Headless.
   - **Virtualization**: KVM/QEMU (`arch/virt/kvm-qemu.sh`) and VMware Workstation Host (`arch/virt/vmware-workstation.sh`).
   - **Containerization**: Official Docker Engine CE, Compose plugin, Buildx, and automatic user group permissions (`arch/apps/docker.sh`).
-  - **Developer Toolchain**: Neovim with automated config cloning, VS Code, Cursor AI, Android Studio, Flutter SDK, and Antigravity tooling.
+  - **Developer Toolchain**: Neovim with automated config cloning, VS Code, Cursor AI, Claude Code, Android Studio, Flutter SDK (automated `flutter` group permissions & unionfs cache management), and Antigravity tooling.
   - **Security Suite**: Burp Suite Pro (`arch/apps/burp/install.sh`), Kali metapackages (`everything`/`large`/`labs`), SearchSploit DB.
   - **Gaming Stack**: Wine-Staging, Winetricks, Lutris, GameMode, and DXVK async (`arch/apps/gaming.sh`).
   - **AI / ML Stack**: AMD ROCm SDK, PyTorch ROCm, and ONNX Runtime ROCm.
@@ -117,6 +117,7 @@ post_install/
 │   │   ├── yay.sh                 # Yay AUR Helper installer (yay-bin fallback)
 │   │   ├── gaming.sh              # Wine-Staging, Lutris, GameMode, DXVK async
 │   │   ├── docker.sh              # Docker CE engine, Compose & Buildx
+│   │   ├── flutter.sh             # Flutter SDK user group & unionfs cache cleaner
 │   │   └── burp/                  # Burp Suite Pro automated installer
 │   ├── desktop/
 │   │   ├── kde.sh                 # KDE Plasma 6 desktop & Wayland session
@@ -136,6 +137,28 @@ post_install/
 ├── kali/                          # Kali Linux security suite & workspace
 └── termux/                        # Android Termux modular installers
 ```
+
+---
+
+## 🛠️ Flutter SDK on Arch Linux (`flutter-bin`)
+
+Arch Linux installs the Flutter SDK to `/opt/flutter` via the `flutter-bin` AUR package. The package launcher (`/opt/flutter/bin/aur_init.sh`) enforces the following behavior:
+
+1. **Direct Access via `flutter` Group (Recommended & Automated)**:
+   - When your user belongs to the `flutter` group, Flutter operates directly inside `/opt/flutter` with native read/write permissions.
+   - `arch/apps/flutter.sh` automatically adds your user to this group:
+     ```bash
+     sudo usermod -aG flutter $USER
+     ```
+   - *Benefits*: Zero FUSE/unionfs overhead, faster execution, and no locked cache files during upgrades.
+
+2. **Unionfs Fallback & Cache Cleanup**:
+   - If a user is not in the `flutter` group, writes are redirected to an active FUSE overlay at `~/.cache/flutter_sdk`.
+   - After updating `flutter-bin`, the legacy cache must be detached and cleaned up:
+     ```bash
+     fusermount -u -z ~/.cache/flutter_sdk 2>/dev/null || true
+     \rm -rf ~/.cache/{flutter_sdk,flutter_local}
+     ```
 
 ---
 

@@ -82,7 +82,7 @@ prompt_yes_no "Install NVIDIA GPU drivers (nvidia-open-kernel-dkms)?" && install
 install_aiml=false
 prompt_yes_no "Install AI/ML packages (ROCm runtime, PyTorch ROCm venv)?" && install_aiml=true
 install_coding=false
-prompt_yes_no "Install coding tools (Neovim, VS Code, Cursor, Android Studio, Flutter, Antigravity)?" && install_coding=true
+prompt_yes_no "Install coding tools (Neovim, VS Code, Cursor, Claude Code, Android Studio, Flutter, Antigravity)?" && install_coding=true
 install_productivity=false
 prompt_yes_no "Install productivity apps (AnyDesk, Thorium, Zen, Vesktop, Obsidian, LocalSend, ani-cli)?" && install_productivity=true
 

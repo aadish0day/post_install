@@ -15,7 +15,7 @@ set -euo pipefail
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/common.sh"
 
-ALL_TOOLS=(neovim vscode cursor android_studio flutter antigravity)
+ALL_TOOLS=(neovim vscode cursor claude_code android_studio flutter antigravity)
 TOOLS=("$@")
 [ ${#TOOLS[@]} -eq 0 ] && TOOLS=("${ALL_TOOLS[@]}")
 
@@ -102,9 +102,22 @@ repo_gpgcheck=0"
     dnf_install --strict antigravity
 }
 
+install_claude_code() {
+    if command -v claude >/dev/null 2>&1; then
+        log "Claude Code is already installed."
+        return 0
+    fi
+    if ! command -v npm >/dev/null 2>&1; then
+        log "Installing Node.js & npm..."
+        dnf_install nodejs npm
+    fi
+    log "Installing Claude Code via npm..."
+    $SUDO npm install -g @anthropic-ai/claude-code
+}
+
 for tool in "${TOOLS[@]}"; do
     case "$tool" in
-    neovim | vscode | cursor | android_studio | flutter | antigravity)
+    neovim | vscode | cursor | claude_code | android_studio | flutter | antigravity)
         log "=== $tool ==="
         "install_$tool"
         ;;

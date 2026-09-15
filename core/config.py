@@ -49,6 +49,7 @@ class PostInstallConfig:
             "neovim",
             "vscode",
             "cursor",
+            "claude_code",
             "android_studio",
             "flutter",
             "antigravity",

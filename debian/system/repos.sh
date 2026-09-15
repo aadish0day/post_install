@@ -37,7 +37,7 @@ if ! dpkg --print-foreign-architectures | grep -qx i386; then
 fi
 
 apt_force_update
-log "Installing repository tooling..."
-$SUDO apt-get install -y nala curl wget ca-certificates gnupg apt-transport-https lsb-release
+log "Installing repository tooling (nala becomes the default apt frontend)..."
+apt_install nala curl wget ca-certificates gnupg apt-transport-https lsb-release
 
 log "Repository setup complete."

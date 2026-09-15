@@ -12,7 +12,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/common.sh
 source "$SCRIPT_DIR/../lib/common.sh"
 
-ALL_TOOLS=(neovim vscode cursor android_studio flutter antigravity)
+ALL_TOOLS=(neovim vscode cursor claude_code android_studio flutter antigravity)
 tools=("$@")
 [ "${#tools[@]}" -gt 0 ] || tools=("${ALL_TOOLS[@]}")
 
@@ -91,11 +91,25 @@ install_antigravity() {
     apt_install antigravity
 }
 
+install_claude_code() {
+    if command -v claude >/dev/null 2>&1; then
+        log "Claude Code is already installed."
+        return 0
+    fi
+    if ! command -v npm >/dev/null 2>&1; then
+        log "Installing Node.js & npm..."
+        apt_install nodejs npm
+    fi
+    log "Installing Claude Code via npm..."
+    $SUDO npm install -g @anthropic-ai/claude-code
+}
+
 for tool in "${tools[@]}"; do
     case "$tool" in
     neovim) log "==> Neovim" && install_neovim ;;
     vscode) log "==> Visual Studio Code" && install_vscode ;;
     cursor) log "==> Cursor" && install_cursor ;;
+    claude_code) log "==> Claude Code" && install_claude_code ;;
     android_studio) log "==> Android Studio" && install_android_studio ;;
     flutter) log "==> Flutter SDK" && install_flutter ;;
     antigravity) log "==> Antigravity" && install_antigravity ;;
