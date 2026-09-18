@@ -31,13 +31,16 @@ if [ -z "${POST_INSTALL_LOGGED:-}" ]; then
 		[ -t 0 ] && [ -t 1 ] && ORIG_TTY=yes
 		export POST_INSTALL_ORIG_TTY="$ORIG_TTY"
 		printf '==> Full session log: %s\n' "$LOG_FILE"
-		printf -v SELF_Q '%q' "$0"
+		# Re-invoke via absolute path: "$0" may be relative (e.g. `bash
+		# install.sh`), which script's inner shell cannot resolve alone.
+		printf -v SELF_Q '%q' "$SCRIPT_DIR/$(basename "$0")"
+		printf -v BASH_Q '%q' "$BASH"
 		ARGS=""
 		for a in "$@"; do
 			printf -v aq '%q' "$a"
 			ARGS+=" $aq"
 		done
-		exec script -qefc "$SELF_Q$ARGS" "$LOG_FILE"
+		exec script -qefc "$BASH_Q $SELF_Q$ARGS" "$LOG_FILE"
 	fi
 	# `script` missing: fall back to tee (still captures everything).
 	export PYTHONUNBUFFERED=1
