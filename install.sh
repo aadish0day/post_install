@@ -2,10 +2,53 @@
 # ============================================================================
 # Post-Installation Automation Suite (Universal Launcher)
 # Provides Archinstall-style interactive TUI with pure shell fallback.
+# Every run mirrors the full session (stdout + stderr) to a log in /tmp:
+#   /tmp/post-install-YYYYmmdd_HHMMSS.log
 # ============================================================================
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# ============================================================================
+# LOGGING: mirror the full session (stdout + stderr) into /tmp.
+# Uses `script` when available so the interactive TUI keeps working, with a
+# `tee` fallback for systems lacking `script` (there the TUI degrades to CLI).
+# Re-invocation is guarded by POST_INSTALL_LOGGED to avoid infinite recursion;
+# the inner run reuses the same LOG_FILE via POST_INSTALL_LOG_FILE.
+# ============================================================================
+if [ -n "${POST_INSTALL_LOGGED:-}" ] && [ -n "${POST_INSTALL_LOG_FILE:-}" ]; then
+	LOG_FILE="$POST_INSTALL_LOG_FILE"
+else
+	LOG_FILE="/tmp/post-install-$(date +%Y%m%d_%H%M%S).log"
+fi
+
+if [ -z "${POST_INSTALL_LOGGED:-}" ]; then
+	export POST_INSTALL_LOGGED=1 POST_INSTALL_LOG_FILE="$LOG_FILE"
+	if command -v script &>/dev/null; then
+		# Remember whether we were attached to a real terminal before the
+		# pty re-invocation, so the TUI decision below is unchanged.
+		ORIG_TTY=no
+		[ -t 0 ] && [ -t 1 ] && ORIG_TTY=yes
+		export POST_INSTALL_ORIG_TTY="$ORIG_TTY"
+		printf '==> Full session log: %s\n' "$LOG_FILE"
+		printf -v SELF_Q '%q' "$0"
+		ARGS=""
+		for a in "$@"; do
+			printf -v aq '%q' "$a"
+			ARGS+=" $aq"
+		done
+		exec script -qefc "$SELF_Q$ARGS" "$LOG_FILE"
+	fi
+	# `script` missing: fall back to tee (still captures everything).
+	export PYTHONUNBUFFERED=1
+	exec > >(tee "$LOG_FILE") 2>&1
+	trap 'wait' EXIT
+fi
+
+# Fixed-name symlink for easy access + session header (both captured in log).
+ln -sf "$LOG_FILE" /tmp/post-install-latest.log || true
+printf '==> Session start: %s | args: %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "${*:-none}"
+printf '==> Full log: %s\n' "$LOG_FILE"
 
 # Install Textual (the archinstall-style interface) if it's missing or too old.
 # Failures are non-fatal: install.py falls back to the curses interface.
@@ -29,7 +72,11 @@ ensure_textual() {
 # If Python 3 is available, launch the Archinstall-style TUI interface
 if command -v python3 &>/dev/null; then
 	needs_tui=true
-	[ -t 0 ] && [ -t 1 ] || needs_tui=false
+	if [ "${POST_INSTALL_ORIG_TTY:-auto}" = auto ]; then
+		[ -t 0 ] && [ -t 1 ] || needs_tui=false
+	else
+		[ "$POST_INSTALL_ORIG_TTY" = yes ] || needs_tui=false
+	fi
 	for arg in "$@"; do
 		case "$arg" in
 		--headless | --cli | --save-config* | curses | --tui=curses) needs_tui=false ;;
