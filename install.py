@@ -137,7 +137,11 @@ Examples:
             cfg = PostInstallConfig.default_for_system()
         if args.distro:
             cfg.set_distro(args.distro)
-        return run_headless_cli(cfg, SCRIPT_DIR, dry_run=args.dry_run)
+        try:
+            return run_headless_cli(cfg, SCRIPT_DIR, dry_run=args.dry_run)
+        except KeyboardInterrupt:
+            print("\n\nInstallation interrupted by user. No further steps were run.")
+            return 130
 
     if args.tui == "textual" and not textual_available():
         print("Textual is not installed (python-textual >= 2.0). Install it or use --tui curses.", file=sys.stderr)
@@ -154,4 +158,10 @@ Examples:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        # Catch-all for interrupts outside the headless loop (e.g. while
+        # detecting the system or inside the TUI frontend).
+        print()
+        sys.exit(130)

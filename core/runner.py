@@ -577,6 +577,7 @@ def run_plan(plan: ExecutionPlan, dry_run: bool = False) -> Generator[ExecutionE
         for cmd in step.commands:
             yield ExecutionEvent(event_type="output", step_index=idx, step=step, message=f"[EXEC] {cmd}")
             master_fd = None
+            proc = None
             try:
                 master_fd, slave_fd = pty.openpty()
                 proc = subprocess.Popen(
@@ -642,6 +643,18 @@ def run_plan(plan: ExecutionPlan, dry_run: bool = False) -> Generator[ExecutionE
                 error_lines.append(str(e))
                 break
             finally:
+                # On Ctrl+C the exception unwinds through here; make sure the
+                # child (e.g. dnf) is reaped instead of lingering in the tty group.
+                if proc is not None and proc.poll() is None:
+                    try:
+                        proc.terminate()
+                        try:
+                            proc.wait(timeout=5)
+                        except subprocess.TimeoutExpired:
+                            proc.kill()
+                            proc.wait()
+                    except Exception:
+                        pass
                 if master_fd is not None:
                     try:
                         os.close(master_fd)
