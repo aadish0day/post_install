@@ -31,7 +31,10 @@ packages=(
 )
 
 log "Installing base packages..."
-dnf_install "${packages[@]}"
+# --allowerasing lets dnf finish Fedora package transitions that would
+# otherwise abort the whole transaction with file conflicts (the Fedora 44
+# run hit the KDE PIM kmime -> kf6-kmime rename this way).
+dnf_install --allowerasing "${packages[@]}"
 
 # COPR tools (system/repos.sh), each with a GitHub release fallback
 log "Installing starship and yazi (COPR, GitHub fallback)..."
