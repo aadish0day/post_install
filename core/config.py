@@ -40,10 +40,10 @@ class PostInstallConfig:
     # Virtualization & Containers
     virt_kvm_qemu: bool = False
     virt_vmware_workstation: bool = False
-    docker_enabled: bool = True
+    docker_enabled: bool = False
 
     # Dev & Pentest
-    coding_enabled: bool = True
+    coding_enabled: bool = False
     coding_tools: list[str] = field(
         default_factory=lambda: [
             "neovim",
@@ -62,7 +62,7 @@ class PostInstallConfig:
     # Extra Stacks
     gaming_enabled: bool = False
     ai_ml_enabled: bool = False
-    productivity_enabled: bool = True  # debian/fedora apps/productivity.sh (Arch AUR app equivalents)
+    productivity_enabled: bool = False  # debian/fedora apps/productivity.sh (Arch AUR app equivalents)
 
     # Auto-discovered extra app scripts (e.g. ["xdm", "someapp"])
     extra_scripts: list[str] = field(default_factory=list)
@@ -71,7 +71,7 @@ class PostInstallConfig:
     repos_mirror_ranking: bool = True
     aur_helper: str = "paru"  # paru, yay, both, none
     repos_pacstall: bool = False
-    repos_flatpak: bool = True  # debian/fedora system/flatpak.sh (Flathub)
+    repos_flatpak: bool = False  # debian/fedora system/flatpak.sh (Flathub)
     theme_nerd_fonts: bool = True
 
     def set_distro(self, distro_id: str) -> None:
@@ -114,8 +114,6 @@ class PostInstallConfig:
             cfg.hardware_amd_gpu = "amd" in info.gpu_vendors or info.cpu_vendor == "amd"
             cfg.hardware_nvidia_gpu = "nvidia" in info.gpu_vendors
             cfg.hardware_intel_gpu = "intel" in info.gpu_vendors or info.cpu_vendor == "intel"
-            cfg.gaming_enabled = cfg.distro == "fedora"
-            cfg.repos_flatpak = True
             cfg.repos_pacstall = cfg.distro == "debian"
             cfg.repos_mirror_ranking = False
 
