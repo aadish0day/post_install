@@ -11,8 +11,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # ============================================================================
 # LOGGING: mirror the full session (stdout + stderr) into /tmp.
-# Uses `script` when available so the interactive TUI keeps working, with a
-# `tee` fallback for systems lacking `script` (there the TUI degrades to CLI).
+# Uses `script` so the interactive TUI keeps a real TTY while the session is
+# logged. Some distributions split `script` into its own package (Fedora:
+# util-linux-script), so install it on demand; only if that fails do we fall
+# back to `tee`, where the TUI degrades to the non-interactive CLI.
 # Re-invocation is guarded by POST_INSTALL_LOGGED to avoid infinite recursion;
 # the inner run reuses the same LOG_FILE via POST_INSTALL_LOG_FILE.
 # ============================================================================
@@ -22,8 +24,31 @@ else
 	LOG_FILE="/tmp/post-install-$(date +%Y%m%d_%H%M%S).log"
 fi
 
+# Ensure `script` is present so the default TUI gets a real terminal.
+ensure_script() {
+	command -v script &>/dev/null && return 0
+
+	local SUDO=""
+	[ "$(id -u)" -ne 0 ] && command -v sudo &>/dev/null && SUDO="sudo"
+
+	echo "Installing 'script' (required for the interactive TUI and session log)..."
+	if command -v dnf &>/dev/null; then
+		$SUDO dnf install -y util-linux-script
+	elif command -v pacman &>/dev/null; then
+		$SUDO pacman -S --needed --noconfirm util-linux
+	elif command -v apt-get &>/dev/null; then
+		$SUDO apt-get install -y bsdutils util-linux
+	elif command -v zypper &>/dev/null; then
+		$SUDO zypper --non-interactive install util-linux
+	elif [ -d "/data/data/com.termux" ] || [ -n "${TERMUX_VERSION:-}" ]; then
+		pkg install -y util-linux
+	fi
+	command -v script &>/dev/null
+}
+
 if [ -z "${POST_INSTALL_LOGGED:-}" ]; then
 	export POST_INSTALL_LOGGED=1 POST_INSTALL_LOG_FILE="$LOG_FILE"
+	ensure_script || echo "Could not install 'script'; continuing in non-interactive CLI mode."
 	if command -v script &>/dev/null; then
 		# Remember whether we were attached to a real terminal before the
 		# pty re-invocation, so the TUI decision below is unchanged.
