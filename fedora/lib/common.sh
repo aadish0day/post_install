@@ -277,22 +277,44 @@ install_pkg_or_github() {
     install_github_binary "$repo" "$regex" "$@"
 }
 
-# pipx_install PACKAGE...  (per-user, into ~/.local/bin)
-pipx_install() {
-    command -v pipx &>/dev/null || $SUDO dnf install -y pipx
+# ----------------------------------------------------------------------------
+# Python CLI Tools (uv tool)
+# ----------------------------------------------------------------------------
+
+ensure_uv() {
+    if command -v uv &>/dev/null; then
+        return 0
+    fi
+    if dnf_install uv &>/dev/null && command -v uv &>/dev/null; then
+        return 0
+    fi
+    log "Installing uv via official installer..."
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+}
+
+# uv_tool_install PACKAGE...  (per-user, into ~/.local/bin)
+uv_tool_install() {
+    ensure_uv
     local pkg
     for pkg in "$@"; do
-        if [ -x "${PIPX_BIN_DIR:-$HOME/.local/bin}/$pkg" ] && "${PIPX_BIN_DIR:-$HOME/.local/bin}/$pkg" --version &>/dev/null; then
-            log "pipx $pkg already installed"
+        local bin_name="${pkg%%[*}"
+        if [ -x "${UV_TOOL_BIN_DIR:-$HOME/.local/bin}/$bin_name" ] && "${UV_TOOL_BIN_DIR:-$HOME/.local/bin}/$bin_name" --version &>/dev/null; then
+            log "uv tool $pkg already installed"
         elif is_simulate; then
-            curl -fsS -o /dev/null "https://pypi.org/pypi/${pkg}/json" || die "$pkg not found on PyPI"
-            log "[simulate] pipx $pkg is available on PyPI"
+            curl -fsS -o /dev/null "https://pypi.org/pypi/${bin_name}/json" || die "$pkg not found on PyPI"
+            log "[simulate] uv tool $pkg is available on PyPI"
         else
-            # --force also repairs venvs left broken by a Python upgrade
-            pipx install --force "$pkg"
+            log "Installing $pkg with uv tool..."
+            uv tool install --force "$pkg"
         fi
     done
     add_path_line 'export PATH="$HOME/.local/bin:$PATH"'
+}
+
+# Backward compatibility alias
+pipx_install() {
+    uv_tool_install "$@"
 }
 
 # ----------------------------------------------------------------------------

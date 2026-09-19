@@ -39,7 +39,7 @@ gpgkey=https://keys.anydesk.com/repos/RPM-GPG-KEY"
 dnf_install anydesk
 
 # Python CLIs (Arch: gallery-dl-bin, markitdown-bin)
-pipx_install gallery-dl markitdown
+uv_tool_install gallery-dl markitdown
 
 # Vesktop Discord client (Arch: vesktop-bin)
 if rpm -q vesktop &>/dev/null; then

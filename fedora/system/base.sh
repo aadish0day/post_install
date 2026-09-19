@@ -16,7 +16,7 @@ packages=(
     highlight htop inxi jq less libtool make man-db man-pages maven ncdu neovim nodejs npm
     parallel plocate pv ranger ripgrep tar tree tree-sitter-cli trash-cli tmux
     unzip xz zip zstd lz4 7zip zoxide zsh dosfstools usbutils curl wget ca-certificates
-    lsd btop pipx python3-pip kernel-headers kernel-devel
+    lsd btop uv python3-pip kernel-headers kernel-devel
     # Media & documents
     ImageMagick python3-img2pdf jpegoptim mediainfo mpv mpv-mpris ffmpegthumbnailer
     doxygen chromaprint-tools fluidsynth soundtouch spandsp yt-dlp obs-studio
@@ -50,7 +50,7 @@ install_github_binary lexiforest/curl-impersonate 'curl-impersonate-v[0-9.]+\.x8
 swap_ffmpeg
 
 # Python CLI tools (AUR gallery-dl-bin / markitdown-bin equivalents)
-pipx_install gallery-dl markitdown
+uv_tool_install gallery-dl markitdown
 
 if command -v git &>/dev/null && command -v git-lfs &>/dev/null && ! is_simulate; then
     log "Initializing Git LFS..."

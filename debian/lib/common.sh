@@ -316,10 +316,22 @@ pacstall_install() {
 }
 
 # ----------------------------------------------------------------------------
-# pipx
+# Python CLI Tools (uv tool)
 # ----------------------------------------------------------------------------
-pipx_install() {
-    command -v pipx >/dev/null 2>&1 || apt_install pipx
+ensure_uv() {
+    if command -v uv >/dev/null 2>&1; then
+        return 0
+    fi
+    if apt_install uv >/dev/null 2>&1 && command -v uv >/dev/null 2>&1; then
+        return 0
+    fi
+    log "Installing uv via official installer..."
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+}
+
+uv_tool_install() {
+    ensure_uv
     local pkg name
     for pkg in "$@"; do
         name="${pkg%%[*}"
@@ -328,17 +340,21 @@ pipx_install() {
                 err "PyPI package $name not found"
                 return 1
             }
-            log "[simulate] would pipx install $pkg"
+            log "[simulate] would install $pkg with uv tool"
             continue
         fi
-        if pipx list --short 2>/dev/null | grep -q "^$name "; then
-            log "$pkg already installed with pipx."
+        if [ -x "${UV_TOOL_BIN_DIR:-$HOME/.local/bin}/$name" ] && "${UV_TOOL_BIN_DIR:-$HOME/.local/bin}/$name" --version >/dev/null 2>&1; then
+            log "$pkg already installed with uv."
         else
-            log "Installing $pkg with pipx..."
-            pipx install "$pkg"
+            log "Installing $pkg with uv tool..."
+            uv tool install --force "$pkg"
         fi
     done
-    pipx ensurepath >/dev/null 2>&1 || true
+    add_path_line 'export PATH="$HOME/.local/bin:$PATH"'
+}
+
+pipx_install() {
+    uv_tool_install "$@"
 }
 
 # ----------------------------------------------------------------------------
