@@ -46,8 +46,11 @@ if rpm -q vesktop &>/dev/null; then
     log "Vesktop already installed"
 else
     url="$(github_asset_url Vencord/Vesktop 'x86_64\.rpm$')"
-    [ -n "$url" ] || die "No Vesktop rpm found on GitHub"
-    install_rpm_url "$url"
+    if [ -n "$url" ]; then
+        install_rpm_url "$url" || warn "Failed to install Vesktop rpm; skipping."
+    else
+        warn "No Vesktop rpm found on GitHub; skipping."
+    fi
 fi
 
 # Thorium browser (Arch: thorium-browser-bin). Recent releases dropped the
@@ -64,7 +67,7 @@ else
         grep -oE "https://github.com/[^\"]+_${variant}\.rpm" | head -n1 || true)"
     if [ -n "$url" ]; then
         log "Thorium $variant build: $url"
-        install_rpm_url "$url"
+        install_rpm_url "$url" || warn "Thorium installation failed; skipping."
     else
         warn "No Thorium rpm found on GitHub; skipping."
     fi

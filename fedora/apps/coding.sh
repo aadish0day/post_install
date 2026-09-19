@@ -73,6 +73,10 @@ install_flutter() {
 }
 
 install_antigravity() {
+    if rpm -q antigravity &>/dev/null; then
+        log "Antigravity already installed"
+        return 0
+    fi
     local base="https://us-central1-yum.pkg.dev/projects/antigravity-auto-updater-dev/antigravity-rpm"
     local key="https://us-central1-yum.pkg.dev/doc/repo-signing-key.gpg"
     local tmp

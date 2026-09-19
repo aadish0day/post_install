@@ -30,7 +30,7 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 in_container() {
-    [ -f /run/.containerenv ] || [ -f /.dockerenv ]
+    [ -f /run/.containerenv ] || [ -f /.dockerenv ] || [ -f /run/.toolboxenv ] || [ -n "${DISTROBOX_ENTER_PATH:-}" ]
 }
 
 is_simulate() {
@@ -323,7 +323,7 @@ pipx_install() {
 
 ensure_flathub() {
     command -v flatpak &>/dev/null || $SUDO dnf install -y flatpak
-    $SUDO flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+    $SUDO flatpak remote-add --if-not-exists --system flathub https://dl.flathub.org/repo/flathub.flatpakrepo || true
 }
 
 # flatpak_install APP_ID...
@@ -331,15 +331,18 @@ flatpak_install() {
     ensure_flathub
     local app
     for app in "$@"; do
-        if flatpak info "$app" &>/dev/null; then
+        if flatpak info --system "$app" &>/dev/null || flatpak info --user "$app" &>/dev/null || flatpak info "$app" &>/dev/null 2>&1; then
             log "Flatpak $app already installed"
         elif is_simulate || in_container; then
             # Flatpak apps need a real session/bwrap; just confirm they exist on Flathub
-            flatpak remote-info flathub "$app" >/dev/null || die "Flatpak $app not found on Flathub"
-            log "[simulate] flatpak $app is available on Flathub"
+            if flatpak remote-info --system flathub "$app" &>/dev/null || flatpak remote-info --user flathub "$app" &>/dev/null; then
+                log "[container/simulate] Flatpak $app verified on Flathub"
+            else
+                warn "Could not verify Flatpak $app on Flathub (container mode or network issue), skipping install"
+            fi
         else
             log "Installing flatpak $app"
-            $SUDO flatpak install -y --noninteractive flathub "$app"
+            $SUDO flatpak install -y --noninteractive --system flathub "$app"
         fi
     done
 }

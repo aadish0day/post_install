@@ -521,7 +521,7 @@ class ExecutionPlan:
 
         # 10. AI / ML
         if cfg.ai_ml_enabled:
-            add("aiml", "apps/aiml.sh", "Install ROCm & AI/ML Acceleration Suite", "Installs ROCm runtime tools and PyTorch ROCm in ~/.venvs/rocm.")
+            add("aiml", "apps/aiml.sh", "Install ROCm & AI/ML Acceleration Suite", "Installs ROCm runtime, HIP compilers, and OpenCL acceleration tools.")
 
         # 11. Productivity apps (Arch AUR list equivalents)
         if cfg.productivity_enabled:
