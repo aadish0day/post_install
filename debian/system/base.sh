@@ -107,7 +107,8 @@ if ! command -v yazi >/dev/null 2>&1; then
 fi
 
 # Python CLI tools (Arch: gallery-dl-bin, markitdown-bin)
-log "Installing Python CLI tools with pipx..."
-pipx_install gallery-dl "markitdown[all]"
+log "Installing Python CLI tools with uv tool..."
+uv_tool_install gallery-dl
+uv_tool_install --with markitdown-ocr --with openai "markitdown[all]"
 
 log "Base package installation complete."

@@ -90,8 +90,9 @@ try_install "Vesktop (Discord)" vesktop vesktop-deb fallback_vesktop
 try_install "Obsidian" obsidian obsidian-deb fallback_obsidian
 try_install "LocalSend" localsend_app "" install_localsend
 
-log "==> gallery-dl & markitdown (pipx)"
-pipx_install gallery-dl "markitdown[all]" || failed+=("pipx tools")
+log "==> gallery-dl & markitdown (uv tool)"
+uv_tool_install gallery-dl || failed+=("gallery-dl")
+bash "$SCRIPT_DIR/markitdown.sh" || failed+=("markitdown")
 
 log "Note: advcpmv (patched cp/mv with progress bars) has no Debian package; skipped."
 

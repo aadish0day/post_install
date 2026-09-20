@@ -5,14 +5,15 @@ set -euo pipefail
 # FEDORA PRODUCTIVITY APPS (Arch AUR list equivalents)
 #   ani-cli        GitHub script (+ mpv, fzf, aria2, yt-dlp, ffmpeg deps)
 #   anydesk        rpm.anydesk.com repo
-#   gallery-dl     pipx      markitdown  pipx
+#   gallery-dl     uv tool   markitdown  uv tool
 #   localsend      Flathub   zen-browser Flathub   obsidian  Flathub
 #   thorium        newest GitHub release that ships an .rpm (AVX2/SSE4/SSE3 build)
 #   vesktop        GitHub .rpm
 #   advcpmv        skipped (patched coreutils, no Fedora build)
 # ============================================================================
 
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/common.sh"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../lib/common.sh"
 
 # ani-cli (Arch: ani-cli)
 dnf_install mpv fzf aria2 yt-dlp curl grep sed patch
@@ -39,7 +40,8 @@ gpgkey=https://keys.anydesk.com/repos/RPM-GPG-KEY"
 dnf_install anydesk
 
 # Python CLIs (Arch: gallery-dl-bin, markitdown-bin)
-uv_tool_install gallery-dl markitdown
+uv_tool_install gallery-dl
+bash "$SCRIPT_DIR/markitdown.sh"
 
 # Vesktop Discord client (Arch: vesktop-bin)
 if rpm -q vesktop &>/dev/null; then

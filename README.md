@@ -26,7 +26,7 @@ Modular post-installation automation suite featuring an **`archinstall`-style in
   - **Desktop Environments**: KDE Plasma (`arch/desktop/kde.sh`), X11 Tiling Window Manager (`arch/desktop/tiling.sh`), or Headless.
   - **Virtualization**: KVM/QEMU (`arch/virt/kvm-qemu.sh`) and VMware Workstation Host (`arch/virt/vmware-workstation.sh`).
   - **Containerization**: Official Docker Engine CE, Compose plugin, Buildx, and automatic user group permissions (`arch/apps/docker.sh`).
-  - **Developer Toolchain**: Neovim with automated config cloning, VS Code, Cursor AI, Claude Code, Android Studio, Flutter SDK (automated `flutter` group permissions & unionfs cache management), and Antigravity tooling.
+  - **Developer Toolchain & Productivity**: Neovim with automated config cloning, VS Code, Cursor AI, Claude Code, Android Studio, Flutter SDK (automated `flutter` group permissions & unionfs cache management), Antigravity tooling, and MarkItDown (multimodal document-to-Markdown CLI converter with OCR and LLM plugins).
   - **Security Suite**: Burp Suite Pro (`arch/apps/burp/install.sh`), Kali metapackages (`everything`/`large`/`labs`), SearchSploit DB.
   - **Gaming Stack**: Wine-Staging, Winetricks, Lutris, GameMode, and DXVK async (`arch/apps/gaming.sh`).
   - **AI / ML Stack**: AMD ROCm SDK, PyTorch ROCm, and ONNX Runtime ROCm.

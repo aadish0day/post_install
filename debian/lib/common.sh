@@ -70,6 +70,7 @@ url_ok() {
 _APT_UPDATED=0
 
 apt_update() {
+    is_simulate && return 0
     if [ "$_APT_UPDATED" = "0" ]; then
         if command -v nala >/dev/null 2>&1; then
             log "Updating package lists with nala..."
@@ -89,6 +90,12 @@ apt_force_update() {
 
 # Print the subset of the given packages that have an install candidate.
 apt_available() {
+    if ! command -v apt-cache >/dev/null 2>&1; then
+        if is_simulate; then
+            printf '%s\n' "$@"
+        fi
+        return 0
+    fi
     apt-cache policy "$@" 2>/dev/null | awk '
         /^[^ \t].*:$/ { pkg = substr($0, 1, length($0) - 1) }
         /^[ \t]+Candidate:/ { if ($2 != "(none)") print pkg }
@@ -122,7 +129,10 @@ apt_install() {
 
     if is_simulate; then
         local out
-        log "[simulate] apt-get install ${#pkgs[@]} packages"
+        log "[simulate] apt-get install ${#pkgs[@]} packages: ${pkgs[*]}"
+        if ! command -v apt-get >/dev/null 2>&1; then
+            return 0
+        fi
         if ! out="$(apt-get -s install -y "${pkgs[@]}" 2>&1)"; then
             printf '%s\n' "$out" | tail -n 25 >&2
             err "apt-get simulation failed"
@@ -330,24 +340,49 @@ ensure_uv() {
     export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 }
 
+# add_path_line LINE (appends to ~/.zshrc and ~/.bashrc once)
+add_path_line() {
+    local rc
+    for rc in "$HOME/.zshrc" "$HOME/.bashrc"; do
+        touch "$rc"
+        append_line_once "$rc" "$1"
+    done
+}
+
 uv_tool_install() {
     ensure_uv
+    local with_args=()
+    local pkgs=()
+    while [ $# -gt 0 ]; do
+        case "$1" in
+        --with)
+            shift
+            [ $# -gt 0 ] || die "--with requires a package name"
+            with_args+=(--with "$1")
+            ;;
+        *)
+            pkgs+=("$1")
+            ;;
+        esac
+        shift
+    done
+
     local pkg name
-    for pkg in "$@"; do
+    for pkg in "${pkgs[@]}"; do
         name="${pkg%%[*}"
         if is_simulate; then
             url_ok "https://pypi.org/pypi/$name/json" >/dev/null || {
                 err "PyPI package $name not found"
                 return 1
             }
-            log "[simulate] would install $pkg with uv tool"
+            log "[simulate] would install $pkg ${with_args[*]:-} with uv tool"
             continue
         fi
         if [ -x "${UV_TOOL_BIN_DIR:-$HOME/.local/bin}/$name" ] && "${UV_TOOL_BIN_DIR:-$HOME/.local/bin}/$name" --version >/dev/null 2>&1; then
             log "$pkg already installed with uv."
         else
-            log "Installing $pkg with uv tool..."
-            uv tool install --force "$pkg"
+            log "Installing $pkg ${with_args[*]:-} with uv tool..."
+            uv tool install --force "${with_args[@]}" "$pkg"
         fi
     done
     add_path_line 'export PATH="$HOME/.local/bin:$PATH"'

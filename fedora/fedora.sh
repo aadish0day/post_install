@@ -85,7 +85,7 @@ prompt_yes_no "Do you want to install AI/ML packages (ROCm, PyTorch ROCm)?" && i
 install_coding=false
 prompt_yes_no "Do you want to install coding tools (Neovim, VS Code, Cursor, Claude Code, Android Studio, Flutter, Antigravity)?" && install_coding=true
 install_productivity=false
-prompt_yes_no "Do you want to install productivity apps (AnyDesk, Vesktop, LocalSend, Zen, ani-cli, gallery-dl)?" && install_productivity=true
+prompt_yes_no "Do you want to install productivity apps (AnyDesk, Vesktop, LocalSend, Zen, ani-cli, gallery-dl, MarkItDown)?" && install_productivity=true
 
 yn() { [ "$1" = true ] && echo "Yes" || echo "No"; }
 de_name="None"

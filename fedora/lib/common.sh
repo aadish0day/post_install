@@ -65,6 +65,10 @@ dnf_install() {
 
     if is_simulate; then
         log "[simulate] dnf install ${*}"
+        if ! command -v dnf &>/dev/null; then
+            rm -f "$out"
+            return 0
+        fi
         $SUDO dnf install --assumeno --skip-unavailable "${extra[@]}" "$@" >"$out" 2>&1 || rc=$?
         if grep -qE "Failed to resolve the transaction|^Problem|conflicting requests|nothing provides" "$out"; then
             cat "$out" >&2
@@ -162,6 +166,10 @@ copr_enable() {
 }
 
 rpmfusion_enable() {
+    if is_simulate; then
+        log "[simulate] would enable RPM Fusion free + nonfree"
+        return 0
+    fi
     if rpm -q rpmfusion-free-release rpmfusion-nonfree-release &>/dev/null; then
         log "RPM Fusion already enabled"
         return 0
@@ -293,20 +301,36 @@ ensure_uv() {
     export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 }
 
-# uv_tool_install PACKAGE...  (per-user, into ~/.local/bin)
+# uv_tool_install [--with WITH_PKG...] PACKAGE...  (per-user, into ~/.local/bin)
 uv_tool_install() {
     ensure_uv
+    local with_args=()
+    local pkgs=()
+    while [ $# -gt 0 ]; do
+        case "$1" in
+        --with)
+            shift
+            [ $# -gt 0 ] || die "--with requires a package name"
+            with_args+=(--with "$1")
+            ;;
+        *)
+            pkgs+=("$1")
+            ;;
+        esac
+        shift
+    done
+
     local pkg
-    for pkg in "$@"; do
+    for pkg in "${pkgs[@]}"; do
         local bin_name="${pkg%%[*}"
         if [ -x "${UV_TOOL_BIN_DIR:-$HOME/.local/bin}/$bin_name" ] && "${UV_TOOL_BIN_DIR:-$HOME/.local/bin}/$bin_name" --version &>/dev/null; then
             log "uv tool $pkg already installed"
         elif is_simulate; then
             curl -fsS -o /dev/null "https://pypi.org/pypi/${bin_name}/json" || die "$pkg not found on PyPI"
-            log "[simulate] uv tool $pkg is available on PyPI"
+            log "[simulate] uv tool $pkg ${with_args[*]:-} is available on PyPI"
         else
-            log "Installing $pkg with uv tool..."
-            uv tool install --force "$pkg"
+            log "Installing $pkg ${with_args[*]:-} with uv tool..."
+            uv tool install --force "${with_args[@]}" "$pkg"
         fi
     done
     add_path_line 'export PATH="$HOME/.local/bin:$PATH"'

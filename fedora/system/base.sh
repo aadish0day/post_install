@@ -53,7 +53,8 @@ install_github_binary lexiforest/curl-impersonate 'curl-impersonate-v[0-9.]+\.x8
 swap_ffmpeg
 
 # Python CLI tools (AUR gallery-dl-bin / markitdown-bin equivalents)
-uv_tool_install gallery-dl markitdown
+uv_tool_install gallery-dl
+uv_tool_install --with markitdown-ocr --with openai "markitdown[all]"
 
 if command -v git &>/dev/null && command -v git-lfs &>/dev/null && ! is_simulate; then
     log "Initializing Git LFS..."
