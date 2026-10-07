@@ -57,6 +57,6 @@ cat << 'EOF' > "$target_config/thorium/thorium-flags.conf"
 --enable-quic
 --enable-features=BackForwardCache,DefaultANGLEVulkan,NewContentForCheckerboardedScrolls,ParallelDownloading,RootScrollbarFollowsBrowserTheme,ServiceWorkerAutoPreload,Vulkan,VulkanFromANGLE,WaylandLinuxDrmSyncobj,WaylandTextInputV3,ZeroCopyRBPPartialRasterWithGpuCompositor
 EOF
-chown -R "$target_user:$target_user" "$target_config/thorium"
+chown -R "$target_user:$(id -gn "$target_user" 2>/dev/null || echo "$target_user")" "$target_config/thorium" 2>/dev/null || true
 
 echo "KDE Plasma desktop environment configuration complete."
