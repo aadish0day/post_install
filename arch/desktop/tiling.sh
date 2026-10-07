@@ -84,7 +84,16 @@ if command -v zathura &>/dev/null; then
     xdg-mime default org.pwmt.zathura.desktop application/pdf 2>/dev/null || true
 fi
 
-if command -v thorium-browser &>/dev/null; then
+if command -v thorium-browser-avx2 &>/dev/null; then
+    echo "Setting thorium-browser-avx2 as the default browser..."
+    xdg-settings set default-web-browser thorium-browser-avx2.desktop 2>/dev/null || true
+elif command -v thorium-browser-avx &>/dev/null; then
+    echo "Setting thorium-browser-avx as the default browser..."
+    xdg-settings set default-web-browser thorium-browser-avx.desktop 2>/dev/null || true
+elif command -v thorium-browser-sse4 &>/dev/null; then
+    echo "Setting thorium-browser-sse4 as the default browser..."
+    xdg-settings set default-web-browser thorium-browser-sse4.desktop 2>/dev/null || true
+elif command -v thorium-browser &>/dev/null; then
     echo "Setting thorium-browser as the default browser..."
     xdg-settings set default-web-browser thorium-browser.desktop 2>/dev/null || true
 fi

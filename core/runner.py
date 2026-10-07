@@ -313,10 +313,14 @@ class ExecutionPlan:
                     title="Install Essential AUR Productivity Tools",
                     description="Installs AnyDesk, LocalSend, Thorium, Zen Browser, Vesktop, and gallery-dl.",
                     commands=[
+                        "thorium_pkg='thorium-browser-bin'; "
+                        "if grep -qw avx2 /proc/cpuinfo 2>/dev/null; then thorium_pkg='thorium-browser-avx2-bin'; "
+                        "elif grep -qw avx /proc/cpuinfo 2>/dev/null; then thorium_pkg='thorium-browser-avx-bin'; "
+                        "elif grep -qw sse4_1 /proc/cpuinfo 2>/dev/null; then thorium_pkg='thorium-browser-sse4-bin'; fi; "
                         "if command -v paru &>/dev/null; then "
-                        "  paru -S --needed --noconfirm advcpmv ani-cli anydesk-bin gallery-dl-bin localsend-bin markitdown-bin thorium-browser-bin vesktop-bin zen-browser-bin || true; "
+                        "  paru -S --needed --noconfirm advcpmv ani-cli anydesk-bin gallery-dl-bin localsend-bin markitdown-bin \"$thorium_pkg\" vesktop-bin zen-browser-bin || true; "
                         "elif command -v yay &>/dev/null; then "
-                        "  yay -S --needed --noconfirm advcpmv ani-cli anydesk-bin gallery-dl-bin localsend-bin markitdown-bin thorium-browser-bin vesktop-bin zen-browser-bin || true; "
+                        "  yay -S --needed --noconfirm advcpmv ani-cli anydesk-bin gallery-dl-bin localsend-bin markitdown-bin \"$thorium_pkg\" vesktop-bin zen-browser-bin || true; "
                         "fi"
                     ],
                     cwd=str(arch_dir)

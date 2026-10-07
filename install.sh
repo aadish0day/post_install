@@ -6,6 +6,8 @@
 #   /tmp/post-install-YYYYmmdd_HHMMSS.log
 # ============================================================================
 set -euo pipefail
+# Ctrl+C aborts the launcher, even when the child (e.g. dnf) exits cleanly on it.
+trap 'echo; exit 130' INT
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -67,10 +69,15 @@ if [ -z "${POST_INSTALL_LOGGED:-}" ]; then
 		done
 		exec script -qefc "$BASH_Q $SELF_Q$ARGS" "$LOG_FILE"
 	fi
-	# `script` missing: fall back to tee (still captures everything).
-	export PYTHONUNBUFFERED=1
-	exec > >(tee "$LOG_FILE") 2>&1
-	trap 'wait' EXIT
+	# `script` missing: on a terminal keep the TTY so the TUI still runs (no
+	# log); piping through tee would silently start a headless live install.
+	if [ -t 0 ] && [ -t 1 ]; then
+		echo "Warning: 'script' unavailable; running without a session log."
+	else
+		export PYTHONUNBUFFERED=1
+		exec > >(tee "$LOG_FILE") 2>&1
+		trap 'wait' EXIT
+	fi
 fi
 
 # Fixed-name symlink for easy access + session header (both captured in log).

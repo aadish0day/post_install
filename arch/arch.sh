@@ -185,6 +185,16 @@ packages=(
     yazi yt-dlp zip zoxide zsh zstd dosfstools usbutils lazydocker opencode github-cli
 )
 
+# Detect optimal Thorium browser variant based on CPU features
+thorium_pkg="thorium-browser-bin"
+if grep -qw avx2 /proc/cpuinfo; then
+    thorium_pkg="thorium-browser-avx2-bin"
+elif grep -qw avx /proc/cpuinfo; then
+    thorium_pkg="thorium-browser-avx-bin"
+elif grep -qw sse4_1 /proc/cpuinfo; then
+    thorium_pkg="thorium-browser-sse4-bin"
+fi
+
 # List of AUR packages
 aur_packages=(
     "advcpmv"
@@ -193,7 +203,7 @@ aur_packages=(
     "gallery-dl-bin"
     "localsend-bin"
     "markitdown-bin"
-    "thorium-browser-bin"
+    "$thorium_pkg"
     # "timeshift-autosnap"
     "vesktop-bin"
     # "xdman"
