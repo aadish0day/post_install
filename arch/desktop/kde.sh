@@ -39,5 +39,24 @@ for s in xdg-desktop-portal.service plasma-xdg-desktop-portal-kde.service xdg-de
     fi
 done
 
+# 3. Configure Thorium Browser flags for KDE Wayland & hardware acceleration
+echo "Configuring Thorium browser flags for KDE Wayland..."
+target_user="${SUDO_USER:-$USER}"
+target_home=$(getent passwd "$target_user" | cut -d: -f6)
+target_config="${target_home}/.config"
+
+mkdir -p "$target_config/thorium"
+cat << 'EOF' > "$target_config/thorium/thorium-flags.conf"
+--ozone-platform-hint=wayland
+--ignore-gpu-blocklist
+--enable-gpu-rasterization
+--enable-zero-copy
+--enable-native-gpu-memory-buffers
+--enable-unsafe-webgpu
+--enable-smooth-scrolling
+--enable-quic
+--enable-features=BackForwardCache,DefaultANGLEVulkan,NewContentForCheckerboardedScrolls,ParallelDownloading,RootScrollbarFollowsBrowserTheme,ServiceWorkerAutoPreload,Vulkan,VulkanFromANGLE,WaylandLinuxDrmSyncobj,WaylandTextInputV3,ZeroCopyRBPPartialRasterWithGpuCompositor
+EOF
+chown -R "$target_user:$target_user" "$target_config/thorium"
 
 echo "KDE Plasma desktop environment configuration complete."
