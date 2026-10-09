@@ -1,7 +1,7 @@
 # Post-Installation Automation Suite
 
 ![Shell Script](https://img.shields.io/badge/Shell_Script-121011?style=for-the-badge&logo=gnu-bash&logoColor=white)
-![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![Pure Bash](https://img.shields.io/badge/Pure_Bash-4EAA25?style=for-the-badge&logo=gnu-bash&logoColor=white)
 ![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)
 ![Arch](https://img.shields.io/badge/Arch_Linux-1793D1?style=for-the-badge&logo=arch-linux&logoColor=white)
 ![Debian](https://img.shields.io/badge/Debian-A81D33?style=for-the-badge&logo=debian&logoColor=white)
@@ -80,28 +80,24 @@ Clone the repository and run the universal launcher:
 ```bash
 git clone https://github.com/Aadishx07/post_install.git
 cd post_install
-chmod +x install.sh install.py
+chmod +x install.sh
 ./install.sh
 ```
 
-`install.sh` automatically checks prerequisites, initializes PTY session logging in `/tmp/`, installs `textual` if missing, and launches the interface.
+`install.sh` automatically checks prerequisites, initializes PTY session logging in `/tmp/`, detects your hardware and distribution, and launches the Archinstall-style interactive TUI. 100% pure Bash with zero Python or pip dependencies.
 
 ---
 
-### 2. Interactive Guided TUI
+### 2. Interactive Archinstall TUI
 
-Launch the full interactive interface:
+Launch the full interactive TUI with Vim keybindings (`j`/`k` navigate, `h`/`l` buttons, `Space` toggle, `Enter` confirm):
 
 ```bash
-# Auto-detects Textual or falls back to curses
+# Launch interactive TUI
 ./install.sh
 
-# Or invoke the Python orchestrator directly
-python3 install.py
-
-# Force a specific interface
-python3 install.py --tui textual
-python3 install.py --tui curses
+# Force interactive TUI mode explicitly
+./install.sh --tui
 ```
 
 ---
@@ -111,27 +107,22 @@ python3 install.py --tui curses
 Preview all actions and planned shell execution commands without modifying your system:
 
 ```bash
-# Dry-run via launcher
+# Preview planned execution steps
 ./install.sh --dry-run
-
-# Dry-run in headless CLI mode
-python3 install.py --dry-run --headless
 ```
 
 ---
 
-### 4. Unattended Profile Automation
+### 4. Unattended Automated Mode
 
-Export your system's detected profile, customize it, and run unattended:
+Run automated post-installation non-interactively using detected hardware defaults:
 
 ```bash
-# 1. Export detected system settings to a JSON profile
-python3 install.py --save-config my_profile.json
+# Automated headless installation
+./install.sh --cli
 
-# 2. (Optional) Inspect or edit my_profile.json to enable/disable components
-
-# 3. Execute unattended post-installation
-python3 install.py --config my_profile.json --headless
+# Target a specific distribution profile
+./install.sh --cli --distro arch
 ```
 
 ---
@@ -163,26 +154,12 @@ cd termux && ./termux.sh
 
 ```text
 post_install/
-├── install.sh                     # Universal bootstrap launcher with PTY session logging
-├── install.py                     # Python orchestrator, CLI parser & TUI entrypoint
+├── install.sh                     # Pure Bash universal launcher & Archinstall-style TUI
 ├── README.md                      # Comprehensive documentation and usage guide
 ├── LICENSE                        # MIT License
 ├── vmtools.sh                     # Multi-distro VMware Guest Tools installer
 ├── extract-ssh.sh                 # Secure SSH archive extraction & permission hardening
-├── theme_and_font.sh              # Standalone Nerd Font (FiraMono) installer
-├── core/                          # Orchestration and TUI Engine
-│   ├── __init__.py
-│   ├── config.py                  # Dataclass configuration model & JSON serialization
-│   ├── detector.py                # Hardware, GPU, CPU, chassis & distro detection
-│   ├── runner.py                  # PTY real-time execution engine, parser & plan builder
-│   └── tui/                       # Dual TUI Engine (Textual + Curses Fallback)
-│       ├── __init__.py
-│       ├── model.py               # Shared menu items, previews, toggles & prompter protocol
-│       ├── textual_app.py         # Modern Archinstall-style Textual TUI (Textual >= 2.0)
-│       ├── app.py                 # TUI entry point & curses lifecycle wrapper
-│       ├── screens.py             # Curses screens (Menu, Checklist, Radio, Input, Progress)
-│       ├── widgets.py             # Curses box-drawing, headers, footers & layout widgets
-│       └── colors.py              # Curses terminal color palette definitions
+├── theme_and_font.sh              # Standalone Nerd Font installer
 ├── arch/                          # Arch Linux Modular Suite
 │   ├── arch.sh                    # Interactive master installer
 │   ├── apps/                      # Modular application installers
@@ -323,25 +300,23 @@ Both the modern **Textual** and autonomous **Curses** interfaces support full Vi
 
 ## ⚙️ CLI Options & Environment Reference
 
-### `install.py` Command Line Arguments
+### `install.sh` Command Line Arguments
 
 ```text
-usage: install.py [-h] [--config CONFIG] [--dry-run]
-                  [--distro {arch,debian,fedora,kali,termux}]
-                  [--save-config SAVE_CONFIG] [--headless]
-                  [--tui {auto,textual,curses}]
+Usage: install.sh [OPTIONS]
 
-options:
+Options:
+  --tui                 Force launch interactive TUI (dialog/whiptail)
+  --cli, --headless     Run non-interactively using detected hardware defaults
+  --dry-run, -d         Simulate and display execution plan without running commands
+  --distro <distro>     Override distribution (arch, debian, fedora, kali, termux)
   -h, --help            Show help message and exit
-  --config, -c CONFIG   Path to JSON configuration profile to execute
-  --dry-run, -d         Simulate planned commands without modifying the system
-  --distro {arch,debian,fedora,kali,termux}
-                        Override auto-detected distribution
-  --save-config SAVE_CONFIG
-                        Export default/detected configuration to JSON and exit
-  --headless, --cli     Execute unattended non-interactive CLI mode
-  --tui {auto,textual,curses}
-                        Frontend interface: textual (>=2.0), curses (stdlib), or auto (default)
+
+Examples:
+  ./install.sh                     # Launch interactive Archinstall TUI
+  ./install.sh --dry-run           # Preview execution plan without modifications
+  ./install.sh --cli               # Run automated unattended installation
+  ./install.sh --distro arch       # Force Arch Linux profile
 ```
 
 ### Environment Variables & Session Logging
@@ -349,7 +324,6 @@ options:
 - `POST_INSTALL_LOG_FILE`: Points to the active session log in `/tmp/` generated by `install.sh`.
 - `POST_INSTALL_LOGGED`: Guard variable preventing recursive PTY allocation loops.
 - `POST_INSTALL_ORIG_TTY`: Preserves original interactive terminal status before `script` PTY allocation.
-- `PYTHONUNBUFFERED=1`: Ensures unbuffered stdout/stderr output streaming in headless pipes.
 
 ---
 

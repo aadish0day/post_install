@@ -59,9 +59,10 @@ download() {
     curl -fL --retry 3 --connect-timeout 20 -o "$2" "$1"
 }
 
-# HEAD-check a URL (follows redirects). Prints the effective URL.
+# HEAD-check a URL (follows redirects). Prints the effective URL, or falls back to small range GET.
 url_ok() {
-    curl -fsSIL --retry 2 --connect-timeout 20 -o /dev/null -w '%{url_effective}\n' "$1"
+    curl -fsSIL --retry 2 --connect-timeout 20 -o /dev/null -w '%{url_effective}\n' "$1" 2>/dev/null ||
+        curl -fsSL -r 0-50 --retry 2 --connect-timeout 20 -o /dev/null -w '%{url_effective}\n' "$1" 2>/dev/null
 }
 
 # ----------------------------------------------------------------------------
@@ -199,6 +200,10 @@ install_deb_url() {
 add_apt_repo() {
     local name="$1" key_url="$2" line="$3"
     local keyring="/etc/apt/keyrings/${name}.gpg" tmp
+    if is_simulate; then
+        log "[simulate] would add apt repository $name with key $key_url"
+        return 0
+    fi
     command -v gpg >/dev/null 2>&1 || {
         apt_install gnupg
     }
@@ -330,6 +335,10 @@ pacstall_install() {
 # ----------------------------------------------------------------------------
 ensure_uv() {
     if command -v uv >/dev/null 2>&1; then
+        return 0
+    fi
+    if is_simulate; then
+        log "[simulate] would ensure uv is installed"
         return 0
     fi
     if apt_install uv >/dev/null 2>&1 && command -v uv >/dev/null 2>&1; then

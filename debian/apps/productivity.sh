@@ -47,6 +47,10 @@ fallback_anydesk() {
 }
 
 fallback_thorium() {
+    if is_simulate; then
+        log "[simulate] would configure Thorium apt repo"
+        return 0
+    fi
     # Upstream apt repo (unsigned upstream, hence trusted=yes)
     echo "deb [trusted=yes arch=amd64] https://dl.thorium.rocks/debian/ stable main" |
         $SUDO tee /etc/apt/sources.list.d/thorium.list >/dev/null
@@ -82,17 +86,23 @@ install_localsend() {
     fi
 }
 
-try_install "ani-cli" ani-cli ani-cli-bin fallback_anicli
-try_install "AnyDesk" anydesk anydesk-deb fallback_anydesk
-try_install "Thorium Browser" thorium-browser thorium-deb fallback_thorium
-try_install "Zen Browser" zen-browser zen-browser-bin fallback_zen
-try_install "Vesktop (Discord)" vesktop vesktop-deb fallback_vesktop
-try_install "Obsidian" obsidian obsidian-deb fallback_obsidian
-try_install "LocalSend" localsend_app "" install_localsend
+app_wanted() {
+    [ -z "${PROD_APPS:-}" ] || [[ " ${PROD_APPS} " =~ " $1 " ]]
+}
 
-log "==> gallery-dl & markitdown (uv tool)"
-uv_tool_install gallery-dl || failed+=("gallery-dl")
-bash "$SCRIPT_DIR/markitdown.sh" || failed+=("markitdown")
+app_wanted "ani_cli" && try_install "ani-cli" ani-cli ani-cli-bin fallback_anicli
+app_wanted "anydesk" && try_install "AnyDesk" anydesk anydesk-deb fallback_anydesk
+app_wanted "thorium" && try_install "Thorium Browser" thorium-browser thorium-deb fallback_thorium
+app_wanted "zen" && try_install "Zen Browser" zen-browser zen-browser-bin fallback_zen
+app_wanted "vesktop" && try_install "Vesktop (Discord)" vesktop vesktop-deb fallback_vesktop
+app_wanted "obsidian" && try_install "Obsidian" obsidian obsidian-deb fallback_obsidian
+app_wanted "localsend" && try_install "LocalSend" localsend_app "" install_localsend
+
+if app_wanted "gallery_dl" || app_wanted "markitdown"; then
+    log "==> gallery-dl & markitdown (uv tool)"
+    app_wanted "gallery_dl" && { uv_tool_install gallery-dl || failed+=("gallery-dl"); }
+    app_wanted "markitdown" && { bash "$SCRIPT_DIR/markitdown.sh" || failed+=("markitdown"); }
+fi
 
 log "Note: advcpmv (patched cp/mv with progress bars) has no Debian package; skipped."
 

@@ -24,6 +24,14 @@ install_neovim() {
 }
 
 install_vscode() {
+    if rpm -q code &>/dev/null; then
+        log "VS Code already installed"
+        return 0
+    fi
+    if is_simulate; then
+        log "[simulate] would configure VS Code repository and install code"
+        return 0
+    fi
     $SUDO rpm --import https://packages.microsoft.com/keys/microsoft.asc
     write_repo vscode "[code]
 name=Visual Studio Code
@@ -77,6 +85,10 @@ install_antigravity() {
         log "Antigravity already installed"
         return 0
     fi
+    if is_simulate; then
+        log "[simulate] would configure Antigravity repository and install antigravity"
+        return 0
+    fi
     local base="https://us-central1-yum.pkg.dev/projects/antigravity-auto-updater-dev/antigravity-rpm"
     local key="https://us-central1-yum.pkg.dev/doc/repo-signing-key.gpg"
     local tmp
@@ -111,12 +123,13 @@ install_claude_code() {
         log "Claude Code is already installed."
         return 0
     fi
-    if ! command -v npm >/dev/null 2>&1; then
-        log "Installing Node.js & npm..."
-        dnf_install nodejs npm
+    if is_simulate; then
+        url_check "https://claude.ai/install.sh"
+        log "[simulate] would install Claude Code with the native installer"
+        return 0
     fi
-    log "Installing Claude Code via npm..."
-    $SUDO npm install -g @anthropic-ai/claude-code
+    log "Installing Claude Code (native installer)..."
+    curl -fsSL https://claude.ai/install.sh | bash
 }
 
 for tool in "${TOOLS[@]}"; do

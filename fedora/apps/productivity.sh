@@ -15,68 +15,90 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/common.sh"
 
+app_wanted() {
+    [ -z "${PROD_APPS:-}" ] || [[ " ${PROD_APPS} " =~ " $1 " ]]
+}
+
 # ani-cli (Arch: ani-cli)
-dnf_install mpv fzf aria2 yt-dlp curl grep sed patch
-swap_ffmpeg
-if command -v ani-cli &>/dev/null; then
-    log "ani-cli already installed"
-elif is_simulate; then
-    url_check https://raw.githubusercontent.com/pystardust/ani-cli/master/ani-cli
-else
-    tmp="$(mktemp)"
-    curl -fsSL -o "$tmp" https://raw.githubusercontent.com/pystardust/ani-cli/master/ani-cli
-    $SUDO install -m 0755 "$tmp" /usr/local/bin/ani-cli
-    rm -f "$tmp"
-    log "Installed /usr/local/bin/ani-cli"
+if app_wanted "ani_cli"; then
+    dnf_install mpv fzf aria2 yt-dlp curl grep sed patch
+    swap_ffmpeg
+    if command -v ani-cli &>/dev/null; then
+        log "ani-cli already installed"
+    elif is_simulate; then
+        url_check https://raw.githubusercontent.com/pystardust/ani-cli/master/ani-cli
+    else
+        tmp="$(mktemp)"
+        curl -fsSL -o "$tmp" https://raw.githubusercontent.com/pystardust/ani-cli/master/ani-cli
+        $SUDO install -m 0755 "$tmp" /usr/local/bin/ani-cli
+        rm -f "$tmp"
+        log "Installed /usr/local/bin/ani-cli"
+    fi
 fi
 
 # AnyDesk (Arch: anydesk-bin)
-write_repo anydesk "[anydesk]
+if app_wanted "anydesk"; then
+    write_repo anydesk "[anydesk]
 name=AnyDesk Fedora - stable
 baseurl=http://rpm.anydesk.com/rhel/x86_64/
 gpgcheck=1
 repo_gpgcheck=1
 gpgkey=https://keys.anydesk.com/repos/RPM-GPG-KEY"
-dnf_install anydesk
+    dnf_install anydesk
+fi
 
 # Python CLIs (Arch: gallery-dl-bin, markitdown-bin)
-uv_tool_install gallery-dl
-bash "$SCRIPT_DIR/markitdown.sh"
+if app_wanted "gallery_dl"; then
+    uv_tool_install gallery-dl
+fi
+if app_wanted "markitdown"; then
+    bash "$SCRIPT_DIR/markitdown.sh"
+fi
 
 # Vesktop Discord client (Arch: vesktop-bin)
-if rpm -q vesktop &>/dev/null; then
-    log "Vesktop already installed"
-else
-    url="$(github_asset_url Vencord/Vesktop 'x86_64\.rpm$')"
-    if [ -n "$url" ]; then
-        install_rpm_url "$url" || warn "Failed to install Vesktop rpm; skipping."
+if app_wanted "vesktop"; then
+    if rpm -q vesktop &>/dev/null; then
+        log "Vesktop already installed"
     else
-        warn "No Vesktop rpm found on GitHub; skipping."
+        url="$(github_asset_url Vencord/Vesktop 'x86_64\.rpm$')"
+        if [ -n "$url" ]; then
+            install_rpm_url "$url" || warn "Failed to install Vesktop rpm; skipping."
+        else
+            warn "No Vesktop rpm found on GitHub; skipping."
+        fi
     fi
 fi
 
 # Thorium browser (Arch: thorium-browser-bin). Recent releases dropped the
 # Linux rpms, so pick the newest release that still has one for this CPU.
-if rpm -q thorium-browser &>/dev/null; then
-    log "Thorium already installed"
-else
-    variant=SSE3
-    grep -qw sse4_2 /proc/cpuinfo && variant=SSE4
-    grep -qw avx2 /proc/cpuinfo && variant=AVX2
-    auth=()
-    [ -n "${GITHUB_TOKEN:-}" ] && auth=(-H "Authorization: Bearer $GITHUB_TOKEN")
-    url="$(curl -fsSL "${auth[@]}" "https://api.github.com/repos/Alex313031/thorium/releases?per_page=50" |
-        grep -oE "https://github.com/[^\"]+_${variant}\.rpm" | head -n1 || true)"
-    if [ -n "$url" ]; then
-        log "Thorium $variant build: $url"
-        install_rpm_url "$url" || warn "Thorium installation failed; skipping."
+if app_wanted "thorium"; then
+    if rpm -q thorium-browser &>/dev/null; then
+        log "Thorium already installed"
     else
-        warn "No Thorium rpm found on GitHub; skipping."
+        variant=SSE3
+        grep -qw sse4_2 /proc/cpuinfo && variant=SSE4
+        grep -qw avx2 /proc/cpuinfo && variant=AVX2
+        auth=()
+        [ -n "${GITHUB_TOKEN:-}" ] && auth=(-H "Authorization: Bearer $GITHUB_TOKEN")
+        url="$(curl -fsSL "${auth[@]}" "https://api.github.com/repos/Alex313031/thorium/releases?per_page=50" |
+            grep -oE "https://github.com/[^\"]+_${variant}\.rpm" | head -n1 || true)"
+        if [ -n "$url" ]; then
+            log "Thorium $variant build: $url"
+            install_rpm_url "$url" || warn "Thorium installation failed; skipping."
+        else
+            warn "No Thorium rpm found on GitHub; skipping."
+        fi
     fi
 fi
 
 # Flathub apps (Arch: localsend-bin, zen-browser-bin, obsidian)
-flatpak_install org.localsend.localsend_app app.zen_browser.zen md.obsidian.Obsidian
+flatpaks=()
+app_wanted "localsend" && flatpaks+=("org.localsend.localsend_app")
+app_wanted "zen" && flatpaks+=("app.zen_browser.zen")
+app_wanted "obsidian" && flatpaks+=("md.obsidian.Obsidian")
+if [ ${#flatpaks[@]} -gt 0 ]; then
+    flatpak_install "${flatpaks[@]}"
+fi
 
 warn "advcpmv: no Fedora package (patched coreutils); skipped."
 

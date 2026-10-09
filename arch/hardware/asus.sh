@@ -49,22 +49,35 @@ enable_services() {
 
 # ------------------------- asusctl config -------------------
 configure_asusctl() {
-    local limit="$1"
+    local limit="${1:-85}"
     echo "Configuring asusctl settings..."
+
+    # Ensure asusd is active before issuing commands
+    if ! systemctl is-active --quiet asusd 2>/dev/null; then
+        echo "Starting asusd.service..."
+        systemctl start asusd.service 2>/dev/null || true
+    fi
+
+    # Validate and clamp limit between 20 and 100
+    if ! [[ "$limit" =~ ^[0-9]+$ ]] || [ "$limit" -lt 20 ] || [ "$limit" -gt 100 ]; then
+        limit=85
+    fi
 
     # Set battery charge limit
     echo "Setting battery charge limit to ${limit}%..."
-    asusctl battery limit "$limit"
+    asusctl battery limit "$limit" 2>/dev/null || echo "Warning: Battery limit not supported on this device."
 
     # Enable custom fan curves for all modes.
     # NOTE: asusd races on consecutive writes and drops updates;
     # a short pause between profiles lets each fan-curve persist.
     echo "Enabling custom fan curves..."
-    asusctl fan-curve --mod-profile Quiet --enable-fan-curves true
-    sleep 1
-    asusctl fan-curve --mod-profile Performance --enable-fan-curves true
-    sleep 1
-    asusctl fan-curve --mod-profile Balanced --enable-fan-curves true
+    for profile in Quiet Performance Balanced; do
+        if asusctl fan-curve --mod-profile "$profile" --enable-fan-curves true 2>/dev/null; then
+            sleep 1
+        else
+            echo "Note: Custom fan curves not supported for profile $profile."
+        fi
+    done
 
     echo "Asusctl configuration completed."
 }

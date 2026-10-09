@@ -8,23 +8,43 @@ ARCH_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 # X11 TILING WINDOW MANAGER ENVIRONMENT SETUP
 # ============================================================================
 
+WM_CHOICE="${1:-both}"
+
+wm_packages=()
+case "$WM_CHOICE" in
+i3)
+    wm_packages+=(i3-wm)
+    echo "Configuring X11 Tiling Environment (i3-wm)..."
+    ;;
+bspwm)
+    wm_packages+=(bspwm sxhkd)
+    echo "Configuring X11 Tiling Environment (bspwm + sxhkd)..."
+    ;;
+both | tiling | *)
+    wm_packages=(i3-wm bspwm sxhkd)
+    echo "Configuring X11 Tiling Environment (i3-wm + bspwm + sxhkd)..."
+    ;;
+esac
+
 # List of X11 tiling desktop essentials
-x11_tilling_depen=(
-    accountsservice acpi alsa-firmware archlinux-xdg-menu arandr awesome-terminal-fonts
-    bluez bluez-utils blueman brightnessctl cantarell-fonts clipmenu dex ding-libs dmidecode dmraid dmenu
-    dnssec-anchors dracut dunst feh ffmpegthumbnailer flameshot fsarchiver gammastep gssproxy gtksourceview3
-    gvfs gvfs-afc gvfs-gphoto2 gvfs-mtp gvfs-nfs gvfs-smb
-    haveged hdparm hwdetect hwinfo inetutils jemalloc kitty libgsf libinstpatch liblqr
-    libmaxminddb libmbim libopenraw libpipeline libqmi libqrtr-glib libwnck3 libx86emu
-    libxres logrotate lsb-release modemmanager mpv-mpris netctl network-manager-applet nitrogen ntp
-    numlockx noto-fonts noto-fonts-cjk noto-fonts-emoji noto-fonts-extra nwg-look os-prober perl-xml-writer
-    papirus-icon-theme picom playerctl polkit-gnome polybar poppler-glib
-    ppp python-annotated-types python-defusedxml python-orjson python-pyaml python-pydantic
-    python-pydantic-core python-pyqt5 python-pyqt5-sip python-typing_extensions qalculate-qt qbittorrent rofi scrot
-    sg3_utils sysstat systemd-resolvconf tcl thunar thunar-archive-plugin thunar-volman tumbler
-    ttf-jetbrains-mono ttf-jetbrains-mono-nerd ttf-opensans usb_modeswitch wmname xarchiver xbindkeys xclip xdg-desktop-portal
-    xdg-desktop-portal-gtk xdg-user-dirs-gtk xfce4-terminal xorg-xbacklight xorg-xdpyinfo xss-lock
+x11_tiling_packages=(
+    "${wm_packages[@]}"
+    xorg-server xorg-xinit xorg-xbacklight xorg-xdpyinfo
+    polybar picom dunst rofi dmenu clipmenu nitrogen feh flameshot gammastep scrot xss-lock
+    xclip xbindkeys arandr dex nwg-look wmname
+    kitty thunar thunar-archive-plugin thunar-volman tumbler xarchiver
     zathura zathura-cb zathura-djvu zathura-pdf-poppler zathura-ps
+    acpi alsa-firmware brightnessctl mpv-mpris playerctl
+    bluez bluez-utils blueman network-manager-applet modemmanager
+    hdparm hwdetect hwinfo dmidecode usb_modeswitch
+    accountsservice logrotate lsb-release ntp numlockx os-prober
+    polkit-gnome systemd-resolvconf inetutils tcl perl-xml-writer
+    xdg-desktop-portal xdg-desktop-portal-gtk xdg-user-dirs-gtk
+    ffmpegthumbnailer gtksourceview3 poppler-glib
+    gvfs gvfs-afc gvfs-gphoto2 gvfs-mtp gvfs-nfs gvfs-smb
+    cantarell-fonts awesome-terminal-fonts papirus-icon-theme
+    noto-fonts noto-fonts-cjk noto-fonts-emoji noto-fonts-extra
+    ttf-jetbrains-mono ttf-jetbrains-mono-nerd ttf-opensans
 )
 
 # List of X11-specific AUR packages
@@ -35,7 +55,7 @@ x11_aur_packages=(
 
 # 1. Install official repository dependencies
 echo "Installing X11 tiling dependencies from pacman..."
-sudo pacman -S --needed --noconfirm --overwrite '*' "${x11_tilling_depen[@]}"
+sudo pacman -S --needed --noconfirm --overwrite '*' "${x11_tiling_packages[@]}"
 
 # 2. Handle i3lock conflict and install AUR packages
 if pacman -Qq "i3lock" &>/dev/null; then

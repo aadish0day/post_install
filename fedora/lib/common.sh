@@ -109,22 +109,41 @@ dnf_install() {
 install_rpm_url() {
     local url="$1"
     if is_simulate; then
-        url_check "$url"
+        if ! url_check "$url"; then
+            warn "RPM URL not reachable: $url"
+            return 1
+        fi
         log "[simulate] would install rpm $url"
         return 0
     fi
     local tmp
     tmp="$(mktemp -d)"
     log "Downloading $url"
-    curl -fSL --retry 3 -o "$tmp/package.rpm" "$url"
-    $SUDO dnf install -y "$tmp/package.rpm"
+    if ! curl -fSL --retry 3 -o "$tmp/package.rpm" "$url"; then
+        warn "Failed to download rpm $url"
+        rm -rf "$tmp"
+        return 1
+    fi
+    $SUDO dnf install -y "$tmp/package.rpm" || {
+        warn "Failed to install rpm $url"
+        rm -rf "$tmp"
+        return 1
+    }
     rm -rf "$tmp"
 }
 
-# url_check URL  (fails if the URL is unreachable)
+# url_check URL  (returns 0 if reachable, 1 if unreachable)
 url_check() {
-    curl -fsSIL --retry 2 -o /dev/null "$1" || die "URL not reachable: $1"
-    log "Reachable: $1"
+    if curl -fsSIL --retry 2 --connect-timeout 15 -o /dev/null "$1" 2>/dev/null; then
+        log "Reachable: $1"
+        return 0
+    elif curl -fsSL -r 0-50 --retry 2 --connect-timeout 15 -o /dev/null "$1" 2>/dev/null; then
+        log "Reachable: $1"
+        return 0
+    else
+        warn "URL not reachable: $1"
+        return 1
+    fi
 }
 
 # ----------------------------------------------------------------------------
@@ -139,12 +158,20 @@ add_repo_file() {
         log "Repo $name already present"
         return 0
     fi
+    if is_simulate; then
+        log "[simulate] would add repo $name from $url"
+        return 0
+    fi
     log "Adding repo $name from $url"
     curl -fsSL --retry 3 "$url" | $SUDO tee "/etc/yum.repos.d/$name" >/dev/null
 }
 
 # write_repo NAME CONTENT
 write_repo() {
+    if is_simulate; then
+        log "[simulate] would write /etc/yum.repos.d/$1.repo"
+        return 0
+    fi
     printf '%s\n' "$2" | $SUDO tee "/etc/yum.repos.d/$1.repo" >/dev/null
     log "Wrote /etc/yum.repos.d/$1.repo"
 }
@@ -156,13 +183,16 @@ ensure_dnf_plugins() {
 
 # copr_enable OWNER/PROJECT
 copr_enable() {
-    ensure_dnf_plugins
+    ensure_dnf_plugins || warn "Could not verify/install dnf plugins"
     if dnf repolist 2>/dev/null | grep -q "copr:copr.fedorainfracloud.org:${1/\//:}"; then
         log "COPR $1 already enabled"
         return 0
     fi
     log "Enabling COPR $1"
-    $SUDO dnf copr enable -y "$1"
+    if ! $SUDO dnf copr enable -y "$1"; then
+        warn "Could not enable COPR $1 (may not be available for Fedora $(fedora_release))"
+        return 1
+    fi
 }
 
 rpmfusion_enable() {
@@ -293,6 +323,10 @@ ensure_uv() {
     if command -v uv &>/dev/null; then
         return 0
     fi
+    if is_simulate; then
+        log "[simulate] would ensure uv is installed"
+        return 0
+    fi
     if dnf_install uv &>/dev/null && command -v uv &>/dev/null; then
         return 0
     fi
@@ -381,6 +415,14 @@ enable_service() {
         warn "Container detected, not enabling $1"
         return 0
     fi
+    if is_simulate; then
+        log "[simulate] would enable service $1"
+        return 0
+    fi
+    if ! command -v systemctl &>/dev/null; then
+        warn "systemctl not found, skipping service $1"
+        return 0
+    fi
     if systemctl list-unit-files "$1" &>/dev/null; then
         $SUDO systemctl enable ${2:-} "$1" || warn "Could not enable $1"
     else
@@ -394,6 +436,14 @@ enable_user_service() {
         warn "Container detected, not enabling user unit $1"
         return 0
     fi
+    if is_simulate; then
+        log "[simulate] would enable user unit $1"
+        return 0
+    fi
+    if ! command -v systemctl &>/dev/null; then
+        warn "systemctl not found, skipping user unit $1"
+        return 0
+    fi
     systemctl --user enable --now "$1" 2>/dev/null || warn "Could not enable user unit $1"
 }
 
@@ -401,6 +451,10 @@ enable_user_service() {
 add_user_group() {
     local user group
     user="$(id -un)"
+    if is_simulate; then
+        log "[simulate] would add $user to groups: $*"
+        return 0
+    fi
     for group in "$@"; do
         if getent group "$group" &>/dev/null; then
             $SUDO usermod -aG "$group" "$user" && log "Added $user to $group"
@@ -412,6 +466,10 @@ add_user_group() {
 
 # add_path_line LINE  (appends to ~/.zshrc and ~/.bashrc once)
 add_path_line() {
+    if is_simulate; then
+        log "[simulate] would add to ~/.zshrc and ~/.bashrc: $1"
+        return 0
+    fi
     local rc
     for rc in "$HOME/.zshrc" "$HOME/.bashrc"; do
         touch "$rc"
@@ -423,6 +481,10 @@ add_path_line() {
 grub_add_args() {
     if in_container; then
         warn "Container detected, not changing kernel arguments ($*)"
+        return 0
+    fi
+    if is_simulate; then
+        log "[simulate] would add kernel arguments: $*"
         return 0
     fi
     command -v grubby &>/dev/null || $SUDO dnf install -y grubby

@@ -59,8 +59,13 @@ if in_container; then
     exit 0
 fi
 
-log "Setting battery charge limit to ${BATTERY_LIMIT}%..."
-asusctl battery limit "$BATTERY_LIMIT" || warn "Could not set battery limit (is asusd running?)"
+local_limit="${BATTERY_LIMIT:-85}"
+if ! [[ "$local_limit" =~ ^[0-9]+$ ]] || [ "$local_limit" -lt 20 ] || [ "$local_limit" -gt 100 ]; then
+    local_limit=85
+fi
+
+log "Setting battery charge limit to ${local_limit}%..."
+asusctl battery limit "$local_limit" 2>/dev/null || warn "Could not set battery limit (is asusd running or supported?)"
 
 # asusd drops consecutive writes; pause between profiles
 log "Enabling custom fan curves..."

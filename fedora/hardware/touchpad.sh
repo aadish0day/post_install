@@ -11,10 +11,20 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/common.sh"
 
 CONFIG_FILE="/etc/X11/xorg.conf.d/90-touchpad.conf"
 
+if in_container; then
+    warn "Container detected, skipping touchpad hardware configuration"
+    exit 0
+fi
+
 dnf_install xorg-x11-drv-libinput
 
+if is_simulate; then
+    log "[simulate] would write $CONFIG_FILE"
+    exit 0
+fi
+
 log "Writing $CONFIG_FILE..."
-$SUDO mkdir -p "$(dirname "$CONFIG_FILE")"
+$SUDO install -d -m 0755 "$(dirname "$CONFIG_FILE")"
 $SUDO tee "$CONFIG_FILE" >/dev/null <<'EOL'
 Section "InputClass"
     Identifier "libinput touchpad catchall"

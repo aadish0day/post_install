@@ -76,16 +76,23 @@ if in_container || is_simulate; then
 elif ! command -v asusctl &>/dev/null; then
     warn "asusctl not installed; skipping configuration."
 else
-    log "Setting battery charge limit to ${BATTERY_LIMIT}%..."
-    asusctl battery limit "$BATTERY_LIMIT"
+    local_limit="${BATTERY_LIMIT:-85}"
+    if ! [[ "$local_limit" =~ ^[0-9]+$ ]] || [ "$local_limit" -lt 20 ] || [ "$local_limit" -gt 100 ]; then
+        local_limit=85
+    fi
+
+    log "Setting battery charge limit to ${local_limit}%..."
+    asusctl battery limit "$local_limit" 2>/dev/null || warn "Could not set battery limit (unsupported device or daemon not ready)."
 
     # asusd races on consecutive writes; pause between fan-curve profiles
     log "Enabling custom fan curves..."
-    asusctl fan-curve --mod-profile Quiet --enable-fan-curves true
-    sleep 1
-    asusctl fan-curve --mod-profile Performance --enable-fan-curves true
-    sleep 1
-    asusctl fan-curve --mod-profile Balanced --enable-fan-curves true
+    for profile in Quiet Performance Balanced; do
+        if asusctl fan-curve --mod-profile "$profile" --enable-fan-curves true 2>/dev/null; then
+            sleep 1
+        else
+            warn "Note: Custom fan curves not supported for profile $profile."
+        fi
+    done
 fi
 
 log "ASUS ROG setup complete. CPU/GPU drivers: run gpu/amd.sh, gpu/nvidia.sh or gpu/intel.sh."
