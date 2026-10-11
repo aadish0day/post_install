@@ -48,5 +48,10 @@ log "Running XDM installer..."
 chmod +x "$BUILD_DIR/install.sh"
 sudo "$BUILD_DIR/install.sh"
 
+# Ensure autostart desktop entry does not have executable bit set (systemd compliance)
+if [[ -f "$HOME/.config/autostart/xdman.desktop" ]]; then
+    chmod -x "$HOME/.config/autostart/xdman.desktop"
+fi
+
 log "XDM installation complete!"
 log "You can launch it from your application menu or by running 'xdman'."

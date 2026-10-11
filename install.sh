@@ -444,7 +444,7 @@ build_plan() {
         fi
 
         PLAN_TITLES+=("Install Arch Base Packages & Utilities")
-        PLAN_COMMANDS+=("sudo pacman -S --needed --noconfirm --overwrite '*' android-tools aria2 atool bat chromaprint doxygen duf fastfetch fd fluidsynth fzf gcc gettext git git-lfs gst-libav gst-plugins-ugly highlight htop img2pdf imagemagick inxi jq jpegoptim less libavtp libdca libgme liblrdf libltc libtool linux-headers lsd lz4 make man-db man-pages maven mediainfo mjpegtools mkinitcpio mpv ncdu neovim nodejs npm obs-studio 7zip pacman-contrib pacutils parallel pipewire pipewire-alsa pipewire-audio pipewire-jack lib32-pipewire-jack pipewire-pulse pipewire-zeroconf pipewire-libcamera pkgfile plocate pv ripgrep sd spandsp starship soundtouch svt-hevc tar tree tree-sitter-cli trash-cli tmux unzip wireplumber xz yazi yt-dlp zip zoxide zsh zstd dosfstools usbutils lazydocker opencode github-cli && if command -v git &>/dev/null && command -v git-lfs &>/dev/null; then git lfs install --skip-repo; fi")
+        PLAN_COMMANDS+=("sudo pacman -S --needed --noconfirm --overwrite '*' android-tools aria2 atool bat chromaprint doxygen duf fastfetch fd fluidsynth fzf gcc gettext git git-lfs gst-libav gst-plugins-ugly highlight htop img2pdf imagemagick inxi jq jpegoptim less libavtp libdca libgme liblrdf libltc libtool linux-headers lsd lz4 make man-db man-pages maven mediainfo mjpegtools mkinitcpio mpv ncdu neovim nodejs npm obs-studio 7zip pacman-contrib pacutils parallel pipewire pipewire-alsa pipewire-audio pipewire-jack lib32-pipewire-jack pipewire-pulse pipewire-zeroconf pipewire-libcamera rtkit pkgfile plocate pv ripgrep sd spandsp starship soundtouch svt-hevc tar tree tree-sitter-cli trash-cli tmux unzip wireplumber xz yazi yt-dlp zip zoxide zsh zstd dosfstools usbutils lazydocker opencode github-cli && if command -v git &>/dev/null && command -v git-lfs &>/dev/null; then git lfs install --skip-repo; fi")
         PLAN_CWDS+=("$distro_dir")
 
         if [ "$CFG_AUR" = "paru" ] || [ "$CFG_AUR" = "both" ]; then
@@ -616,7 +616,7 @@ build_plan() {
         append_extra_scripts "$distro_dir" "arch"
 
         PLAN_TITLES+=("Configure Services & Default Shell")
-        PLAN_COMMANDS+=("for s in xdg-desktop-portal.service xdg-desktop-portal-gtk.service; do if systemctl --user list-unit-files 2>/dev/null | grep -q \"\$s\"; then systemctl --user start \"\$s\" 2>/dev/null || true; fi; done; if [ \"\$SHELL\" != \"\$(command -v zsh 2>/dev/null || echo '')\" ] && command -v zsh &>/dev/null; then chsh -s \"\$(command -v zsh)\" \"\$USER\" 2>/dev/null || true; fi")
+        PLAN_COMMANDS+=("sudo systemctl enable --now rtkit-daemon.service 2>/dev/null || true; for s in xdg-desktop-portal.service xdg-desktop-portal-gtk.service; do if systemctl --user list-unit-files 2>/dev/null | grep -q \"\$s\"; then systemctl --user start \"\$s\" 2>/dev/null || true; fi; done; if [ \"\$SHELL\" != \"\$(command -v zsh 2>/dev/null || echo '')\" ] && command -v zsh &>/dev/null; then chsh -s \"\$(command -v zsh)\" \"\$USER\" 2>/dev/null || true; fi")
         PLAN_CWDS+=("$distro_dir")
 
     # ---------------- KALI LINUX ----------------

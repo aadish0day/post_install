@@ -11,9 +11,10 @@ log "Installing Docker on Arch Linux..."
 # Install Docker, Docker Compose, and Buildx
 sudo pacman -S --needed docker docker-compose docker-buildx --noconfirm --overwrite '*'
 
-# Enable and start Docker service
-log "Enabling and starting Docker service..."
-sudo systemctl enable --now docker.service
+# Enable and start Docker socket for on-demand activation
+log "Enabling and starting Docker socket (on-demand activation)..."
+sudo systemctl disable docker.service 2>/dev/null || true
+sudo systemctl enable --now docker.socket
 
 # Configure permissions
 log "Adding user $USER to the docker group..."

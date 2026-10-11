@@ -53,9 +53,10 @@ if ! grep -q "^log_outputs=" /etc/libvirt/libvirtd.conf; then
     echo 'log_outputs="1:file:/var/log/libvirt/libvirtd.log"' >>/etc/libvirt/libvirtd.conf
 fi
 
-# Enable and start libvirt services
-echo "Enabling and starting libvirtd service..."
-systemctl enable --now libvirtd.service 2>/dev/null || systemctl enable --now virtqemud.socket 2>/dev/null || true
+# Enable and start libvirt services (socket activation for on-demand startup)
+echo "Enabling and starting libvirt sockets (on-demand activation)..."
+systemctl disable libvirtd.service 2>/dev/null || true
+systemctl enable --now libvirtd.socket 2>/dev/null || systemctl enable --now virtqemud.socket 2>/dev/null || true
 
 # Ensure default libvirt network is active & set to autostart
 echo "Configuring default virtual network..."

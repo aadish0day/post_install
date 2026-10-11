@@ -370,14 +370,14 @@ Examples:
 - **KVM / QEMU / virt-manager** ([`arch/virt/kvm-qemu.sh`](file:///home/aadish/Documents/Github/post_install/arch/virt/kvm-qemu.sh), [`debian/virt/kvm-qemu.sh`](file:///home/aadish/Documents/Github/post_install/debian/virt/kvm-qemu.sh), [`fedora/virt/kvm-qemu.sh`](file:///home/aadish/Documents/Github/post_install/fedora/virt/kvm-qemu.sh)):
   - Full virtualization stack: `qemu`, `libvirt`, `virt-manager`, `virt-viewer`, `bridge-utils`, `swtpm` (TPM 2.0 emulation for Windows 11), and OVMF UEFI firmware.
   - Automatically adds the active user to `kvm` and `libvirt` groups.
-  - Grants socket permissions (`0770` in `libvirtd.conf`), starts the daemon/sockets (`virtqemud.socket` on Fedora, `libvirtd.service` on Arch/Debian), and autostarts the default NAT virtual network.
+  - Grants socket permissions (`0770` in `libvirtd.conf`), starts the daemon/sockets (`virtqemud.socket` on Fedora, `libvirtd.socket` on Arch, `libvirtd.service` on Debian), and autostarts the default NAT virtual network.
 - **VMware Workstation Pro Host** ([`arch/virt/vmware-workstation.sh`](file:///home/aadish/Documents/Github/post_install/arch/virt/vmware-workstation.sh), [`debian/virt/vmware-workstation.sh`](file:///home/aadish/Documents/Github/post_install/debian/virt/vmware-workstation.sh), [`fedora/virt/vmware-workstation.sh`](file:///home/aadish/Documents/Github/post_install/fedora/virt/vmware-workstation.sh)):
   - Automates installation of VMware Workstation bundles or AUR packages.
   - Compiles and loads kernel modules (`vmmon`, `vmnet`, `vmw_vmci`) via `vmware-modconfig` and enables `vmware` / `vmware-networks` / `vmware-usbarbitrator` systemd services.
 - **Docker CE & Lazydocker** ([`arch/apps/docker.sh`](file:///home/aadish/Documents/Github/post_install/arch/apps/docker.sh), [`debian/apps/docker.sh`](file:///home/aadish/Documents/Github/post_install/debian/apps/docker.sh), [`fedora/apps/docker.sh`](file:///home/aadish/Documents/Github/post_install/fedora/apps/docker.sh)):
   - Removes conflicting legacy packages (`podman-docker`, `docker.io`, `moby-engine`).
   - Configures official Docker CE upstream repositories, installs `docker-ce`, `docker-ce-cli`, `containerd.io`, `docker-compose-plugin`, and `docker-buildx-plugin`.
-  - Enables `docker.service` and adds the user to the `docker` group for rootless CLI execution.
+  - Enables `docker.socket` for on-demand daemon activation and adds the user to the `docker` group for rootless CLI execution.
   - Installs **Lazydocker** terminal UI with the global alias `lzd`.
 
 ---

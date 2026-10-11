@@ -179,7 +179,7 @@ packages=(
     highlight htop img2pdf imagemagick inxi jq jpegoptim less libavtp libdca libgme liblrdf libltc
     libtool linux-headers lsd lz4 make man-db man-pages maven mediainfo mjpegtools mkinitcpio mpv ncdu
     neovim nodejs npm obs-studio 7zip pacman-contrib pacutils
-    parallel pipewire pipewire-alsa pipewire-audio pipewire-jack lib32-pipewire-jack pipewire-pulse pipewire-zeroconf pipewire-libcamera
+    parallel pipewire pipewire-alsa pipewire-audio pipewire-jack lib32-pipewire-jack pipewire-pulse pipewire-zeroconf pipewire-libcamera rtkit
     pkgfile plocate pv ripgrep sd spandsp starship soundtouch svt-hevc tar
     tree tree-sitter-cli trash-cli tmux unzip wireplumber xz curl-impersonate
     yazi yt-dlp zip zoxide zsh zstd dosfstools usbutils lazydocker opencode github-cli
@@ -411,6 +411,12 @@ fi
 
 echo ""
 echo "Configuring services..."
+
+# Enable rtkit daemon for PipeWire realtime scheduling
+if pacman -Qi rtkit &>/dev/null || systemctl list-unit-files 2>/dev/null | grep -q "rtkit-daemon.service"; then
+    echo "Enabling rtkit-daemon service..."
+    sudo systemctl enable --now rtkit-daemon.service 2>/dev/null || true
+fi
 
 # Enable dbus (skip for KDE as it handles this)
 if [ "$install_kde" = false ]; then
