@@ -293,7 +293,7 @@ set_distro_defaults() {
         CFG_AUR="none"
         CFG_MIRRORS=false
         CFG_PRODUCTIVITY=true
-        CFG_PROD_APPS=("thorium" "zen" "vesktop" "localsend" "anydesk" "obsidian" "markitdown" "gallery_dl" "ani_cli")
+        CFG_PROD_APPS=("thorium" "zen" "vesktop" "localsend" "anydesk" "obsidian" "markitdown" "gallery_dl" "ani_cli" "xdm")
         CFG_FONTS=true
         CFG_NVIM_CLONE=true
         ;;
@@ -401,8 +401,8 @@ append_extra_scripts() {
     case "$d_name" in
     arch) managed=("docker" "gaming" "paru" "yay" "flutter") ;;
     kali) managed=("docker") ;;
-    debian) managed=("docker" "neovim" "coding" "gaming" "aiml" "productivity") ;;
-    fedora) managed=("docker" "coding" "gaming" "aiml" "productivity") ;;
+    debian) managed=("docker" "lazydocker" "neovim" "coding" "gaming" "aiml" "productivity" "markitdown" "xdm") ;;
+    fedora) managed=("docker" "lazydocker" "coding" "gaming" "aiml" "productivity" "markitdown" "xdm") ;;
     termux) managed=() ;;
     esac
 
@@ -755,6 +755,12 @@ build_plan() {
             PLAN_TITLES+=("Install Docker Engine (${TARGET_DISTRO}/apps/docker.sh)")
             PLAN_COMMANDS+=("bash apps/docker.sh")
             PLAN_CWDS+=("$distro_dir")
+
+            if [ -f "$distro_dir/apps/lazydocker.sh" ]; then
+                PLAN_TITLES+=("Install lazydocker TUI (${TARGET_DISTRO}/apps/lazydocker.sh)")
+                PLAN_COMMANDS+=("bash apps/lazydocker.sh")
+                PLAN_CWDS+=("$distro_dir")
+            fi
         fi
 
         if [ "$CFG_CODING" = true ] && [ ${#CFG_CODING_TOOLS[@]} -gt 0 ] && [ -f "$distro_dir/apps/coding.sh" ]; then
@@ -779,6 +785,16 @@ build_plan() {
             PLAN_TITLES+=("Install Productivity Applications (${TARGET_DISTRO}/apps/productivity.sh - ${#CFG_PROD_APPS[@]} apps)")
             PLAN_COMMANDS+=("PROD_APPS='${CFG_PROD_APPS[*]}' bash apps/productivity.sh")
             PLAN_CWDS+=("$distro_dir")
+
+            local has_xdm=false
+            for p in "${CFG_PROD_APPS[@]}"; do
+                if [ "$p" = "xdm" ]; then has_xdm=true; break; fi
+            done
+            if [ "$has_xdm" = true ] && [ -f "$distro_dir/apps/xdm.sh" ]; then
+                PLAN_TITLES+=("Install XDM Download Manager (${TARGET_DISTRO}/apps/xdm.sh)")
+                PLAN_COMMANDS+=("bash apps/xdm.sh")
+                PLAN_CWDS+=("$distro_dir")
+            fi
         fi
 
         append_extra_scripts "$distro_dir" "$TARGET_DISTRO"
@@ -1176,6 +1192,7 @@ picker_productivity() {
     local has_markitdown=OFF
     local has_gallery_dl=OFF
     local has_ani_cli=OFF
+    local has_xdm=OFF
     local has_advcpmv=OFF
 
     for p in "${CFG_PROD_APPS[@]}"; do
@@ -1189,6 +1206,7 @@ picker_productivity() {
         markitdown) has_markitdown=ON ;;
         gallery_dl) has_gallery_dl=ON ;;
         ani_cli) has_ani_cli=ON ;;
+        xdm) has_xdm=ON ;;
         advcpmv) has_advcpmv=ON ;;
         esac
     done
@@ -1203,6 +1221,7 @@ picker_productivity() {
         "markitdown" "MarkItDown (Document converter)" "$has_markitdown"
         "gallery_dl" "gallery-dl (Image batch downloader)" "$has_gallery_dl"
         "ani_cli" "ani-cli (Anime streaming CLI)" "$has_ani_cli"
+        "xdm" "XDM (Xtreme Download Manager)" "$has_xdm"
     )
     if [ "$TARGET_DISTRO" = "arch" ]; then
         items+=("advcpmv" "advcpmv (cp/mv with progress bars)" "$has_advcpmv")
@@ -1226,6 +1245,7 @@ picker_productivity() {
     if [[ "$sel" =~ "markitdown" ]]; then CFG_PROD_APPS+=("markitdown"); fi
     if [[ "$sel" =~ "gallery_dl" ]]; then CFG_PROD_APPS+=("gallery_dl"); fi
     if [[ "$sel" =~ "ani_cli" ]]; then CFG_PROD_APPS+=("ani_cli"); fi
+    if [[ "$sel" =~ "xdm" ]]; then CFG_PROD_APPS+=("xdm"); fi
     if [[ "$sel" =~ "advcpmv" ]]; then CFG_PROD_APPS+=("advcpmv"); fi
 
     if [ ${#CFG_PROD_APPS[@]} -gt 0 ]; then

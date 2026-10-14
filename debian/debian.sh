@@ -40,6 +40,12 @@ if sudo -v; then
     trap 'kill ${SUDO_KEEP_ALIVE_PID} 2>/dev/null || true' EXIT
 fi
 
+# Ensure dialog is installed
+if ! command -v dialog >/dev/null 2>&1; then
+    sudo apt-get update -qq
+    sudo apt-get install -y dialog
+fi
+
 # ============================================================================
 # ASK USER PREFERENCES UPFRONT
 # ============================================================================
@@ -72,7 +78,9 @@ prompt_yes_no "Install KVM/QEMU and virt-manager?" && install_kvm=true
 install_vmware=false
 prompt_yes_no "Install VMware Workstation (needs the Broadcom .bundle in ~/Downloads)?" && install_vmware=true
 install_docker=false
-prompt_yes_no "Install Docker CE?" && install_docker=true
+prompt_yes_no "Install Docker CE (includes lazydocker TUI)?" && install_docker=true
+install_xdm=false
+prompt_yes_no "Install XDM (Xtreme Download Manager)?" && install_xdm=true
 install_amd=false
 prompt_yes_no "Install AMD CPU/GPU drivers (microcode, Mesa, Vulkan, amd_pstate)?" && install_amd=true
 install_intel=false
@@ -99,7 +107,8 @@ echo "Gaming Packages:       $(yn "$install_gaming")"
 echo "ASUS ROG Tools:        $(yn "$install_asus")"
 echo "KVM/QEMU:              $(yn "$install_kvm")"
 echo "VMware Workstation:    $(yn "$install_vmware")"
-echo "Docker:                $(yn "$install_docker")"
+echo "Docker & lazydocker:   $(yn "$install_docker")"
+echo "XDM:                   $(yn "$install_xdm")"
 echo "AMD Drivers:           $(yn "$install_amd")"
 echo "Intel Drivers:         $(yn "$install_intel")"
 echo "NVIDIA Drivers:        $(yn "$install_nvidia")"
@@ -135,11 +144,15 @@ esac
 
 [ "$install_kvm" = true ] && run_module virt/kvm-qemu.sh
 [ "$install_vmware" = true ] && run_module virt/vmware-workstation.sh
-[ "$install_docker" = true ] && run_module apps/docker.sh
+if [ "$install_docker" = true ]; then
+    run_module apps/docker.sh
+    run_module apps/lazydocker.sh
+fi
 [ "$install_coding" = true ] && run_module apps/coding.sh
 [ "$install_gaming" = true ] && run_module apps/gaming.sh
 [ "$install_aiml" = true ] && run_module apps/aiml.sh
 [ "$install_productivity" = true ] && run_module apps/productivity.sh
+[ "$install_xdm" = true ] && run_module apps/xdm.sh
 
 run_module system/shell.sh
 
