@@ -16,7 +16,7 @@ ui_detect() {
 }
 
 ui_ensure_dialog() {
-    if command -v dialog >/dev/null 2>&1 || command -v whiptail >/dev/null 2>&1; then
+    if command -v dialog >/dev/null 2>&1; then
         ui_detect
         return 0
     fi
@@ -26,13 +26,14 @@ ui_ensure_dialog() {
         return 0
     fi
 
-    printf '\033[0;34m[INFO]\033[0m Neither "dialog" nor "whiptail" found. Installing "dialog" for TUI...\n'
+    printf '\033[0;34m[INFO]\033[0m "dialog" not found. Installing "dialog" for TUI...\n'
 
     local sudo_cmd=""
     if [ "$(id -u)" -ne 0 ]; then
         if command -v sudo >/dev/null 2>&1; then
             if ! sudo -v; then
                 printf '\033[1;33m[WARN]\033[0m Sudo authentication failed; cannot auto-install dialog.\n' >&2
+                ui_detect
                 return 1
             fi
             sudo_cmd="sudo"
@@ -40,30 +41,83 @@ ui_ensure_dialog() {
             sudo_cmd="doas"
         else
             printf '\033[1;33m[WARN]\033[0m Neither sudo nor doas found; cannot auto-install dialog.\n' >&2
+            ui_detect
             return 1
         fi
     fi
 
-    # Install using distro-specific package manager
-    if [ "${TARGET_DISTRO:-}" = "debian" ] || [ "${TARGET_DISTRO:-}" = "kali" ] || command -v apt-get >/dev/null 2>&1; then
-        $sudo_cmd apt-get update -qq || true
-        DEBIAN_FRONTEND=noninteractive $sudo_cmd apt-get install -y dialog || true
-    elif [ "${TARGET_DISTRO:-}" = "fedora" ] || command -v dnf5 >/dev/null 2>&1 || command -v dnf >/dev/null 2>&1; then
+    local distro="${TARGET_DISTRO:-}"
+    if [ -z "$distro" ] || [ "$distro" = "unknown" ]; then
+        if [ -f /etc/os-release ]; then
+            local id_like id
+            id="$(grep -E '^ID=' /etc/os-release 2>/dev/null | cut -d= -f2 | tr -d '"')"
+            id_like="$(grep -E '^ID_LIKE=' /etc/os-release 2>/dev/null | cut -d= -f2 | tr -d '"')"
+            case "$id" in
+            arch | manjaro | endeavouros | garuda | artix | cachyos) distro="arch" ;;
+            fedora | rhel | centos | rocky | almalinux | nobara) distro="fedora" ;;
+            debian | ubuntu | pop | linuxmint | elementary | raspbian) distro="debian" ;;
+            kali) distro="kali" ;;
+            *)
+                for l in $id_like; do
+                    case "$l" in
+                    arch) distro="arch"; break ;;
+                    fedora | rhel) distro="fedora"; break ;;
+                    debian | ubuntu) distro="debian"; break ;;
+                    esac
+                done
+                ;;
+            esac
+        fi
+    fi
+
+    case "$distro" in
+    arch)
+        $sudo_cmd pacman -S --needed --noconfirm dialog 2>/dev/null || \
+        $sudo_cmd pacman -Sy --needed --noconfirm dialog || true
+        ;;
+    fedora)
         if command -v dnf5 >/dev/null 2>&1; then
             $sudo_cmd dnf5 install -y dialog || true
         else
             $sudo_cmd dnf install -y dialog || true
         fi
-    elif [ "${TARGET_DISTRO:-}" = "arch" ] || command -v pacman >/dev/null 2>&1; then
-        $sudo_cmd pacman -S --needed --noconfirm dialog 2>/dev/null || \
-        $sudo_cmd pacman -Sy --needed --noconfirm dialog || true
-    elif [ "${TARGET_DISTRO:-}" = "termux" ] || command -v pkg >/dev/null 2>&1; then
+        ;;
+    debian | kali)
+        $sudo_cmd apt-get update -qq || true
+        DEBIAN_FRONTEND=noninteractive $sudo_cmd apt-get install -y dialog || true
+        ;;
+    termux)
         pkg install -y dialog || true
-    fi
+        ;;
+    *)
+        if command -v pacman >/dev/null 2>&1; then
+            $sudo_cmd pacman -S --needed --noconfirm dialog 2>/dev/null || \
+            $sudo_cmd pacman -Sy --needed --noconfirm dialog || true
+        elif command -v dnf5 >/dev/null 2>&1; then
+            $sudo_cmd dnf5 install -y dialog || true
+        elif command -v dnf >/dev/null 2>&1; then
+            $sudo_cmd dnf install -y dialog || true
+        elif command -v apt-get >/dev/null 2>&1; then
+            $sudo_cmd apt-get update -qq || true
+            DEBIAN_FRONTEND=noninteractive $sudo_cmd apt-get install -y dialog || true
+        elif command -v zypper >/dev/null 2>&1; then
+            $sudo_cmd zypper --non-interactive install dialog || true
+        elif command -v apk >/dev/null 2>&1; then
+            $sudo_cmd apk add dialog || true
+        elif command -v pkg >/dev/null 2>&1; then
+            pkg install -y dialog || true
+        fi
+        ;;
+    esac
 
     ui_detect
-    if [ "$UI_TOOL" != "none" ]; then
+    if [ "$UI_TOOL" = "dialog" ]; then
         printf '\033[0;32m[OK]\033[0m Successfully installed dialog.\n'
+        return 0
+    fi
+
+    if [ "$UI_TOOL" = "whiptail" ]; then
+        printf '\033[1;33m[WARN]\033[0m Could not install dialog. Whiptail will be used as fallback.\n' >&2
         return 0
     fi
 
