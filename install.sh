@@ -214,119 +214,32 @@ if [ "$TARGET_DISTRO" = "unknown" ]; then
 fi
 
 set_distro_defaults() {
-    case "$TARGET_DISTRO" in
-    arch)
-        DISTRO_NAME="Arch Linux"
-        CFG_DESKTOP="none"
+    # 1. Load base configuration defaults
+    if [ -f "$SCRIPT_DIR/profiles/_base.conf" ]; then
+        # shellcheck source=profiles/_base.conf
+        source "$SCRIPT_DIR/profiles/_base.conf"
+    fi
+
+    # 2. Load distro-specific configuration defaults
+    if [ -f "$SCRIPT_DIR/profiles/${TARGET_DISTRO}.conf" ]; then
+        # shellcheck source=/dev/null
+        source "$SCRIPT_DIR/profiles/${TARGET_DISTRO}.conf"
+    fi
+
+    # 3. Apply hardware-derived values in code
+    if [ "$TARGET_DISTRO" = "arch" ] || [ "$TARGET_DISTRO" = "debian" ] || [ "$TARGET_DISTRO" = "fedora" ]; then
         CFG_ASUS="$IS_ASUS"
-        CFG_ASUS_LIMIT=85
         CFG_AMD_GPU="$HAS_AMD_GPU"
         if [ "$CPU_VENDOR" = "AMD" ]; then CFG_AMD_GPU=true; fi
-        CFG_AMD_PRO=false
         CFG_INTEL_GPU="$HAS_INTEL_GPU"
         if [ "$CPU_VENDOR" = "Intel" ]; then CFG_INTEL_GPU=true; fi
         CFG_NVIDIA_GPU="$HAS_NVIDIA_GPU"
-        CFG_TOUCHPAD=false
-        CFG_KVM=true
-        CFG_VMWARE=false
-        CFG_DOCKER=true
-        CFG_CODING=true
-        CFG_CODING_TOOLS=("vscode" "cursor" "claude_code" "android_studio" "flutter" "antigravity")
-        CFG_SECURITY_BURP=false
-        CFG_GAMING=false
-        CFG_AIML=false
-        CFG_AUR="paru"
-        CFG_MIRRORS=true
-        CFG_PRODUCTIVITY=true
-        CFG_PROD_APPS=("thorium" "zen" "vesktop" "localsend" "anydesk" "obsidian" "markitdown" "gallery_dl" "ani_cli" "advcpmv")
-        CFG_FONTS=true
-        CFG_NVIM_CLONE=true
-        ;;
-    kali)
-        DISTRO_NAME="Kali Linux"
-        CFG_DESKTOP="none"
+    else
         CFG_ASUS=false
-        CFG_ASUS_LIMIT=85
         CFG_AMD_GPU=false
-        CFG_AMD_PRO=false
         CFG_INTEL_GPU=false
         CFG_NVIDIA_GPU=false
-        CFG_TOUCHPAD=false
-        CFG_KVM=false
-        CFG_VMWARE=false
-        CFG_DOCKER=true
-        CFG_CODING=false
-        CFG_CODING_TOOLS=()
-        CFG_SECURITY_BURP=true
-        CFG_KALI_META="large"
-        CFG_KALI_WIFI=true
-        CFG_KALI_SEARCHSPLOIT=true
-        CFG_GAMING=false
-        CFG_AIML=false
-        CFG_AUR="none"
-        CFG_MIRRORS=false
-        CFG_PRODUCTIVITY=false
-        CFG_PROD_APPS=()
-        CFG_FONTS=true
-        CFG_NVIM_CLONE=true
-        ;;
-    debian | fedora)
-        if [ "$TARGET_DISTRO" = "debian" ]; then
-            DISTRO_NAME="Debian / Ubuntu"
-        else
-            DISTRO_NAME="Fedora"
-        fi
-        CFG_DESKTOP="none"
-        CFG_ASUS="$IS_ASUS"
-        CFG_ASUS_LIMIT=85
-        CFG_AMD_GPU="$HAS_AMD_GPU"
-        if [ "$CPU_VENDOR" = "AMD" ]; then CFG_AMD_GPU=true; fi
-        CFG_AMD_PRO=false
-        CFG_INTEL_GPU="$HAS_INTEL_GPU"
-        if [ "$CPU_VENDOR" = "Intel" ]; then CFG_INTEL_GPU=true; fi
-        CFG_NVIDIA_GPU="$HAS_NVIDIA_GPU"
-        CFG_TOUCHPAD=false
-        CFG_KVM=true
-        CFG_VMWARE=false
-        CFG_DOCKER=true
-        CFG_CODING=true
-        CFG_CODING_TOOLS=("neovim" "vscode" "cursor" "claude_code" "android_studio" "flutter" "antigravity")
-        CFG_SECURITY_BURP=false
-        CFG_GAMING=false
-        CFG_AIML=false
-        CFG_AUR="none"
-        CFG_MIRRORS=false
-        CFG_PRODUCTIVITY=true
-        CFG_PROD_APPS=("thorium" "zen" "vesktop" "localsend" "anydesk" "obsidian" "markitdown" "gallery_dl" "ani_cli" "xdm")
-        CFG_FONTS=true
-        CFG_NVIM_CLONE=true
-        ;;
-    termux)
-        DISTRO_NAME="Termux"
-        CFG_DESKTOP="none"
-        CFG_ASUS=false
-        CFG_ASUS_LIMIT=85
-        CFG_AMD_GPU=false
-        CFG_AMD_PRO=false
-        CFG_INTEL_GPU=false
-        CFG_NVIDIA_GPU=false
-        CFG_TOUCHPAD=false
-        CFG_KVM=false
-        CFG_VMWARE=false
-        CFG_DOCKER=false
-        CFG_CODING=true
-        CFG_CODING_TOOLS=("neovim")
-        CFG_SECURITY_BURP=false
-        CFG_GAMING=false
-        CFG_AIML=false
-        CFG_AUR="none"
-        CFG_MIRRORS=false
-        CFG_PRODUCTIVITY=false
-        CFG_PROD_APPS=()
-        CFG_FONTS=true
-        CFG_NVIM_CLONE=true
-        ;;
-    esac
+    fi
 }
 
 set_distro_defaults
