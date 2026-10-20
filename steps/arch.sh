@@ -1,6 +1,43 @@
 #!/usr/bin/env bash
 # Arch Linux step implementations and plan builder
 
+arch_kernel_headers() {
+    local kver
+    kver="$(uname -r 2>/dev/null || echo "")"
+    case "$kver" in
+        *-lts*)      echo "linux-lts-headers" ;;
+        *-zen*)      echo "linux-zen-headers" ;;
+        *-hardened*) echo "linux-hardened-headers" ;;
+        *)           echo "linux-headers" ;;
+    esac
+}
+
+step_arch_aur_helper() {
+    local choice="${1:-paru}"
+    if [ "${DRY_RUN_MODE:-false}" = true ]; then return 0; fi
+
+    local primary="$choice"
+    local secondary="yay"
+    if [ "$primary" = "yay" ]; then
+        secondary="paru"
+    fi
+
+    log "Attempting to install primary AUR helper ($primary)..."
+    if run_module "arch/apps/${primary}.sh"; then
+        log "Successfully installed $primary"
+        return 0
+    fi
+
+    warn "Failed to install $primary. Attempting fallback AUR helper ($secondary)..."
+    if run_module "arch/apps/${secondary}.sh"; then
+        log "Successfully installed fallback AUR helper $secondary"
+        return 0
+    fi
+
+    err "Failed to install both $primary and $secondary AUR helpers."
+    return 1
+}
+
 step_arch_mirrors() {
     if [ "${DRY_RUN_MODE:-false}" = true ]; then return 0; fi
     sudo pacman -Syu --noconfirm
@@ -16,10 +53,17 @@ step_arch_base_pkgs() {
     if [ "${DRY_RUN_MODE:-false}" = true ]; then return 0; fi
     local base_file="$SCRIPT_DIR/packages/arch-base.txt"
     local pkgs=()
+    local kheaders
+    kheaders="$(arch_kernel_headers)"
     while IFS= read -r line || [ -n "$line" ]; do
         line="${line%%#*}"
         line="${line// /}"
-        [ -n "$line" ] && pkgs+=("$line")
+        [ -z "$line" ] && continue
+        if [ "$line" = "linux-headers" ]; then
+            pkgs+=("$kheaders")
+        else
+            pkgs+=("$line")
+        fi
     done < "$base_file"
 
     if [ ${#pkgs[@]} -gt 0 ]; then
@@ -140,16 +184,17 @@ build_plan_arch() {
 
     plan_add "Install Arch Base Packages & Utilities" step_arch_base_pkgs
 
-    if [ "$CFG_AUR" = "paru" ] || [ "$CFG_AUR" = "both" ]; then
+    if [ "$CFG_AUR" = "both" ]; then
         if [ -f "$distro_dir/apps/paru.sh" ]; then
             plan_add "Install Paru AUR Helper (arch/apps/paru.sh)" run_module "arch/apps/paru.sh"
         fi
-    fi
-
-    if [ "$CFG_AUR" = "yay" ] || [ "$CFG_AUR" = "both" ]; then
         if [ -f "$distro_dir/apps/yay.sh" ]; then
             plan_add "Install Yay AUR Helper (arch/apps/yay.sh)" run_module "arch/apps/yay.sh"
         fi
+    elif [ "$CFG_AUR" = "paru" ]; then
+        plan_add "Install Paru AUR Helper (arch/apps/paru.sh)" step_arch_aur_helper "paru"
+    elif [ "$CFG_AUR" = "yay" ]; then
+        plan_add "Install Yay AUR Helper (arch/apps/yay.sh)" step_arch_aur_helper "yay"
     fi
 
     if [ "$CFG_AMD_GPU" = true ] && [ -f "$distro_dir/hardware/gpu/amd.sh" ]; then

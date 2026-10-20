@@ -129,7 +129,12 @@ install_claude_code() {
         return 0
     fi
     log "Installing Claude Code (native installer)..."
-    curl -fsSL https://claude.ai/install.sh | bash
+    local tmp_sh
+    tmp_sh="$(mktemp -t claude_install.XXXXXX.sh)"
+    curl -fsSL https://claude.ai/install.sh -o "$tmp_sh"
+    log "Downloaded Claude installer (sha256: $(sha256sum "$tmp_sh" | awk '{print $1}'))"
+    bash "$tmp_sh"
+    rm -f "$tmp_sh"
 }
 
 for tool in "${TOOLS[@]}"; do

@@ -13,7 +13,12 @@ CONFIG_SOURCE="$FEDORA_DIR/config/dnf.conf"
 
 mapfile -t options < <(grep -E '^[a-z_]+=' "$CONFIG_SOURCE")
 
-for target in /etc/dnf/dnf.conf /etc/dnf/dnf5.conf; do
+targets=("/etc/dnf/dnf.conf")
+if is_dnf5 && [ -f /etc/dnf/dnf5.conf ]; then
+    targets+=("/etc/dnf/dnf5.conf")
+fi
+
+for target in "${targets[@]}"; do
     [ -f "$target" ] || continue
     log "Tuning $target..."
     [ -f "$target.bak" ] || $SUDO cp "$target" "$target.bak"

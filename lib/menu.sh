@@ -65,6 +65,7 @@ CATALOG_PROD=(
     "markitdown|MarkItDown (Document converter)|CFG_PROD_APPS|"
     "gallery_dl|gallery-dl (Image batch downloader)|CFG_PROD_APPS|"
     "ani_cli|ani-cli (Anime streaming CLI)|CFG_PROD_APPS|"
+    "libreoffice|LibreOffice (Office productivity suite)|CFG_PROD_APPS|"
     "xdm|XDM (Xtreme Download Manager)|CFG_PROD_APPS|"
     "advcpmv|advcpmv (cp/mv with progress bars)|CFG_PROD_APPS|arch"
 )

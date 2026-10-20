@@ -35,6 +35,7 @@ liblrdf
 libltc
 libtool
 linux-headers
+logrotate
 lsd
 lz4
 make
@@ -49,6 +50,7 @@ ncdu
 neovim
 nodejs
 npm
+ntp
 obs-studio
 opencode
 pacman-contrib
@@ -78,6 +80,7 @@ trash-cli
 tree
 tree-sitter-cli
 unzip
+usb_modeswitch
 usbutils
 wireplumber
 xz

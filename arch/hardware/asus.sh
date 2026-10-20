@@ -99,8 +99,8 @@ print_summary() {
     kmajor="${krel%%.*}"
     kminor="${krel#*.}"
     kminor="${kminor%%.*}"
-    if [ "$kmajor" -lt 6 ] || { [ "$kmajor" -eq 6 ] && [ "$kminor" -lt 19 ]; }; then
-        echo "  Warning: kernel < 6.19, some ASUS features may need a newer kernel."
+    if [ "$kmajor" -lt 6 ] || { [ "$kmajor" -eq 6 ] && [ "$kminor" -lt 1 ]; }; then
+        echo "  Warning: kernel < 6.1, rog-control-center and some ASUS features may need a newer kernel."
     fi
     echo "  Drivers: run gpu/amd.sh, gpu/nvidia.sh or gpu/intel.sh for CPU & GPU setup."
     echo "=========================================="

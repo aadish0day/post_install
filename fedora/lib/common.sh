@@ -26,6 +26,10 @@ fedora_release() {
     rpm -E %fedora
 }
 
+is_dnf5() {
+    command -v dnf5 &>/dev/null
+}
+
 # ----------------------------------------------------------------------------
 # Packages
 # ----------------------------------------------------------------------------
@@ -316,7 +320,12 @@ ensure_uv() {
         return 0
     fi
     log "Installing uv via official installer..."
-    curl -LsSf https://astral.sh/uv/install.sh | sh
+    local tmp_sh
+    tmp_sh="$(mktemp -t uv_install.XXXXXX.sh)"
+    curl -LsSf https://astral.sh/uv/install.sh -o "$tmp_sh"
+    log "Downloaded uv installer (sha256: $(sha256sum "$tmp_sh" | awk '{print $1}'))"
+    sh "$tmp_sh"
+    rm -f "$tmp_sh"
     export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 }
 

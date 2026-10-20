@@ -12,7 +12,13 @@ log "Starting VMware Workstation setup on Arch Linux..."
 
 # 1. Install prerequisite base & header packages via pacman
 log "Installing linux headers and essential build dependencies..."
-sudo pacman -S --needed --noconfirm linux-headers base-devel dkms fuse2 gtkmm3 pcsclite libcanberra --overwrite '*'
+kheaders="linux-headers"
+case "$(uname -r 2>/dev/null)" in
+    *-lts*)      kheaders="linux-lts-headers" ;;
+    *-zen*)      kheaders="linux-zen-headers" ;;
+    *-hardened*) kheaders="linux-hardened-headers" ;;
+esac
+sudo pacman -S --needed --noconfirm "$kheaders" base-devel dkms fuse2 gtkmm3 pcsclite libcanberra
 
 # 2. Check/Install paru if missing
 if ! command -v paru &>/dev/null; then

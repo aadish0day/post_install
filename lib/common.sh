@@ -37,7 +37,8 @@ check_network() {
     if ping -c 1 -W 2 1.1.1.1 &>/dev/null || ping -c 1 -W 2 8.8.8.8 &>/dev/null; then
         return 0
     fi
-    curl -fsSIL --connect-timeout 3 https://www.google.com &>/dev/null
+    curl -fsSIL --connect-timeout 3 https://www.google.com &>/dev/null || \
+    curl -fsSIL --connect-timeout 3 https://archlinux.org &>/dev/null
 }
 
 download() {
