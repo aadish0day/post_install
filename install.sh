@@ -15,12 +15,14 @@ cleanup_on_exit() {
         kill "$pid" 2>/dev/null || true
     done
     rm -f "${DIALOGRC:-}" 2>/dev/null || true
-    printf '\033[?25h\033[0 q' >/dev/tty 2>/dev/null || tput cnorm 2>/dev/null || true
+    ui_restore_cursor
 }
 trap cleanup_on_exit EXIT
 trap 'echo; cleanup_on_exit; exit 130' INT
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/ui.sh
+source "$SCRIPT_DIR/lib/ui.sh"
 
 # ANSI Colors & Badges
 RED='\033[0;31m'
@@ -327,68 +329,6 @@ set_distro_defaults() {
 
 set_distro_defaults
 
-# ============================================================================
-# TUI UTILITIES & VIM KEYBINDINGS (dialog / whiptail)
-# ============================================================================
-setup_vim_keybindings() {
-    local rc_file="${TMPDIR:-/tmp}/.dialogrc_post_install_$$"
-    cat <<'EOF' >"$rc_file"
-use_shadow = ON
-use_colors = ON
-
-# Input box high-contrast styling: bold white text on blue background prevents invisible cursor on dark terminals
-inputbox_color = (WHITE,BLUE,ON)
-inputbox_border_color = (CYAN,BLUE,ON)
-inputbox_border2_color = (CYAN,BLUE,ON)
-
-# Checklist navigation: j (\152), k (\153), g (\147), G (\107), h (\150), l (\154)
-bindkey checklist \152 ITEM_NEXT
-bindkey checklist \153 ITEM_PREV
-bindkey checklist \147 PAGE_FIRST
-bindkey checklist \107 PAGE_LAST
-bindkey checklist \150 FIELD_PREV
-bindkey checklist \154 FIELD_NEXT
-
-# Menu navigation
-bindkey menu \152 ITEM_NEXT
-bindkey menu \153 ITEM_PREV
-bindkey menu \147 PAGE_FIRST
-bindkey menu \107 PAGE_LAST
-bindkey menu \150 FIELD_PREV
-bindkey menu \154 FIELD_NEXT
-
-# Menubox navigation
-bindkey menubox \152 ITEM_NEXT
-bindkey menubox \153 ITEM_PREV
-bindkey menubox \147 PAGE_FIRST
-bindkey menubox \107 PAGE_LAST
-bindkey menubox \150 FIELD_PREV
-bindkey menubox \154 FIELD_NEXT
-
-# Msgbox navigation
-bindkey msgbox \150 FIELD_PREV
-bindkey msgbox \154 FIELD_NEXT
-bindkey msgbox \152 FIELD_NEXT
-bindkey msgbox \153 FIELD_PREV
-
-# YesNo navigation
-bindkey yesno \150 FIELD_PREV
-bindkey yesno \154 FIELD_NEXT
-bindkey yesno \152 FIELD_NEXT
-bindkey yesno \153 FIELD_PREV
-EOF
-    export DIALOGRC="$rc_file"
-}
-
-get_tui_tool() {
-    if command -v dialog >/dev/null 2>&1; then
-        echo "dialog"
-    elif command -v whiptail >/dev/null 2>&1; then
-        echo "whiptail"
-    else
-        echo "none"
-    fi
-}
 
 # Auto-discover extra scripts in <distro>/apps/
 append_extra_scripts() {
@@ -940,14 +880,8 @@ run_execution_plan() {
     echo -e "${BOLD}${CYAN}============================================================${NC}"
 
     if [ -c /dev/tty ] && [ "$FORCE_CLI" = false ]; then
-        local tui_tool
-        tui_tool=$(get_tui_tool)
         local done_msg="Post-Installation has finished!\n\nTarget Distribution: ${DISTRO_NAME}\nElapsed Time: ${total_time} seconds\nFull Log: ${LOG_FILE}\n\nPlease restart your session or reboot for all changes to take effect."
-        if [ "$tui_tool" = "whiptail" ]; then
-            whiptail --title "Installation Complete" --msgbox "$done_msg" 16 72 </dev/tty || true
-        elif [ "$tui_tool" = "dialog" ]; then
-            dialog --title "Installation Complete" --msgbox "$done_msg" 16 72 </dev/tty || true
-        fi
+        ui_msg "Installation Complete" "$done_msg"
     fi
 }
 
@@ -956,27 +890,16 @@ run_execution_plan() {
 # ============================================================================
 
 picker_desktop_environment() {
-    local tui_tool="$1"
     local title="Desktop Environment (${TARGET_DISTRO}/desktop/)"
     local prompt="Select desktop environment for ${DISTRO_NAME}:"
 
     local choice=""
-    if [ "$tui_tool" = "whiptail" ]; then
-        choice=$(whiptail --default-item "$CFG_DESKTOP" --title "$title" --menu "$prompt" 18 74 5 \
-            "kde" "KDE Plasma Desktop (${TARGET_DISTRO}/desktop/kde.sh)" \
-            "i3" "i3 Window Manager (${TARGET_DISTRO}/desktop/tiling.sh i3)" \
-            "bspwm" "BSPWM + sxhkd (${TARGET_DISTRO}/desktop/tiling.sh bspwm)" \
-            "both" "Both i3 & BSPWM (${TARGET_DISTRO}/desktop/tiling.sh both)" \
-            "none" "None / Headless (Skip desktop setup)" \
-            3>&1 1>&2 2>&3 </dev/tty) || return 0
-    else
-        choice=$(dialog --default-item "$CFG_DESKTOP" --no-hot-list --stdout --title "$title" --menu "$prompt" 18 74 5 \
-            "kde" "KDE Plasma Desktop (${TARGET_DISTRO}/desktop/kde.sh)" \
-            "i3" "i3 Window Manager (${TARGET_DISTRO}/desktop/tiling.sh i3)" \
-            "bspwm" "BSPWM + sxhkd (${TARGET_DISTRO}/desktop/tiling.sh bspwm)" \
-            "both" "Both i3 & BSPWM (${TARGET_DISTRO}/desktop/tiling.sh both)" \
-            "none" "None / Headless (Skip desktop setup)" </dev/tty) || return 0
-    fi
+    choice=$(ui_menu "$title" "$prompt" "$CFG_DESKTOP" \
+        "kde" "KDE Plasma Desktop (${TARGET_DISTRO}/desktop/kde.sh)" \
+        "i3" "i3 Window Manager (${TARGET_DISTRO}/desktop/tiling.sh i3)" \
+        "bspwm" "BSPWM + sxhkd (${TARGET_DISTRO}/desktop/tiling.sh bspwm)" \
+        "both" "Both i3 & BSPWM (${TARGET_DISTRO}/desktop/tiling.sh both)" \
+        "none" "None / Headless (Skip desktop setup)") || return 0
 
     if [ -n "$choice" ]; then
         CFG_DESKTOP="$choice"
@@ -984,7 +907,6 @@ picker_desktop_environment() {
 }
 
 picker_hardware() {
-    local tui_tool="$1"
     local title="Hardware & Drivers (${TARGET_DISTRO}/hardware/)"
     local prompt="Toggle hardware drivers to configure:\n\n[j/k]=Navigate  [SPACE]=Toggle  [ENTER]=Confirm"
 
@@ -997,18 +919,8 @@ picker_hardware() {
         items+=("touchpad" "Precision Touchpad Configuration (${TARGET_DISTRO}/hardware/touchpad.sh)" "$([ "$CFG_TOUCHPAD" = true ] && echo ON || echo OFF)")
     fi
 
-    local count=$(( ${#items[@]} / 3 ))
     local sel=""
-    if [ "$tui_tool" = "whiptail" ]; then
-        sel=$(whiptail --title "$title" --checklist "$prompt" 18 80 "$count" "${items[@]}" 3>&1 1>&2 2>&3 </dev/tty) || return 0
-    else
-        sel=$(dialog --no-hot-list --stdout --title "$title" --checklist "$prompt" 18 80 "$count" "${items[@]}" </dev/tty) || return 0
-    fi
-
-    has_hw() {
-        local target="$1"
-        [[ "$sel" =~ (^|[[:space:]]|\")"$target"($|[[:space:]]|\") ]]
-    }
+    sel=$(ui_checklist "$title" "$prompt" "${items[@]}") || return 0
 
     CFG_ASUS=false
     CFG_AMD_GPU=false
@@ -1016,11 +928,15 @@ picker_hardware() {
     CFG_NVIDIA_GPU=false
     CFG_TOUCHPAD=false
 
-    has_hw "asus" && CFG_ASUS=true
-    has_hw "amd" && CFG_AMD_GPU=true
-    has_hw "intel" && CFG_INTEL_GPU=true
-    has_hw "nvidia" && CFG_NVIDIA_GPU=true
-    has_hw "touchpad" && CFG_TOUCHPAD=true
+    while IFS= read -r tag; do
+        case "$tag" in
+        asus) CFG_ASUS=true ;;
+        amd) CFG_AMD_GPU=true ;;
+        intel) CFG_INTEL_GPU=true ;;
+        nvidia) CFG_NVIDIA_GPU=true ;;
+        touchpad) CFG_TOUCHPAD=true ;;
+        esac
+    done <<< "$sel"
 
     # 1. Prompt for AMD Pro packages when AMD GPU is selected on Arch Linux (matching core/tui/model.py)
     if [ "$CFG_AMD_GPU" = true ] && [ "$TARGET_DISTRO" = "arch" ]; then
@@ -1028,16 +944,9 @@ picker_hardware() {
         local pro_default="$([ "$CFG_AMD_PRO" = true ] && echo "yes" || echo "no")"
         local pro_title="Install AMD Pro Packages? (arch/hardware/gpu/amd.sh --pro)"
         local pro_prompt="Install proprietary AMD Pro components (AMF, OpenCL, OGLP from AUR)?"
-        if [ "$tui_tool" = "whiptail" ]; then
-            pro_choice=$(whiptail --default-item "$pro_default" --title "$pro_title" --menu "$pro_prompt" 14 74 2 \
-                "no" "No  - Open-source Mesa stack only (Recommended)" \
-                "yes" "Yes - Also install AMD Pro AUR packages (AMF, OpenCL, OGLP)" \
-                3>&1 1>&2 2>&3 </dev/tty) || pro_choice="$pro_default"
-        else
-            pro_choice=$(dialog --default-item "$pro_default" --no-hot-list --stdout --title "$pro_title" --menu "$pro_prompt" 14 74 2 \
-                "no" "No  - Open-source Mesa stack only (Recommended)" \
-                "yes" "Yes - Also install AMD Pro AUR packages (AMF, OpenCL, OGLP)" </dev/tty) || pro_choice="$pro_default"
-        fi
+        pro_choice=$(ui_menu "$pro_title" "$pro_prompt" "$pro_default" \
+            "no" "No  - Open-source Mesa stack only (Recommended)" \
+            "yes" "Yes - Also install AMD Pro AUR packages (AMF, OpenCL, OGLP)") || pro_choice="$pro_default"
         if [ "$pro_choice" = "yes" ]; then
             CFG_AMD_PRO=true
         else
@@ -1049,38 +958,23 @@ picker_hardware() {
 
     # 2. Prompt for ASUS battery charge limit when ASUS ROG tooling is selected
     if [ "$CFG_ASUS" = true ]; then
-        # Ensure terminal cursor is fully unhidden and set to high-visibility blinking block
-        printf '\033[?25h\033[?12;25h\033[1 q' >/dev/tty 2>/dev/null || tput cnorm 2>/dev/null || true
+        ui_restore_cursor
 
         local limit_choice=""
         local limit_title="ASUS Battery Charge Limit"
         local limit_prompt="Select battery charge threshold limit (prolongs battery health):\n\nCurrent threshold: ${CFG_ASUS_LIMIT}%"
 
-        if [ "$tui_tool" = "whiptail" ]; then
-            limit_choice=$(whiptail --default-item "$CFG_ASUS_LIMIT" --title "$limit_title" --menu "$limit_prompt" 16 72 5 \
-                "85" "85% - Balanced ROG default (Recommended)" \
-                "80" "80% - Extended battery longevity" \
-                "60" "60% - Maximum lifespan (Stationary / Desk use)" \
-                "100" "100% - Full capacity (Maximum mobile runtime)" \
-                "custom" "Custom - Enter specific percentage (50-100)..." \
-                3>&1 1>&2 2>&3 </dev/tty) || limit_choice="$CFG_ASUS_LIMIT"
-        else
-            limit_choice=$(dialog --default-item "$CFG_ASUS_LIMIT" --no-hot-list --stdout --title "$limit_title" --menu "$limit_prompt" 16 72 5 \
-                "85" "85% - Balanced ROG default (Recommended)" \
-                "80" "80% - Extended battery longevity" \
-                "60" "60% - Maximum lifespan (Stationary / Desk use)" \
-                "100" "100% - Full capacity (Maximum mobile runtime)" \
-                "custom" "Custom - Enter specific percentage (50-100)..." </dev/tty) || limit_choice="$CFG_ASUS_LIMIT"
-        fi
+        limit_choice=$(ui_menu "$limit_title" "$limit_prompt" "$CFG_ASUS_LIMIT" \
+            "85" "85% - Balanced ROG default (Recommended)" \
+            "80" "80% - Extended battery longevity" \
+            "60" "60% - Maximum lifespan (Stationary / Desk use)" \
+            "100" "100% - Full capacity (Maximum mobile runtime)" \
+            "custom" "Custom - Enter specific percentage (50-100)...") || limit_choice="$CFG_ASUS_LIMIT"
 
         if [ "$limit_choice" = "custom" ]; then
             local limit_str=""
-            printf '\033[?25h\033[?12;25h\033[1 q' >/dev/tty 2>/dev/null || tput cnorm 2>/dev/null || true
-            if [ "$tui_tool" = "whiptail" ]; then
-                limit_str=$(whiptail --title "Custom ASUS Battery Limit" --inputbox "Enter battery charge threshold percentage (50-100):" 10 64 "$CFG_ASUS_LIMIT" 3>&1 1>&2 2>&3 </dev/tty) || limit_str="$CFG_ASUS_LIMIT"
-            else
-                limit_str=$(dialog --stdout --title "Custom ASUS Battery Limit" --inputbox "Enter battery charge threshold percentage (50-100):" 10 64 "$CFG_ASUS_LIMIT" </dev/tty) || limit_str="$CFG_ASUS_LIMIT"
-            fi
+            ui_restore_cursor
+            limit_str=$(ui_input "Custom ASUS Battery Limit" "Enter battery charge threshold percentage (50-100):" "$CFG_ASUS_LIMIT") || limit_str="$CFG_ASUS_LIMIT"
             if [ -n "$limit_str" ] && [[ "$limit_str" =~ ^[0-9]+$ ]]; then
                 if [ "$limit_str" -lt 50 ]; then limit_str=50; fi
                 if [ "$limit_str" -gt 100 ]; then limit_str=100; fi
@@ -1093,7 +987,6 @@ picker_hardware() {
 }
 
 picker_virtualization() {
-    local tui_tool="$1"
     local title="Virtualization Setup (${TARGET_DISTRO}/virt/)"
     local prompt="Toggle virtualization components:\n\n[j/k]=Navigate  [SPACE]=Toggle  [ENTER]=Confirm"
 
@@ -1102,22 +995,20 @@ picker_virtualization() {
         "vmware" "VMware Workstation Host & Kernel Modules" "$([ "$CFG_VMWARE" = true ] && echo ON || echo OFF)"
     )
 
-    local count=$(( ${#items[@]} / 3 ))
     local sel=""
-    if [ "$tui_tool" = "whiptail" ]; then
-        sel=$(whiptail --title "$title" --checklist "$prompt" 14 74 "$count" "${items[@]}" 3>&1 1>&2 2>&3 </dev/tty) || return 0
-    else
-        sel=$(dialog --no-hot-list --stdout --title "$title" --checklist "$prompt" 14 74 "$count" "${items[@]}" </dev/tty) || return 0
-    fi
+    sel=$(ui_checklist "$title" "$prompt" "${items[@]}") || return 0
 
     CFG_KVM=false
-    if [[ "$sel" =~ "kvm" ]]; then CFG_KVM=true; fi
     CFG_VMWARE=false
-    if [[ "$sel" =~ "vmware" ]]; then CFG_VMWARE=true; fi
+    while IFS= read -r tag; do
+        case "$tag" in
+        kvm) CFG_KVM=true ;;
+        vmware) CFG_VMWARE=true ;;
+        esac
+    done <<< "$sel"
 }
 
 picker_coding_tools() {
-    local tui_tool="$1"
     local title="Developer & Coding Suite"
     local prompt="Select coding tools to install:\n\n[j/k]=Navigate  [SPACE]=Toggle  [ENTER]=Confirm"
 
@@ -1154,22 +1045,17 @@ picker_coding_tools() {
         "antigravity" "Antigravity CLI & IDE" "$has_antigravity"
     )
 
-    local count=$(( ${#items[@]} / 3 ))
     local sel=""
-    if [ "$tui_tool" = "whiptail" ]; then
-        sel=$(whiptail --title "$title" --checklist "$prompt" 18 76 "$count" "${items[@]}" 3>&1 1>&2 2>&3 </dev/tty) || return 0
-    else
-        sel=$(dialog --no-hot-list --stdout --title "$title" --checklist "$prompt" 18 76 "$count" "${items[@]}" </dev/tty) || return 0
-    fi
+    sel=$(ui_checklist "$title" "$prompt" "${items[@]}") || return 0
 
     CFG_CODING_TOOLS=()
-    if [[ "$sel" =~ "neovim" ]]; then CFG_CODING_TOOLS+=("neovim"); fi
-    if [[ "$sel" =~ "vscode" ]]; then CFG_CODING_TOOLS+=("vscode"); fi
-    if [[ "$sel" =~ "cursor" ]]; then CFG_CODING_TOOLS+=("cursor"); fi
-    if [[ "$sel" =~ "claude_code" ]]; then CFG_CODING_TOOLS+=("claude_code"); fi
-    if [[ "$sel" =~ "android_studio" ]]; then CFG_CODING_TOOLS+=("android_studio"); fi
-    if [[ "$sel" =~ "flutter" ]]; then CFG_CODING_TOOLS+=("flutter"); fi
-    if [[ "$sel" =~ "antigravity" ]]; then CFG_CODING_TOOLS+=("antigravity"); fi
+    while IFS= read -r tag; do
+        case "$tag" in
+        neovim | vscode | cursor | claude_code | android_studio | flutter | antigravity)
+            CFG_CODING_TOOLS+=("$tag")
+            ;;
+        esac
+    done <<< "$sel"
 
     if [ ${#CFG_CODING_TOOLS[@]} -gt 0 ]; then
         CFG_CODING=true
@@ -1179,7 +1065,6 @@ picker_coding_tools() {
 }
 
 picker_productivity() {
-    local tui_tool="$1"
     local title="Productivity & Browsers"
     local prompt="Select productivity tools & browsers to install:\n\n[j/k]=Navigate  [SPACE]=Toggle  [ENTER]=Confirm"
 
@@ -1227,26 +1112,17 @@ picker_productivity() {
         items+=("advcpmv" "advcpmv (cp/mv with progress bars)" "$has_advcpmv")
     fi
 
-    local count=$(( ${#items[@]} / 3 ))
     local sel=""
-    if [ "$tui_tool" = "whiptail" ]; then
-        sel=$(whiptail --title "$title" --checklist "$prompt" 21 78 "$count" "${items[@]}" 3>&1 1>&2 2>&3 </dev/tty) || return 0
-    else
-        sel=$(dialog --no-hot-list --stdout --title "$title" --checklist "$prompt" 21 78 "$count" "${items[@]}" </dev/tty) || return 0
-    fi
+    sel=$(ui_checklist "$title" "$prompt" "${items[@]}") || return 0
 
     CFG_PROD_APPS=()
-    if [[ "$sel" =~ "thorium" ]]; then CFG_PROD_APPS+=("thorium"); fi
-    if [[ "$sel" =~ "zen" ]]; then CFG_PROD_APPS+=("zen"); fi
-    if [[ "$sel" =~ "vesktop" ]]; then CFG_PROD_APPS+=("vesktop"); fi
-    if [[ "$sel" =~ "localsend" ]]; then CFG_PROD_APPS+=("localsend"); fi
-    if [[ "$sel" =~ "anydesk" ]]; then CFG_PROD_APPS+=("anydesk"); fi
-    if [[ "$sel" =~ "obsidian" ]]; then CFG_PROD_APPS+=("obsidian"); fi
-    if [[ "$sel" =~ "markitdown" ]]; then CFG_PROD_APPS+=("markitdown"); fi
-    if [[ "$sel" =~ "gallery_dl" ]]; then CFG_PROD_APPS+=("gallery_dl"); fi
-    if [[ "$sel" =~ "ani_cli" ]]; then CFG_PROD_APPS+=("ani_cli"); fi
-    if [[ "$sel" =~ "xdm" ]]; then CFG_PROD_APPS+=("xdm"); fi
-    if [[ "$sel" =~ "advcpmv" ]]; then CFG_PROD_APPS+=("advcpmv"); fi
+    while IFS= read -r tag; do
+        case "$tag" in
+        thorium | zen | vesktop | localsend | anydesk | obsidian | markitdown | gallery_dl | ani_cli | xdm | advcpmv)
+            CFG_PROD_APPS+=("$tag")
+            ;;
+        esac
+    done <<< "$sel"
 
     if [ ${#CFG_PROD_APPS[@]} -gt 0 ]; then
         CFG_PRODUCTIVITY=true
@@ -1256,25 +1132,15 @@ picker_productivity() {
 }
 
 picker_aur_helper() {
-    local tui_tool="$1"
     local title="AUR Helper Selection (arch/apps/)"
     local prompt="Choose the AUR helper to install:"
 
     local choice=""
-    if [ "$tui_tool" = "whiptail" ]; then
-        choice=$(whiptail --default-item "$CFG_AUR" --title "$title" --menu "$prompt" 16 70 4 \
-            "paru" "Paru (Modern Rust-based AUR helper, Recommended)" \
-            "yay" "Yay (Classic Go-based AUR helper)" \
-            "both" "Both (Install Paru & Yay side-by-side)" \
-            "none" "None (Skip AUR helper installation)" \
-            3>&1 1>&2 2>&3 </dev/tty) || return 0
-    else
-        choice=$(dialog --default-item "$CFG_AUR" --no-hot-list --stdout --title "$title" --menu "$prompt" 16 70 4 \
-            "paru" "Paru (Modern Rust-based AUR helper, Recommended)" \
-            "yay" "Yay (Classic Go-based AUR helper)" \
-            "both" "Both (Install Paru & Yay side-by-side)" \
-            "none" "None (Skip AUR helper installation)" </dev/tty) || return 0
-    fi
+    choice=$(ui_menu "$title" "$prompt" "$CFG_AUR" \
+        "paru" "Paru (Modern Rust-based AUR helper, Recommended)" \
+        "yay" "Yay (Classic Go-based AUR helper)" \
+        "both" "Both (Install Paru & Yay side-by-side)" \
+        "none" "None (Skip AUR helper installation)") || return 0
 
     if [ -n "$choice" ]; then
         CFG_AUR="$choice"
@@ -1282,27 +1148,16 @@ picker_aur_helper() {
 }
 
 picker_distro() {
-    local tui_tool="$1"
     local title="Select Distribution / Target OS"
     local prompt="Select active distribution workspace folder:"
 
     local choice=""
-    if [ "$tui_tool" = "whiptail" ]; then
-        choice=$(whiptail --default-item "$TARGET_DISTRO" --title "$title" --menu "$prompt" 18 70 5 \
-            "arch" "Arch Linux (arch/ modular folder)" \
-            "debian" "Debian / Ubuntu (debian/ modular folder)" \
-            "fedora" "Fedora (fedora/ modular folder)" \
-            "kali" "Kali Linux (kali/ modular folder)" \
-            "termux" "Termux (termux/ modular folder)" \
-            3>&1 1>&2 2>&3 </dev/tty) || return 0
-    else
-        choice=$(dialog --default-item "$TARGET_DISTRO" --no-hot-list --stdout --title "$title" --menu "$prompt" 18 70 5 \
-            "arch" "Arch Linux (arch/ modular folder)" \
-            "debian" "Debian / Ubuntu (debian/ modular folder)" \
-            "fedora" "Fedora (fedora/ modular folder)" \
-            "kali" "Kali Linux (kali/ modular folder)" \
-            "termux" "Termux (termux/ modular folder)" </dev/tty) || return 0
-    fi
+    choice=$(ui_menu "$title" "$prompt" "$TARGET_DISTRO" \
+        "arch" "Arch Linux (arch/ modular folder)" \
+        "debian" "Debian / Ubuntu (debian/ modular folder)" \
+        "fedora" "Fedora (fedora/ modular folder)" \
+        "kali" "Kali Linux (kali/ modular folder)" \
+        "termux" "Termux (termux/ modular folder)") || return 0
 
     if [ -n "$choice" ]; then
         TARGET_DISTRO="$choice"
@@ -1315,21 +1170,16 @@ picker_distro() {
 # Displays configured state right on the menu item, exactly like Archinstall.
 # ============================================================================
 run_tui() {
-    local tui_tool
-    tui_tool=$(get_tui_tool)
+    ui_detect
 
-    if [ "$tui_tool" = "none" ]; then
+    if [ "$UI_TOOL" = "none" ]; then
         log_warn "Neither 'dialog' nor 'whiptail' found. Falling back to CLI mode."
         run_cli_interactive
         return
     fi
 
-    if [ "$tui_tool" = "dialog" ]; then
-        setup_vim_keybindings
-    fi
-
-    # Ensure cursor is visible
-    printf '\033[?25h\033[1 q' >/dev/tty 2>/dev/null || tput cnorm 2>/dev/null || true
+    ui_init
+    ui_restore_cursor
 
     local current_item="distro"
 
@@ -1451,34 +1301,21 @@ run_tui() {
             current_item="distro"
         fi
 
-        local num_items=$(( ${#menu_items[@]} / 2 ))
-        local box_height=$(( num_items + 9 ))
-        [ "$box_height" -lt 24 ] && box_height=24
-
         local choice=""
-        local exit_code=0
-        if [ "$tui_tool" = "whiptail" ]; then
-            choice=$(whiptail --default-item "$current_item" --title "$menu_title" --menu "$menu_prompt" "$box_height" 84 "$num_items" "${menu_items[@]}" 3>&1 1>&2 2>&3 </dev/tty) || exit_code=$?
-        else
-            choice=$(dialog --default-item "$current_item" --no-hot-list --stdout --title "$menu_title" --menu "$menu_prompt" "$box_height" 84 "$num_items" "${menu_items[@]}" </dev/tty) || exit_code=$?
-        fi
-
-        if [ "$exit_code" -ne 0 ]; then
-            choice="abort"
-        fi
+        choice=$(ui_menu "$menu_title" "$menu_prompt" "$current_item" "${menu_items[@]}") || choice="abort"
 
         if [ -n "$choice" ] && [ "$choice" != "abort" ] && [ "$choice" != "install" ]; then
             current_item="$choice"
         fi
 
         case "$choice" in
-        distro) picker_distro "$tui_tool" ;;
-        desktop) picker_desktop_environment "$tui_tool" ;;
-        hardware) picker_hardware "$tui_tool" ;;
-        virt) picker_virtualization "$tui_tool" ;;
-        coding) picker_coding_tools "$tui_tool" ;;
-        prod) picker_productivity "$tui_tool" ;;
-        aur) picker_aur_helper "$tui_tool" ;;
+        distro) picker_distro ;;
+        desktop) picker_desktop_environment ;;
+        hardware) picker_hardware ;;
+        virt) picker_virtualization ;;
+        coding) picker_coding_tools ;;
+        prod) picker_productivity ;;
+        aur) picker_aur_helper ;;
 
         # Direct quick toggles (Space/Enter flips in place)
         docker)
@@ -1504,17 +1341,10 @@ run_tui() {
             ;;
         kali_meta)
             local m_choice=""
-            if [ "$tui_tool" = "whiptail" ]; then
-                m_choice=$(whiptail --default-item "$CFG_KALI_META" --title "Kali Metapackages" --menu "Select suite:" 14 60 3 \
-                    "large" "kali-linux-large (Recommended)" \
-                    "everything" "kali-linux-everything" \
-                    "default" "kali-linux-default" 3>&1 1>&2 2>&3 </dev/tty) || true
-            else
-                m_choice=$(dialog --default-item "$CFG_KALI_META" --no-hot-list --stdout --title "Kali Metapackages" --menu "Select suite:" 14 60 3 \
-                    "large" "kali-linux-large (Recommended)" \
-                    "everything" "kali-linux-everything" \
-                    "default" "kali-linux-default" </dev/tty) || true
-            fi
+            m_choice=$(ui_menu "Kali Metapackages" "Select suite:" "$CFG_KALI_META" \
+                "large" "kali-linux-large (Recommended)" \
+                "everything" "kali-linux-everything" \
+                "default" "kali-linux-default") || true
             if [ -n "$m_choice" ]; then CFG_KALI_META="$m_choice"; fi
             ;;
 
@@ -1522,36 +1352,14 @@ run_tui() {
             # Confirm before running
             build_plan
             local plan_msg="Ready to execute ./${TARGET_DISTRO}/ post-installation plan (${#PLAN_TITLES[@]} steps).\n\nTarget OS: ${DISTRO_NAME}\nSession Log: ${LOG_FILE}\n\nStart installation now?"
-            local do_run=false
-            if [ "$tui_tool" = "whiptail" ]; then
-                if whiptail --title "Confirm Installation" --yesno "$plan_msg" 14 72 3>&1 1>&2 2>&3 </dev/tty; then
-                    do_run=true
-                fi
-            else
-                if dialog --title "Confirm Installation" --yesno "$plan_msg" 14 72 </dev/tty; then
-                    do_run=true
-                fi
-            fi
-
-            if [ "$do_run" = true ]; then
+            if ui_yesno "Confirm Installation" "$plan_msg"; then
                 run_execution_plan false
                 break
             fi
             ;;
 
         abort | "")
-            local confirm_exit=false
-            if [ "$tui_tool" = "whiptail" ]; then
-                if whiptail --title "Exit Installer?" --yesno "Are you sure you want to exit without applying changes?" 10 64 3>&1 1>&2 2>&3 </dev/tty; then
-                    confirm_exit=true
-                fi
-            else
-                if dialog --title "Exit Installer?" --yesno "Are you sure you want to exit without applying changes?" 10 64 </dev/tty; then
-                    confirm_exit=true
-                fi
-            fi
-
-            if [ "$confirm_exit" = true ]; then
+            if ui_yesno "Exit Installer?" "Are you sure you want to exit without applying changes?"; then
                 [ "$TERM" != "dumb" ] && clear 2>/dev/null || true
                 log_info "Exiting Post-Installation Suite. Have a productive day!"
                 break
