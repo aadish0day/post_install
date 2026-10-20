@@ -94,8 +94,13 @@ DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${TAG}/${ARCHIVE_NAME
 
 log "Downloading $ARCHIVE_NAME..."
 if ! curl -fSL -o "$TEMP_DIR/$ARCHIVE_NAME" "$DOWNLOAD_URL"; then
-    warn "Direct download failed, falling back to official upstream install script..."
-    DIR="$TEMP_DIR" curl -s https://raw.githubusercontent.com/jesseduffield/lazydocker/master/scripts/install_update_linux.sh | bash
+    warn "Direct download failed, falling back to release-pinned install script..."
+    fallback_sh="$TEMP_DIR/install_update_linux.sh"
+    script_url="https://raw.githubusercontent.com/${REPO}/${TAG}/scripts/install_update_linux.sh"
+    if curl -fsSL -o "$fallback_sh" "$script_url"; then
+        log "Downloaded fallback installer from $script_url (sha256: $(sha256sum "$fallback_sh" | awk '{print $1}'))"
+        DIR="$TEMP_DIR" bash "$fallback_sh"
+    fi
 fi
 
 if [ -f "$TEMP_DIR/$ARCHIVE_NAME" ]; then

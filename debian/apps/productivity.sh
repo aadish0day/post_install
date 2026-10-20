@@ -67,12 +67,17 @@ fallback_vesktop() {
 }
 
 fallback_obsidian() {
+    # On Debian stable, Flatpak is preferred and reliable for Obsidian due to libc/Electron dependencies
+    ensure_flatpak || true
+    if flatpak_install md.obsidian.Obsidian; then
+        return 0
+    fi
     local url
     url="$(github_asset_url obsidianmd/obsidian-releases '_amd64\.deb$')" || true
     if [ -n "${url:-}" ]; then
         install_deb_url "$url" obsidian
     else
-        flatpak_install md.obsidian.Obsidian
+        return 1
     fi
 }
 
@@ -97,6 +102,7 @@ app_wanted "zen" && try_install "Zen Browser" zen-browser zen-browser-bin fallba
 app_wanted "vesktop" && try_install "Vesktop (Discord)" vesktop vesktop-deb fallback_vesktop
 app_wanted "obsidian" && try_install "Obsidian" obsidian obsidian-deb fallback_obsidian
 app_wanted "localsend" && try_install "LocalSend" localsend_app "" install_localsend
+app_wanted "libreoffice" && { apt_install libreoffice || failed+=("libreoffice"); }
 
 if app_wanted "gallery_dl" || app_wanted "markitdown"; then
     log "==> gallery-dl & markitdown (uv tool)"

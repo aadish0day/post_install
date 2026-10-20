@@ -12,28 +12,14 @@
 [ -n "${_POST_INSTALL_DEBIAN_LIB:-}" ] && return 0
 _POST_INSTALL_DEBIAN_LIB=1
 
-SIMULATE="${SIMULATE:-0}"
-export DEBIAN_FRONTEND=noninteractive
-
-log() { printf '\e[1;34m[INFO]\e[0m %s\n' "$*"; }
-warn() { printf '\e[1;33m[WARN]\e[0m %s\n' "$*" >&2; }
-err() { printf '\e[1;31m[ERROR]\e[0m %s\n' "$*" >&2; }
-die() {
-    err "$*"
-    exit 1
-}
-
-if [ "$(id -u)" -eq 0 ]; then
-    SUDO=""
-else
-    SUDO="sudo"
+COMMON_LIB="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/lib/common.sh"
+if [ -f "$COMMON_LIB" ]; then
+    # shellcheck source=lib/common.sh
+    source "$COMMON_LIB"
 fi
 
-is_simulate() { [ "$SIMULATE" = "1" ]; }
-
-in_container() {
-    [ -f /run/.containerenv ] || [ -f /.dockerenv ]
-}
+SIMULATE="${SIMULATE:-0}"
+export DEBIAN_FRONTEND=noninteractive
 
 current_user() {
     id -un
@@ -52,11 +38,6 @@ is_ubuntu() {
 os_codename() {
     # shellcheck disable=SC1091
     . /etc/os-release && echo "${UBUNTU_CODENAME:-${DEBIAN_CODENAME:-${VERSION_CODENAME:-}}}"
-}
-
-# Download helper: download URL DEST
-download() {
-    curl -fL --retry 3 --connect-timeout 20 -o "$2" "$1"
 }
 
 # HEAD-check a URL (follows redirects). Prints the effective URL, or falls back to small range GET.
@@ -345,7 +326,12 @@ ensure_uv() {
         return 0
     fi
     log "Installing uv via official installer..."
-    curl -LsSf https://astral.sh/uv/install.sh | sh
+    local tmp_sh
+    tmp_sh="$(mktemp -t uv_install.XXXXXX.sh)"
+    curl -LsSf https://astral.sh/uv/install.sh -o "$tmp_sh"
+    log "Downloaded uv installer (sha256: $(sha256sum "$tmp_sh" | awk '{print $1}'))"
+    sh "$tmp_sh"
+    rm -f "$tmp_sh"
     export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 }
 
@@ -419,25 +405,4 @@ enable_service() {
     $SUDO systemctl enable "$@" "$unit" || warn "Could not enable $unit"
 }
 
-# add_user_group GROUP [USER]
-add_user_group() {
-    local group="$1" user="${2:-$(current_user)}"
-    [ "$user" = "root" ] && return 0
-    if ! getent group "$group" >/dev/null; then
-        warn "Group $group does not exist, skipping."
-        return 0
-    fi
-    if is_simulate; then
-        log "[simulate] would add $user to $group"
-        return 0
-    fi
-    $SUDO usermod -aG "$group" "$user"
-    log "Added $user to group $group"
-}
 
-# append_line_once FILE LINE
-append_line_once() {
-    local file="$1" line="$2"
-    touch "$file"
-    grep -qxF -- "$line" "$file" || printf '\n%s\n' "$line" >>"$file"
-}

@@ -43,7 +43,10 @@ Section "InputClass"
     # Disable touchpad while typing
     Option "DisableWhileTyping" "on"
 
-    # Enable horizontal edge scrolling
+    # Scrolling configuration: libinput defaults to twofinger scrolling.
+    # Set Option "ScrollMethod" "edge" to enable edge scrolling instead.
+    Option "ScrollMethod" "twofinger"
+    # Legacy synaptics compatibility option:
     Option "HorizEdgeScroll" "true"
 
     # Set pointer acceleration profile to flat

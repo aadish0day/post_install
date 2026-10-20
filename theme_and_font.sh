@@ -113,6 +113,12 @@ else
 	exit 1
 fi
 
+# Check if unzip is installed
+if ! command -v unzip >/dev/null 2>&1; then
+	echo "Error: 'unzip' is not installed. Please install 'unzip' before running this script." >&2
+	exit 1
+fi
+
 # Unzip the font files into the designated directory
 echo "Unzipping the font files..."
 unzip -o -q -d "$FONTS_DIR" "$ZIP"

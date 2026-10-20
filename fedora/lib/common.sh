@@ -12,33 +12,22 @@
 [ -n "${_POST_INSTALL_FEDORA_LIB:-}" ] && return 0
 _POST_INSTALL_FEDORA_LIB=1
 
+COMMON_LIB="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/lib/common.sh"
+if [ -f "$COMMON_LIB" ]; then
+    # shellcheck source=lib/common.sh
+    source "$COMMON_LIB"
+fi
+
 SIMULATE="${SIMULATE:-0}"
 # shellcheck disable=SC2034 # used by scripts that source this file
 FEDORA_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-log() { printf '\e[1;34m[INFO]\e[0m %s\n' "$*"; }
-warn() { printf '\e[1;33m[WARN]\e[0m %s\n' "$*" >&2; }
-err() { printf '\e[1;31m[ERROR]\e[0m %s\n' "$*" >&2; }
-die() {
-    err "$*"
-    exit 1
-}
-
-SUDO=""
-if [ "$(id -u)" -ne 0 ]; then
-    SUDO="sudo"
-fi
-
-in_container() {
-    [ -f /run/.containerenv ] || [ -f /.dockerenv ] || [ -f /run/.toolboxenv ] || [ -n "${DISTROBOX_ENTER_PATH:-}" ]
-}
-
-is_simulate() {
-    [ "$SIMULATE" = "1" ]
-}
-
 fedora_release() {
     rpm -E %fedora
+}
+
+is_dnf5() {
+    command -v dnf5 &>/dev/null
 }
 
 # ----------------------------------------------------------------------------
@@ -331,7 +320,12 @@ ensure_uv() {
         return 0
     fi
     log "Installing uv via official installer..."
-    curl -LsSf https://astral.sh/uv/install.sh | sh
+    local tmp_sh
+    tmp_sh="$(mktemp -t uv_install.XXXXXX.sh)"
+    curl -LsSf https://astral.sh/uv/install.sh -o "$tmp_sh"
+    log "Downloaded uv installer (sha256: $(sha256sum "$tmp_sh" | awk '{print $1}'))"
+    sh "$tmp_sh"
+    rm -f "$tmp_sh"
     export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 }
 
@@ -447,22 +441,7 @@ enable_user_service() {
     systemctl --user enable --now "$1" 2>/dev/null || warn "Could not enable user unit $1"
 }
 
-# add_user_group GROUP...
-add_user_group() {
-    local user group
-    user="$(id -un)"
-    if is_simulate; then
-        log "[simulate] would add $user to groups: $*"
-        return 0
-    fi
-    for group in "$@"; do
-        if getent group "$group" &>/dev/null; then
-            $SUDO usermod -aG "$group" "$user" && log "Added $user to $group"
-        else
-            warn "Group $group does not exist, skipping"
-        fi
-    done
-}
+
 
 # add_path_line LINE  (appends to ~/.zshrc and ~/.bashrc once)
 add_path_line() {

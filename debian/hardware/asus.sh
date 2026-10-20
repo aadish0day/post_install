@@ -31,7 +31,11 @@ fi
 # Rust stable toolchain (Debian's rustc is often too old for asusctl)
 if [ ! -x "$HOME/.cargo/bin/cargo" ]; then
     log "Installing the Rust toolchain with rustup..."
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+    tmp_rustup="$(mktemp -t rustup.XXXXXX.sh)"
+    curl --proto '=https' --tlsv1.2 -fsSL https://sh.rustup.rs -o "$tmp_rustup"
+    log "Downloaded rustup installer (sha256: $(sha256sum "$tmp_rustup" | awk '{print $1}'))"
+    sh "$tmp_rustup" -y --profile minimal
+    rm -f "$tmp_rustup"
 fi
 export PATH="$HOME/.cargo/bin:$PATH"
 

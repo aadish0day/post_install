@@ -24,18 +24,29 @@ $PKG_MANAGER install -y dkms git build-essential bc libelf-dev linux-headers-$(u
 
 # Create temporary directory and install driver
 TEMP_DIR=$(mktemp -d)
-cd "$TEMP_DIR"
+installed=0
 
-echo "Downloading driver source..."
-git clone https://github.com/morrownr/8821au-20210708.git
-cd 8821au-20210708
-
-echo "Installing driver..."
-chmod +x install-driver.sh
-./install-driver.sh
-
-# Cleanup
+echo "Downloading driver source from morrownr GitHub repository..."
+if git clone --depth 1 https://github.com/morrownr/8821au-20210708.git "$TEMP_DIR/8821au" 2>/dev/null; then
+    cd "$TEMP_DIR/8821au"
+    chmod +x install-driver.sh
+    if ./install-driver.sh --no-prompt 2>/dev/null || ./install-driver.sh; then
+        echo "Successfully installed morrownr 8821au driver via DKMS."
+        installed=1
+    fi
+fi
 cd /
 rm -rf "$TEMP_DIR"
+
+if [ "$installed" -eq 0 ]; then
+    echo "GitHub install failed or unavailable. Falling back to Kali APT package (realtek-rtl88xxau-dkms)..."
+    if $PKG_MANAGER install -y realtek-rtl88xxau-dkms; then
+        echo "Successfully installed realtek-rtl88xxau-dkms from Kali repos."
+        installed=1
+    else
+        echo "Error: Failed to install WiFi driver via morrownr source and APT." >&2
+        exit 1
+    fi
+fi
 
 echo "WiFi drivers installed. Reboot to complete."

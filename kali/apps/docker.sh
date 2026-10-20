@@ -22,15 +22,16 @@ echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.
 sudo apt-get update
 
 # Install Docker packages
-sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin docker-ce-rootless-extras docker-model-plugin
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin docker-ce-rootless-extras
 
 # Enable and start Docker service
 echo "Enabling and starting Docker service..."
 sudo systemctl enable --now docker
 
 # Configure permissions
-echo "Adding user $USER to the docker group..."
-sudo usermod -aG docker "$USER"
+TARGET_USER="${SUDO_USER:-$USER}"
+echo "Adding user $TARGET_USER to the docker group..."
+sudo usermod -aG docker "$TARGET_USER"
 
 echo "Docker installation and configuration complete!"
 echo "Please log out and log back in for group changes to take effect."

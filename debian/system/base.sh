@@ -66,7 +66,11 @@ if ! command -v starship >/dev/null 2>&1; then
         if is_simulate; then
             url_ok https://starship.rs/install.sh >/dev/null
         else
-            curl -sS https://starship.rs/install.sh | sh -s -- -y
+            tmp_starship="$(mktemp -t starship.XXXXXX.sh)"
+            curl -fsSL https://starship.rs/install.sh -o "$tmp_starship"
+            log "Downloaded starship installer (sha256: $(sha256sum "$tmp_starship" | awk '{print $1}'))"
+            sh "$tmp_starship" -y
+            rm -f "$tmp_starship"
         fi
     fi
 fi
