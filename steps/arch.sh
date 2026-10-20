@@ -141,7 +141,6 @@ step_arch_prod_apps() {
         ani_cli) prod_pkgs+=("ani-cli") ;;
         advcpmv) prod_pkgs+=("advcpmv") ;;
         libreoffice) prod_pkgs+=("libreoffice-fresh") ;;
-        xdm) prod_pkgs+=("xdman-bin") ;;
         esac
     done
 
@@ -179,6 +178,7 @@ build_plan_arch() {
     plan_managed_app "yay"
     plan_managed_app "flutter"
     plan_managed_app "burp"
+    plan_managed_app "xdm"
 
     if [ "$CFG_MIRRORS" = true ]; then
         plan_add "Optimize Mirrorlist (Reflector India)" step_arch_mirrors
@@ -283,6 +283,14 @@ build_plan_arch() {
 
     if [ "$CFG_PRODUCTIVITY" = true ] && [ ${#CFG_PROD_APPS[@]} -gt 0 ]; then
         plan_add "Install Essential AUR Productivity Tools (${#CFG_PROD_APPS[@]} apps)" step_arch_prod_apps
+
+        local has_xdm=false p
+        for p in "${CFG_PROD_APPS[@]}"; do
+            if [ "$p" = "xdm" ]; then has_xdm=true; break; fi
+        done
+        if [ "$has_xdm" = true ] && [ -f "$distro_dir/apps/xdm.sh" ]; then
+            plan_add "Install XDM Download Manager (arch/apps/xdm.sh)" run_module "arch/apps/xdm.sh"
+        fi
     fi
 
     append_extra_scripts "$distro_dir" "arch"
