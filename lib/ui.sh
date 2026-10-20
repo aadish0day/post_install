@@ -21,55 +21,53 @@ ui_ensure_dialog() {
         return 0
     fi
 
-    # Do not execute package installations during dry-run / simulation
+    # Never install packages during dry-run / simulation mode
     if is_simulate || [ "${DRY_RUN:-false}" = true ] || [ "${DRY_RUN_MODE:-false}" = true ]; then
         return 0
     fi
 
-    echo -e "\033[0;34m[INFO]\033[0m Neither 'dialog' nor 'whiptail' found. Installing 'dialog' for interactive TUI..."
+    printf '\033[0;34m[INFO]\033[0m Neither "dialog" nor "whiptail" found. Installing "dialog" for TUI...\n'
 
     local sudo_cmd=""
     if [ "$(id -u)" -ne 0 ]; then
         if command -v sudo >/dev/null 2>&1; then
+            if ! sudo -v; then
+                printf '\033[1;33m[WARN]\033[0m Sudo authentication failed; cannot auto-install dialog.\n' >&2
+                return 1
+            fi
             sudo_cmd="sudo"
         elif command -v doas >/dev/null 2>&1; then
             sudo_cmd="doas"
         else
-            warn "Cannot install dialog: root privileges or sudo required."
+            printf '\033[1;33m[WARN]\033[0m Neither sudo nor doas found; cannot auto-install dialog.\n' >&2
             return 1
         fi
     fi
 
-    case "${TARGET_DISTRO:-}" in
-    debian|kali)
-        $sudo_cmd apt-get update -qq 2>/dev/null || true
-        $sudo_cmd apt-get install -y dialog 2>/dev/null || true
-        ;;
-    fedora)
-        if command -v dnf5 &>/dev/null; then
-            $sudo_cmd dnf5 install -y dialog 2>/dev/null || true
-        elif command -v dnf &>/dev/null; then
-            $sudo_cmd dnf install -y dialog 2>/dev/null || true
+    # Install using distro-specific package manager
+    if [ "${TARGET_DISTRO:-}" = "debian" ] || [ "${TARGET_DISTRO:-}" = "kali" ] || command -v apt-get >/dev/null 2>&1; then
+        $sudo_cmd apt-get update -qq || true
+        DEBIAN_FRONTEND=noninteractive $sudo_cmd apt-get install -y dialog || true
+    elif [ "${TARGET_DISTRO:-}" = "fedora" ] || command -v dnf5 >/dev/null 2>&1 || command -v dnf >/dev/null 2>&1; then
+        if command -v dnf5 >/dev/null 2>&1; then
+            $sudo_cmd dnf5 install -y dialog || true
+        else
+            $sudo_cmd dnf install -y dialog || true
         fi
-        ;;
-    arch)
-        if command -v pacman &>/dev/null; then
-            $sudo_cmd pacman -S --needed --noconfirm dialog 2>/dev/null || \
-            $sudo_cmd pacman -Sy --needed --noconfirm dialog 2>/dev/null || true
-        fi
-        ;;
-    termux)
-        if command -v pkg &>/dev/null; then
-            pkg install -y dialog 2>/dev/null || true
-        fi
-        ;;
-    esac
+    elif [ "${TARGET_DISTRO:-}" = "arch" ] || command -v pacman >/dev/null 2>&1; then
+        $sudo_cmd pacman -S --needed --noconfirm dialog 2>/dev/null || \
+        $sudo_cmd pacman -Sy --needed --noconfirm dialog || true
+    elif [ "${TARGET_DISTRO:-}" = "termux" ] || command -v pkg >/dev/null 2>&1; then
+        pkg install -y dialog || true
+    fi
 
     ui_detect
     if [ "$UI_TOOL" != "none" ]; then
-        echo -e "\033[0;32m[OK]\033[0m Successfully installed dialog for TUI."
+        printf '\033[0;32m[OK]\033[0m Successfully installed dialog.\n'
         return 0
     fi
+
+    printf '\033[1;33m[WARN]\033[0m Could not install dialog. Falling back to CLI mode.\n' >&2
     return 1
 }
 
