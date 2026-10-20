@@ -3,13 +3,13 @@
 
 step_arch_mirrors() {
     if [ "${DRY_RUN_MODE:-false}" = true ]; then return 0; fi
-    sudo pacman -Sy --noconfirm
-    sudo pacman -S --needed reflector --noconfirm --overwrite '*'
+    sudo pacman -Syu --noconfirm
+    sudo pacman -S --needed reflector --noconfirm
     timeout 30s sudo reflector --latest 10 --fastest 5 --protocol https \
         --connection-timeout 5 --download-timeout 5 --threads 8 \
         --country India --sort rate --save /etc/pacman.d/mirrorlist || \
         echo "Reflector timed out or failed; keeping existing mirrorlist."
-    sudo pacman -Syu --noconfirm --overwrite '*'
+    sudo pacman -Syu --noconfirm
 }
 
 step_arch_base_pkgs() {
@@ -23,7 +23,7 @@ step_arch_base_pkgs() {
     done < "$base_file"
 
     if [ ${#pkgs[@]} -gt 0 ]; then
-        sudo pacman -S --needed --noconfirm --overwrite '*' "${pkgs[@]}"
+        sudo pacman -S --needed --noconfirm "${pkgs[@]}"
     fi
 
     if command -v git &>/dev/null && command -v git-lfs &>/dev/null; then
@@ -35,6 +35,10 @@ step_arch_coding() {
     if [ "${DRY_RUN_MODE:-false}" = true ]; then return 0; fi
     local aur
     aur="$(aur_cmd)"
+    if [ -z "$aur" ]; then
+        echo "Error: no AUR helper found (paru or yay required for coding tools)" >&2
+        return 1
+    fi
     local pkgs=()
     local run_flutter=false
     local t
@@ -52,8 +56,8 @@ step_arch_coding() {
         esac
     done
 
-    if [ -n "$aur" ] && [ ${#pkgs[@]} -gt 0 ]; then
-        "$aur" -S --needed --noconfirm "${pkgs[@]}" || true
+    if [ ${#pkgs[@]} -gt 0 ]; then
+        "$aur" -S --needed --noconfirm "${pkgs[@]}"
     fi
 
     if [ "$run_flutter" = true ] && [ -f "$SCRIPT_DIR/arch/apps/flutter.sh" ]; then
@@ -63,7 +67,7 @@ step_arch_coding() {
 
 step_arch_aiml() {
     if [ "${DRY_RUN_MODE:-false}" = true ]; then return 0; fi
-    sudo pacman -S --needed --noconfirm --overwrite '*' \
+    sudo pacman -S --needed --noconfirm \
         rocm-llvm rocm-opencl-runtime rocm-opencl-sdk rocm-hip-sdk rocm-ml-libraries \
         rocm-openmp hipify-clang rocminfo opencl-headers libclc ocl-icd \
         python-pytorch-rocm python-onnxruntime-rocm
@@ -73,6 +77,10 @@ step_arch_prod_apps() {
     if [ "${DRY_RUN_MODE:-false}" = true ]; then return 0; fi
     local aur
     aur="$(aur_cmd)"
+    if [ -z "$aur" ]; then
+        echo "Error: no AUR helper found (paru or yay required for productivity apps)" >&2
+        return 1
+    fi
     local prod_pkgs=()
     local need_thorium=false
     local p
@@ -95,8 +103,8 @@ step_arch_prod_apps() {
         prod_pkgs+=("$(thorium_pkg)")
     fi
 
-    if [ -n "$aur" ] && [ ${#prod_pkgs[@]} -gt 0 ]; then
-        "$aur" -S --needed --noconfirm "${prod_pkgs[@]}" || true
+    if [ ${#prod_pkgs[@]} -gt 0 ]; then
+        "$aur" -S --needed --noconfirm "${prod_pkgs[@]}"
     fi
 }
 
