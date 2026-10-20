@@ -65,7 +65,7 @@ CATALOG_PROD=(
     "markitdown|MarkItDown (Document converter)|CFG_PROD_APPS|"
     "gallery_dl|gallery-dl (Image batch downloader)|CFG_PROD_APPS|"
     "ani_cli|ani-cli (Anime streaming CLI)|CFG_PROD_APPS|"
-    "libreoffice|LibreOffice (Office productivity suite)|CFG_PROD_APPS|"
+    "libreoffice|LibreOffice (Office productivity suite)|CFG_PROD_APPS|debian"
     "xdm|XDM (Xtreme Download Manager)|CFG_PROD_APPS|"
     "advcpmv|advcpmv (cp/mv with progress bars)|CFG_PROD_APPS|arch"
 )
@@ -262,6 +262,7 @@ menu_badge_abort() {
 
 menu_catalog_visible() {
     local guard="$1"
+    [ -z "$guard" ] && return 0
     case "$guard" in
     arch) [ "$TARGET_DISTRO" = "arch" ] ;;
     nonarch) [ "$TARGET_DISTRO" != "arch" ] ;;
@@ -269,8 +270,9 @@ menu_catalog_visible() {
         [ "$TARGET_DISTRO" != "kali" ] && [ "$TARGET_DISTRO" != "termux" ] && \
         { [ -f "${TARGET_DISTRO}/hardware/touchpad.sh" ] || [ -f "arch/hardware/touchpad.sh" ]; }
         ;;
-    "") return 0 ;;
-    *) return 1 ;;
+    *)
+        [[ " $guard " =~ [[:space:]]${TARGET_DISTRO}[[:space:]] ]]
+        ;;
     esac
 }
 
@@ -479,7 +481,7 @@ menu_multi_prod() {
     CFG_PROD_APPS=()
     while IFS= read -r tag; do
         case "$tag" in
-        thorium | zen | vesktop | localsend | anydesk | obsidian | markitdown | gallery_dl | ani_cli | xdm | advcpmv)
+        thorium | zen | vesktop | localsend | anydesk | obsidian | markitdown | gallery_dl | ani_cli | xdm | advcpmv | libreoffice)
             CFG_PROD_APPS+=("$tag")
             ;;
         esac

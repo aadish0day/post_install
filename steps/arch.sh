@@ -140,6 +140,8 @@ step_arch_prod_apps() {
         gallery_dl) prod_pkgs+=("gallery-dl-bin") ;;
         ani_cli) prod_pkgs+=("ani-cli") ;;
         advcpmv) prod_pkgs+=("advcpmv") ;;
+        libreoffice) prod_pkgs+=("libreoffice-fresh") ;;
+        xdm) prod_pkgs+=("xdman-bin") ;;
         esac
     done
 
