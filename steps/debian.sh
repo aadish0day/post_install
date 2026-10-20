@@ -52,10 +52,6 @@ build_plan_debian() {
         plan_add "Configure ASUS ROG Tools (debian/hardware/asus.sh)" run_module "debian/hardware/asus.sh" "${CFG_ASUS_LIMIT}"
     fi
 
-    if [ "$CFG_TOUCHPAD" = true ] && [ -f "$distro_dir/hardware/touchpad.sh" ]; then
-        plan_add "Configure Precision Touchpad (debian/hardware/touchpad.sh)" run_module "debian/hardware/touchpad.sh"
-    fi
-
     if [ "$CFG_DESKTOP" = "kde" ] && [ -f "$distro_dir/desktop/kde.sh" ]; then
         plan_add "Install KDE Plasma Desktop (debian/desktop/kde.sh)" run_module "debian/desktop/kde.sh"
     elif [ "$CFG_DESKTOP" = "i3" ] && [ -f "$distro_dir/desktop/tiling.sh" ]; then

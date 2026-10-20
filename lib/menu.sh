@@ -40,7 +40,6 @@ CATALOG_HARDWARE=(
     "amd|AMD CPU/GPU Drivers & Optimization ({D}/hardware/gpu/amd.sh)|CFG_AMD_GPU|"
     "intel|Intel CPU/GPU Drivers ({D}/hardware/gpu/intel.sh)|CFG_INTEL_GPU|"
     "nvidia|NVIDIA GPU Drivers ({D}/hardware/gpu/nvidia.sh)|CFG_NVIDIA_GPU|"
-    "touchpad|Precision Touchpad Configuration ({D}/hardware/touchpad.sh)|CFG_TOUCHPAD|touchpad"
 )
 CATALOG_VIRT=(
     "kvm|KVM / QEMU & virt-manager (libvirtd network)|CFG_KVM|"
@@ -266,10 +265,6 @@ menu_catalog_visible() {
     case "$guard" in
     arch) [ "$TARGET_DISTRO" = "arch" ] ;;
     nonarch) [ "$TARGET_DISTRO" != "arch" ] ;;
-    touchpad)
-        [ "$TARGET_DISTRO" != "kali" ] && [ "$TARGET_DISTRO" != "termux" ] && \
-        { [ -f "${TARGET_DISTRO}/hardware/touchpad.sh" ] || [ -f "arch/hardware/touchpad.sh" ]; }
-        ;;
     *)
         [[ " $guard " =~ [[:space:]]${TARGET_DISTRO}[[:space:]] ]]
         ;;
@@ -351,7 +346,6 @@ menu_multi_hardware() {
         amd) CFG_AMD_GPU=true ;;
         intel) CFG_INTEL_GPU=true ;;
         nvidia) CFG_NVIDIA_GPU=true ;;
-        touchpad) CFG_TOUCHPAD=true ;;
         esac
     done <<<"$sel"
 
