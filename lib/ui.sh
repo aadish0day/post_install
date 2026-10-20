@@ -54,7 +54,8 @@ ui_ensure_dialog() {
         ;;
     arch)
         if command -v pacman &>/dev/null; then
-            $sudo_cmd pacman -S --needed --noconfirm dialog 2>/dev/null || true
+            $sudo_cmd pacman -S --needed --noconfirm dialog 2>/dev/null || \
+            $sudo_cmd pacman -Sy --needed --noconfirm dialog 2>/dev/null || true
         fi
         ;;
     termux)
