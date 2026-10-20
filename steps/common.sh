@@ -37,33 +37,6 @@ plan_add() {
     PLAN_ARGS+=("$serialized")
 }
 
-run_module() {
-    local script="$1"
-    shift
-    local args=("$@")
-
-    if [[ "$script" != /* ]]; then
-        script="$SCRIPT_DIR/$script"
-    fi
-
-    if [ ! -f "$script" ]; then
-        echo "Error: script not found: $script" >&2
-        return 1
-    fi
-
-    local parent_dir
-    parent_dir="$(cd "$(dirname "$script")/.." && pwd)"
-
-    if [ "${DRY_RUN_MODE:-false}" = true ]; then
-        return 0
-    fi
-
-    (
-        cd "$parent_dir" || exit 1
-        bash "$script" "${args[@]}"
-    )
-}
-
 thorium_pkg() {
     if grep -qw avx2 /proc/cpuinfo 2>/dev/null; then
         echo "thorium-browser-avx2-bin"
