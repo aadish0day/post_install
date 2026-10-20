@@ -513,6 +513,7 @@ menu_activate() {
 }
 
 run_tui() {
+    ui_ensure_dialog
     ui_detect
 
     if [ "$UI_TOOL" = "none" ]; then

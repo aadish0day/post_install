@@ -589,6 +589,17 @@ if [ "$FORCE_CLI" = true ]; then
     exit 0
 fi
 
+if [ "$FORCE_TUI" = true ]; then
+    ui_ensure_dialog
+    ui_detect
+    if [ "$UI_TOOL" = "none" ]; then
+        log_error "Could not initialize TUI: neither 'dialog' nor 'whiptail' is available."
+        exit 1
+    fi
+    run_tui
+    exit 0
+fi
+
 # TUI is default when interactive
 if [ -t 0 ] && [ -t 1 ]; then
     run_tui

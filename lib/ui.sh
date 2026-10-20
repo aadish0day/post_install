@@ -15,6 +15,63 @@ ui_detect() {
     export UI_TOOL
 }
 
+ui_ensure_dialog() {
+    if command -v dialog >/dev/null 2>&1 || command -v whiptail >/dev/null 2>&1; then
+        ui_detect
+        return 0
+    fi
+
+    # Do not execute package installations during dry-run / simulation
+    if is_simulate || [ "${DRY_RUN:-false}" = true ] || [ "${DRY_RUN_MODE:-false}" = true ]; then
+        return 0
+    fi
+
+    echo -e "\033[0;34m[INFO]\033[0m Neither 'dialog' nor 'whiptail' found. Installing 'dialog' for interactive TUI..."
+
+    local sudo_cmd=""
+    if [ "$(id -u)" -ne 0 ]; then
+        if command -v sudo >/dev/null 2>&1; then
+            sudo_cmd="sudo"
+        elif command -v doas >/dev/null 2>&1; then
+            sudo_cmd="doas"
+        else
+            warn "Cannot install dialog: root privileges or sudo required."
+            return 1
+        fi
+    fi
+
+    case "${TARGET_DISTRO:-}" in
+    debian|kali)
+        $sudo_cmd apt-get update -qq 2>/dev/null || true
+        $sudo_cmd apt-get install -y dialog 2>/dev/null || true
+        ;;
+    fedora)
+        if command -v dnf5 &>/dev/null; then
+            $sudo_cmd dnf5 install -y dialog 2>/dev/null || true
+        elif command -v dnf &>/dev/null; then
+            $sudo_cmd dnf install -y dialog 2>/dev/null || true
+        fi
+        ;;
+    arch)
+        if command -v pacman &>/dev/null; then
+            $sudo_cmd pacman -S --needed --noconfirm dialog 2>/dev/null || true
+        fi
+        ;;
+    termux)
+        if command -v pkg &>/dev/null; then
+            pkg install -y dialog 2>/dev/null || true
+        fi
+        ;;
+    esac
+
+    ui_detect
+    if [ "$UI_TOOL" != "none" ]; then
+        echo -e "\033[0;32m[OK]\033[0m Successfully installed dialog for TUI."
+        return 0
+    fi
+    return 1
+}
+
 ui_restore_cursor() {
     printf '\033[?25h\033[0 q' >/dev/tty 2>/dev/null || tput cnorm 2>/dev/null || true
 }
