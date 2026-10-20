@@ -25,6 +25,18 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/ui.sh"
 # shellcheck source=lib/menu.sh
 source "$SCRIPT_DIR/lib/menu.sh"
+# shellcheck source=steps/common.sh
+source "$SCRIPT_DIR/steps/common.sh"
+# shellcheck source=steps/arch.sh
+source "$SCRIPT_DIR/steps/arch.sh"
+# shellcheck source=steps/debian.sh
+source "$SCRIPT_DIR/steps/debian.sh"
+# shellcheck source=steps/fedora.sh
+source "$SCRIPT_DIR/steps/fedora.sh"
+# shellcheck source=steps/kali.sh
+source "$SCRIPT_DIR/steps/kali.sh"
+# shellcheck source=steps/termux.sh
+source "$SCRIPT_DIR/steps/termux.sh"
 
 # ANSI Colors & Badges
 RED='\033[0;31m'
@@ -245,455 +257,33 @@ set_distro_defaults() {
 set_distro_defaults
 
 
-# Auto-discover extra scripts in <distro>/apps/
-append_extra_scripts() {
-    local d_dir="$1"
-    local d_name="$2"
-    local apps_dir="$d_dir/apps"
-    [ -d "$apps_dir" ] || return 0
-
-    local managed=()
-    case "$d_name" in
-    arch) managed=("docker" "gaming" "paru" "yay" "flutter") ;;
-    kali) managed=("docker") ;;
-    debian) managed=("docker" "lazydocker" "neovim" "coding" "gaming" "aiml" "productivity" "markitdown" "xdm") ;;
-    fedora) managed=("docker" "lazydocker" "coding" "gaming" "aiml" "productivity" "markitdown" "xdm") ;;
-    termux) managed=() ;;
-    esac
-
-    for extra in "$apps_dir"/*.sh; do
-        [ -f "$extra" ] || continue
-        local stem
-        stem="$(basename "$extra" .sh)"
-        local is_managed=false
-        for m in "${managed[@]}"; do
-            if [ "$m" = "$stem" ]; then
-                is_managed=true
-                break
-            fi
-        done
-        if [ "$is_managed" = false ]; then
-            PLAN_TITLES+=("Run Extra App Script: ${d_name}/apps/${stem}.sh")
-            PLAN_COMMANDS+=("bash apps/${stem}.sh")
-            PLAN_CWDS+=("$d_dir")
-        fi
-    done
-}
-
-# ============================================================================
-# EXECUTION ENGINE: Build and execute installation plan
-# ============================================================================
 build_plan() {
-    PLAN_TITLES=()
-    PLAN_COMMANDS=()
-    PLAN_CWDS=()
+    plan_init
 
-    local distro_dir="${SCRIPT_DIR}/${TARGET_DISTRO}"
-
-    # ---------------- ARCH LINUX ----------------
-    if [ "$TARGET_DISTRO" = "arch" ]; then
-        if [ "$CFG_MIRRORS" = true ]; then
-            PLAN_TITLES+=("Optimize Mirrorlist (Reflector India)")
-            PLAN_COMMANDS+=("sudo pacman -Sy --noconfirm && sudo pacman -S --needed reflector --noconfirm --overwrite '*' && timeout 30s sudo reflector --latest 10 --fastest 5 --protocol https --connection-timeout 5 --download-timeout 5 --threads 8 --country India --sort rate --save /etc/pacman.d/mirrorlist || echo 'Reflector timed out or failed; keeping existing mirrorlist.' && sudo pacman -Syu --noconfirm --overwrite '*'")
-            PLAN_CWDS+=("$distro_dir")
-        fi
-
-        PLAN_TITLES+=("Install Arch Base Packages & Utilities")
-        PLAN_COMMANDS+=("sudo pacman -S --needed --noconfirm --overwrite '*' android-tools aria2 atool bat chromaprint doxygen duf fastfetch fd fluidsynth fzf gcc gettext git git-lfs gst-libav gst-plugins-ugly highlight htop img2pdf imagemagick inxi jq jpegoptim less libavtp libdca libgme liblrdf libltc libtool linux-headers lsd lz4 make man-db man-pages maven mediainfo mjpegtools mkinitcpio mpv ncdu neovim nodejs npm obs-studio 7zip pacman-contrib pacutils parallel pipewire pipewire-alsa pipewire-audio pipewire-jack lib32-pipewire-jack pipewire-pulse pipewire-zeroconf pipewire-libcamera rtkit pkgfile plocate pv ripgrep sd spandsp starship soundtouch svt-hevc tar tree tree-sitter-cli trash-cli tmux unzip wireplumber xz yazi yt-dlp zip zoxide zsh zstd dosfstools usbutils lazydocker opencode github-cli && if command -v git &>/dev/null && command -v git-lfs &>/dev/null; then git lfs install --skip-repo; fi")
-        PLAN_CWDS+=("$distro_dir")
-
-        if [ "$CFG_AUR" = "paru" ] || [ "$CFG_AUR" = "both" ]; then
-            if [ -f "$distro_dir/apps/paru.sh" ]; then
-                PLAN_TITLES+=("Install Paru AUR Helper (arch/apps/paru.sh)")
-                PLAN_COMMANDS+=("bash apps/paru.sh")
-                PLAN_CWDS+=("$distro_dir")
-            fi
-        fi
-
-        if [ "$CFG_AUR" = "yay" ] || [ "$CFG_AUR" = "both" ]; then
-            if [ -f "$distro_dir/apps/yay.sh" ]; then
-                PLAN_TITLES+=("Install Yay AUR Helper (arch/apps/yay.sh)")
-                PLAN_COMMANDS+=("bash apps/yay.sh")
-                PLAN_CWDS+=("$distro_dir")
-            fi
-        fi
-
-        if [ "$CFG_AMD_GPU" = true ] && [ -f "$distro_dir/hardware/gpu/amd.sh" ]; then
-            local cmd="bash hardware/gpu/amd.sh"
-            if [ "$CFG_AMD_PRO" = true ]; then cmd+=" --pro"; fi
-            PLAN_TITLES+=("AMD CPU/GPU Drivers & P-State Optimization (arch/hardware/gpu/amd.sh)")
-            PLAN_COMMANDS+=("$cmd")
-            PLAN_CWDS+=("$distro_dir")
-        fi
-
-        if [ "$CFG_INTEL_GPU" = true ] && [ -f "$distro_dir/hardware/gpu/intel.sh" ]; then
-            PLAN_TITLES+=("Intel CPU/GPU Drivers (arch/hardware/gpu/intel.sh)")
-            PLAN_COMMANDS+=("bash hardware/gpu/intel.sh")
-            PLAN_CWDS+=("$distro_dir")
-        fi
-
-        if [ "$CFG_NVIDIA_GPU" = true ] && [ -f "$distro_dir/hardware/gpu/nvidia.sh" ]; then
-            PLAN_TITLES+=("NVIDIA GPU Drivers (arch/hardware/gpu/nvidia.sh)")
-            PLAN_COMMANDS+=("bash hardware/gpu/nvidia.sh")
-            PLAN_CWDS+=("$distro_dir")
-        fi
-
-        if [ "$CFG_ASUS" = true ] && [ -f "$distro_dir/hardware/asus.sh" ]; then
-            PLAN_TITLES+=("Configure ASUS ROG & Power Tooling (arch/hardware/asus.sh)")
-            PLAN_COMMANDS+=("bash hardware/asus.sh ${CFG_ASUS_LIMIT}")
-            PLAN_CWDS+=("$distro_dir")
-        fi
-
-        if [ "$CFG_TOUCHPAD" = true ] && [ -f "$distro_dir/hardware/touchpad.sh" ]; then
-            PLAN_TITLES+=("Configure Precision Touchpad (arch/hardware/touchpad.sh)")
-            PLAN_COMMANDS+=("bash hardware/touchpad.sh")
-            PLAN_CWDS+=("$distro_dir")
-        fi
-
-        if [ "$CFG_DESKTOP" = "kde" ] && [ -f "$distro_dir/desktop/kde.sh" ]; then
-            PLAN_TITLES+=("Install KDE Plasma Desktop (arch/desktop/kde.sh)")
-            PLAN_COMMANDS+=("bash desktop/kde.sh")
-            PLAN_CWDS+=("$distro_dir")
-        elif [ "$CFG_DESKTOP" = "i3" ] && [ -f "$distro_dir/desktop/tiling.sh" ]; then
-            PLAN_TITLES+=("Install i3 Tiling Window Manager (arch/desktop/tiling.sh i3)")
-            PLAN_COMMANDS+=("bash desktop/tiling.sh i3")
-            PLAN_CWDS+=("$distro_dir")
-        elif [ "$CFG_DESKTOP" = "bspwm" ] && [ -f "$distro_dir/desktop/tiling.sh" ]; then
-            PLAN_TITLES+=("Install BSPWM Tiling Window Manager (arch/desktop/tiling.sh bspwm)")
-            PLAN_COMMANDS+=("bash desktop/tiling.sh bspwm")
-            PLAN_CWDS+=("$distro_dir")
-        elif [ "$CFG_DESKTOP" = "tiling" ] || [ "$CFG_DESKTOP" = "both" ]; then
-            if [ -f "$distro_dir/desktop/tiling.sh" ]; then
-                PLAN_TITLES+=("Install X11 Tiling Window Managers (arch/desktop/tiling.sh both)")
-                PLAN_COMMANDS+=("bash desktop/tiling.sh both")
-                PLAN_CWDS+=("$distro_dir")
-            fi
-        fi
-
-        if [ "$CFG_KVM" = true ] && [ -f "$distro_dir/virt/kvm-qemu.sh" ]; then
-            PLAN_TITLES+=("Setup KVM, QEMU & virt-manager (arch/virt/kvm-qemu.sh)")
-            PLAN_COMMANDS+=("bash virt/kvm-qemu.sh")
-            PLAN_CWDS+=("$distro_dir")
-        fi
-
-        if [ "$CFG_VMWARE" = true ] && [ -f "$distro_dir/virt/vmware-workstation.sh" ]; then
-            PLAN_TITLES+=("Install VMware Workstation (arch/virt/vmware-workstation.sh)")
-            PLAN_COMMANDS+=("bash virt/vmware-workstation.sh")
-            PLAN_CWDS+=("$distro_dir")
-        fi
-
-        if [ "$CFG_DOCKER" = true ] && [ -f "$distro_dir/apps/docker.sh" ]; then
-            PLAN_TITLES+=("Install Docker Engine & Buildx (arch/apps/docker.sh)")
-            PLAN_COMMANDS+=("bash apps/docker.sh")
-            PLAN_CWDS+=("$distro_dir")
-        fi
-
-        if [ "$CFG_CODING" = true ]; then
-            local pkgs=()
-            local run_flutter=false
-            for t in "${CFG_CODING_TOOLS[@]}"; do
-                case "$t" in
-                vscode) pkgs+=("visual-studio-code-bin") ;;
-                cursor) pkgs+=("cursor-bin") ;;
-                claude_code) pkgs+=("claude-code") ;;
-                android_studio) pkgs+=("android-studio") ;;
-                flutter)
-                    pkgs+=("flutter-bin")
-                    run_flutter=true
-                    ;;
-                antigravity) pkgs+=("antigravity-cli" "antigravity-ide") ;;
-                esac
-            done
-            if [ ${#pkgs[@]} -gt 0 ] || [ "$run_flutter" = true ]; then
-                local coding_cmd="aur_cmd=''; if command -v paru &>/dev/null; then aur_cmd='paru'; elif command -v yay &>/dev/null; then aur_cmd='yay'; fi"
-                if [ ${#pkgs[@]} -gt 0 ]; then
-                    coding_cmd+="; if [ -n \"\$aur_cmd\" ]; then \$aur_cmd -S --needed --noconfirm ${pkgs[*]} || true; fi"
-                fi
-                if [ "$run_flutter" = true ]; then
-                    coding_cmd+="; if [ -f apps/flutter.sh ]; then bash apps/flutter.sh; fi"
-                fi
-                PLAN_TITLES+=("Install Developer & Coding Suite (AUR)")
-                PLAN_COMMANDS+=("$coding_cmd")
-                PLAN_CWDS+=("$distro_dir")
-            fi
-        fi
-
-        if [ "$CFG_SECURITY_BURP" = true ] && [ -f "$distro_dir/apps/burp/install.sh" ]; then
-            PLAN_TITLES+=("Setup Burp Suite Professional (arch/apps/burp/install.sh)")
-            PLAN_COMMANDS+=("bash apps/burp/install.sh")
-            PLAN_CWDS+=("$distro_dir")
-        fi
-
-        if [ "$CFG_GAMING" = true ] && [ -f "$distro_dir/apps/gaming.sh" ]; then
-            PLAN_TITLES+=("Setup Gaming Stack (arch/apps/gaming.sh)")
-            PLAN_COMMANDS+=("bash apps/gaming.sh")
-            PLAN_CWDS+=("$distro_dir")
-        fi
-
-        if [ "$CFG_AIML" = true ]; then
-            PLAN_TITLES+=("Install ROCm & AI/ML Acceleration Suite")
-            PLAN_COMMANDS+=("sudo pacman -S --needed --noconfirm --overwrite '*' rocm-llvm rocm-opencl-runtime rocm-opencl-sdk rocm-hip-sdk rocm-ml-libraries rocm-openmp hipify-clang rocminfo opencl-headers libclc ocl-icd python-pytorch-rocm python-onnxruntime-rocm")
-            PLAN_CWDS+=("$distro_dir")
-        fi
-
-        if [ "$CFG_PRODUCTIVITY" = true ] && [ ${#CFG_PROD_APPS[@]} -gt 0 ]; then
-            local prod_pkgs=()
-            local need_thorium=false
-            for p in "${CFG_PROD_APPS[@]}"; do
-                case "$p" in
-                thorium) need_thorium=true ;;
-                zen) prod_pkgs+=("zen-browser-bin") ;;
-                vesktop) prod_pkgs+=("vesktop-bin") ;;
-                localsend) prod_pkgs+=("localsend-bin") ;;
-                anydesk) prod_pkgs+=("anydesk-bin") ;;
-                obsidian) prod_pkgs+=("obsidian") ;;
-                markitdown) prod_pkgs+=("markitdown-bin") ;;
-                gallery_dl) prod_pkgs+=("gallery-dl-bin") ;;
-                ani_cli) prod_pkgs+=("ani-cli") ;;
-                advcpmv) prod_pkgs+=("advcpmv") ;;
-                esac
-            done
-
-            if [ "$need_thorium" = true ] || [ ${#prod_pkgs[@]} -gt 0 ]; then
-                local prod_cmd="aur_cmd=''; if command -v paru &>/dev/null; then aur_cmd='paru'; elif command -v yay &>/dev/null; then aur_cmd='yay'; fi; if [ -n \"\$aur_cmd\" ]; then "
-                if [ "$need_thorium" = true ]; then
-                    prod_cmd+="thorium_pkg='thorium-browser-bin'; if grep -qw avx2 /proc/cpuinfo 2>/dev/null; then thorium_pkg='thorium-browser-avx2-bin'; elif grep -qw avx /proc/cpuinfo 2>/dev/null; then thorium_pkg='thorium-browser-avx-bin'; elif grep -qw sse4_1 /proc/cpuinfo 2>/dev/null; then thorium_pkg='thorium-browser-sse4-bin'; fi; "
-                    prod_pkgs+=("\$thorium_pkg")
-                fi
-                prod_cmd+="\$aur_cmd -S --needed --noconfirm ${prod_pkgs[*]} || true; fi"
-
-                PLAN_TITLES+=("Install Essential AUR Productivity Tools (${#CFG_PROD_APPS[@]} apps)")
-                PLAN_COMMANDS+=("$prod_cmd")
-                PLAN_CWDS+=("$distro_dir")
-            fi
-        fi
-
-        append_extra_scripts "$distro_dir" "arch"
-
-        PLAN_TITLES+=("Configure Services & Default Shell")
-        PLAN_COMMANDS+=("sudo systemctl enable --now rtkit-daemon.service 2>/dev/null || true; for s in xdg-desktop-portal.service xdg-desktop-portal-gtk.service; do if systemctl --user list-unit-files 2>/dev/null | grep -q \"\$s\"; then systemctl --user start \"\$s\" 2>/dev/null || true; fi; done; if [ \"\$SHELL\" != \"\$(command -v zsh 2>/dev/null || echo '')\" ] && command -v zsh &>/dev/null; then chsh -s \"\$(command -v zsh)\" \"\$USER\" 2>/dev/null || true; fi")
-        PLAN_CWDS+=("$distro_dir")
-
-    # ---------------- KALI LINUX ----------------
-    elif [ "$TARGET_DISTRO" = "kali" ]; then
-        PLAN_TITLES+=("Kali Linux Core Setup (kali/kali.sh)")
-        PLAN_COMMANDS+=("sudo apt update && sudo apt install -y nala && sudo nala update && sudo nala upgrade -y && sudo nala install -y git git-lfs stow zsh tmux curl wget vim neovim fzf zoxide lsd trash-cli htop open-vm-tools starship && mkdir -p ~/cybersec && if [ ! -d ~/dotfile ]; then git clone https://github.com/aadish0day/dotfile.git ~/dotfile && (cd ~/dotfile && [ -f link.sh ] && ./link.sh || true); fi")
-        PLAN_CWDS+=("$distro_dir")
-
-        if [ -n "$CFG_KALI_META" ]; then
-            PLAN_TITLES+=("Install Kali Metapackage (kali-linux-${CFG_KALI_META})")
-            PLAN_COMMANDS+=("sudo nala install -y kali-linux-${CFG_KALI_META}")
-            PLAN_CWDS+=("$distro_dir")
-        fi
-
-        if [ "$CFG_KALI_WIFI" = true ] && [ -f "$distro_dir/hardware/wifi.sh" ]; then
-            PLAN_TITLES+=("Install Realtek WiFi Driver (kali/hardware/wifi.sh)")
-            PLAN_COMMANDS+=("bash hardware/wifi.sh")
-            PLAN_CWDS+=("$distro_dir")
-        fi
-
-        if [ "$CFG_DOCKER" = true ] && [ -f "$distro_dir/apps/docker.sh" ]; then
-            PLAN_TITLES+=("Install Docker CE on Kali (kali/apps/docker.sh)")
-            PLAN_COMMANDS+=("bash apps/docker.sh")
-            PLAN_CWDS+=("$distro_dir")
-        fi
-
-        if [ "$CFG_SECURITY_BURP" = true ] && [ -f "$distro_dir/apps/burp/install.sh" ]; then
-            PLAN_TITLES+=("Setup Burp Suite Professional (kali/apps/burp/install.sh)")
-            PLAN_COMMANDS+=("bash apps/burp/install.sh")
-            PLAN_CWDS+=("$distro_dir")
-        fi
-
-        if [ "$CFG_KALI_SEARCHSPLOIT" = true ]; then
-            PLAN_TITLES+=("Update SearchSploit Exploit Database")
-            PLAN_COMMANDS+=("if command -v searchsploit &>/dev/null; then searchsploit -u || true; fi")
-            PLAN_CWDS+=("$distro_dir")
-        fi
-
-        append_extra_scripts "$distro_dir" "kali"
-
-    # ---------------- DEBIAN / UBUNTU & FEDORA ----------------
-    elif [ "$TARGET_DISTRO" = "debian" ] || [ "$TARGET_DISTRO" = "fedora" ]; then
-        if [ "$TARGET_DISTRO" = "fedora" ] && [ -f "$distro_dir/system/dnf.sh" ]; then
-            PLAN_TITLES+=("Configure DNF & Performance Tweaks (fedora/system/dnf.sh)")
-            PLAN_COMMANDS+=("bash system/dnf.sh")
-            PLAN_CWDS+=("$distro_dir")
-        fi
-
-        if [ -f "$distro_dir/system/repos.sh" ]; then
-            PLAN_TITLES+=("Configure System Repositories (${TARGET_DISTRO}/system/repos.sh)")
-            PLAN_COMMANDS+=("bash system/repos.sh")
-            PLAN_CWDS+=("$distro_dir")
-        fi
-
-        if [ "$TARGET_DISTRO" = "debian" ] && [ -f "$distro_dir/system/pacstall.sh" ]; then
-            PLAN_TITLES+=("Install Pacstall AUR Helper for Debian (debian/system/pacstall.sh)")
-            PLAN_COMMANDS+=("bash system/pacstall.sh")
-            PLAN_CWDS+=("$distro_dir")
-        fi
-
-        if [ -f "$distro_dir/system/flatpak.sh" ]; then
-            PLAN_TITLES+=("Configure Flatpak & Flathub (${TARGET_DISTRO}/system/flatpak.sh)")
-            PLAN_COMMANDS+=("bash system/flatpak.sh")
-            PLAN_CWDS+=("$distro_dir")
-        fi
-
-        if [ -f "$distro_dir/system/base.sh" ]; then
-            PLAN_TITLES+=("Install Base Packages (${TARGET_DISTRO}/system/base.sh)")
-            PLAN_COMMANDS+=("bash system/base.sh")
-            PLAN_CWDS+=("$distro_dir")
-        fi
-
-        if [ "$CFG_AMD_GPU" = true ] && [ -f "$distro_dir/hardware/gpu/amd.sh" ]; then
-            PLAN_TITLES+=("Configure AMD Graphics Drivers (${TARGET_DISTRO}/hardware/gpu/amd.sh)")
-            PLAN_COMMANDS+=("bash hardware/gpu/amd.sh")
-            PLAN_CWDS+=("$distro_dir")
-        fi
-
-        if [ "$CFG_INTEL_GPU" = true ] && [ -f "$distro_dir/hardware/gpu/intel.sh" ]; then
-            PLAN_TITLES+=("Configure Intel Graphics Drivers (${TARGET_DISTRO}/hardware/gpu/intel.sh)")
-            PLAN_COMMANDS+=("bash hardware/gpu/intel.sh")
-            PLAN_CWDS+=("$distro_dir")
-        fi
-
-        if [ "$CFG_NVIDIA_GPU" = true ] && [ -f "$distro_dir/hardware/gpu/nvidia.sh" ]; then
-            PLAN_TITLES+=("Configure NVIDIA Graphics Drivers (${TARGET_DISTRO}/hardware/gpu/nvidia.sh)")
-            PLAN_COMMANDS+=("bash hardware/gpu/nvidia.sh")
-            PLAN_CWDS+=("$distro_dir")
-        fi
-
-        if [ "$CFG_ASUS" = true ] && [ -f "$distro_dir/hardware/asus.sh" ]; then
-            PLAN_TITLES+=("Configure ASUS ROG Tools (${TARGET_DISTRO}/hardware/asus.sh)")
-            PLAN_COMMANDS+=("bash hardware/asus.sh ${CFG_ASUS_LIMIT}")
-            PLAN_CWDS+=("$distro_dir")
-        fi
-
-        if [ "$CFG_TOUCHPAD" = true ] && [ -f "$distro_dir/hardware/touchpad.sh" ]; then
-            PLAN_TITLES+=("Configure Precision Touchpad (${TARGET_DISTRO}/hardware/touchpad.sh)")
-            PLAN_COMMANDS+=("bash hardware/touchpad.sh")
-            PLAN_CWDS+=("$distro_dir")
-        fi
-
-        if [ "$CFG_DESKTOP" = "kde" ] && [ -f "$distro_dir/desktop/kde.sh" ]; then
-            PLAN_TITLES+=("Install KDE Plasma Desktop (${TARGET_DISTRO}/desktop/kde.sh)")
-            PLAN_COMMANDS+=("bash desktop/kde.sh")
-            PLAN_CWDS+=("$distro_dir")
-        elif [ "$CFG_DESKTOP" = "i3" ] && [ -f "$distro_dir/desktop/tiling.sh" ]; then
-            PLAN_TITLES+=("Install i3 Tiling Window Manager (${TARGET_DISTRO}/desktop/tiling.sh i3)")
-            PLAN_COMMANDS+=("bash desktop/tiling.sh i3")
-            PLAN_CWDS+=("$distro_dir")
-        elif [ "$CFG_DESKTOP" = "bspwm" ] && [ -f "$distro_dir/desktop/tiling.sh" ]; then
-            PLAN_TITLES+=("Install BSPWM Tiling Window Manager (${TARGET_DISTRO}/desktop/tiling.sh bspwm)")
-            PLAN_COMMANDS+=("bash desktop/tiling.sh bspwm")
-            PLAN_CWDS+=("$distro_dir")
-        elif [ "$CFG_DESKTOP" = "tiling" ] || [ "$CFG_DESKTOP" = "both" ]; then
-            if [ -f "$distro_dir/desktop/tiling.sh" ]; then
-                PLAN_TITLES+=("Install X11 Tiling Window Managers (${TARGET_DISTRO}/desktop/tiling.sh both)")
-                PLAN_COMMANDS+=("bash desktop/tiling.sh both")
-                PLAN_CWDS+=("$distro_dir")
-            fi
-        fi
-
-        if [ "$CFG_KVM" = true ] && [ -f "$distro_dir/virt/kvm-qemu.sh" ]; then
-            PLAN_TITLES+=("Setup KVM, QEMU & virt-manager (${TARGET_DISTRO}/virt/kvm-qemu.sh)")
-            PLAN_COMMANDS+=("bash virt/kvm-qemu.sh")
-            PLAN_CWDS+=("$distro_dir")
-        fi
-
-        if [ "$CFG_VMWARE" = true ] && [ -f "$distro_dir/virt/vmware-workstation.sh" ]; then
-            PLAN_TITLES+=("Install VMware Workstation (${TARGET_DISTRO}/virt/vmware-workstation.sh)")
-            PLAN_COMMANDS+=("bash virt/vmware-workstation.sh")
-            PLAN_CWDS+=("$distro_dir")
-        fi
-
-        if [ "$CFG_DOCKER" = true ] && [ -f "$distro_dir/apps/docker.sh" ]; then
-            PLAN_TITLES+=("Install Docker Engine (${TARGET_DISTRO}/apps/docker.sh)")
-            PLAN_COMMANDS+=("bash apps/docker.sh")
-            PLAN_CWDS+=("$distro_dir")
-
-            if [ -f "$distro_dir/apps/lazydocker.sh" ]; then
-                PLAN_TITLES+=("Install lazydocker TUI (${TARGET_DISTRO}/apps/lazydocker.sh)")
-                PLAN_COMMANDS+=("bash apps/lazydocker.sh")
-                PLAN_CWDS+=("$distro_dir")
-            fi
-        fi
-
-        if [ "$CFG_CODING" = true ] && [ ${#CFG_CODING_TOOLS[@]} -gt 0 ] && [ -f "$distro_dir/apps/coding.sh" ]; then
-            PLAN_TITLES+=("Install Developer Suite (${TARGET_DISTRO}/apps/coding.sh)")
-            PLAN_COMMANDS+=("bash apps/coding.sh ${CFG_CODING_TOOLS[*]}")
-            PLAN_CWDS+=("$distro_dir")
-        fi
-
-        if [ "$CFG_GAMING" = true ] && [ -f "$distro_dir/apps/gaming.sh" ]; then
-            PLAN_TITLES+=("Setup Gaming Stack (${TARGET_DISTRO}/apps/gaming.sh)")
-            PLAN_COMMANDS+=("bash apps/gaming.sh")
-            PLAN_CWDS+=("$distro_dir")
-        fi
-
-        if [ "$CFG_AIML" = true ] && [ -f "$distro_dir/apps/aiml.sh" ]; then
-            PLAN_TITLES+=("Install ROCm & AI/ML Acceleration Suite (${TARGET_DISTRO}/apps/aiml.sh)")
-            PLAN_COMMANDS+=("bash apps/aiml.sh")
-            PLAN_CWDS+=("$distro_dir")
-        fi
-
-        if [ "$CFG_PRODUCTIVITY" = true ] && [ -f "$distro_dir/apps/productivity.sh" ] && [ ${#CFG_PROD_APPS[@]} -gt 0 ]; then
-            PLAN_TITLES+=("Install Productivity Applications (${TARGET_DISTRO}/apps/productivity.sh - ${#CFG_PROD_APPS[@]} apps)")
-            PLAN_COMMANDS+=("PROD_APPS='${CFG_PROD_APPS[*]}' bash apps/productivity.sh")
-            PLAN_CWDS+=("$distro_dir")
-
-            local has_xdm=false
-            for p in "${CFG_PROD_APPS[@]}"; do
-                if [ "$p" = "xdm" ]; then has_xdm=true; break; fi
-            done
-            if [ "$has_xdm" = true ] && [ -f "$distro_dir/apps/xdm.sh" ]; then
-                PLAN_TITLES+=("Install XDM Download Manager (${TARGET_DISTRO}/apps/xdm.sh)")
-                PLAN_COMMANDS+=("bash apps/xdm.sh")
-                PLAN_CWDS+=("$distro_dir")
-            fi
-        fi
-
-        append_extra_scripts "$distro_dir" "$TARGET_DISTRO"
-
-        if [ -f "$distro_dir/system/shell.sh" ]; then
-            PLAN_TITLES+=("Configure Shell & Terminal Utilities (${TARGET_DISTRO}/system/shell.sh)")
-            PLAN_COMMANDS+=("bash system/shell.sh")
-            PLAN_CWDS+=("$distro_dir")
-        fi
-
-    # ---------------- TERMUX ----------------
-    elif [ "$TARGET_DISTRO" = "termux" ]; then
-        if [ -f "$distro_dir/termux.sh" ]; then
-            PLAN_TITLES+=("Setup Termux Environment (termux/termux.sh)")
-            PLAN_COMMANDS+=("bash termux.sh")
-            PLAN_CWDS+=("$distro_dir")
-        fi
-        if [ "$CFG_FONTS" = true ] && [ -f "$distro_dir/system/font.sh" ]; then
-            PLAN_TITLES+=("Install JetBrains Mono Font (termux/system/font.sh)")
-            PLAN_COMMANDS+=("bash system/font.sh")
-            PLAN_CWDS+=("$distro_dir")
-        fi
-        append_extra_scripts "$distro_dir" "termux"
-    fi
+    case "$TARGET_DISTRO" in
+    arch) build_plan_arch ;;
+    kali) build_plan_kali ;;
+    debian) build_plan_debian ;;
+    fedora) build_plan_fedora ;;
+    termux) build_plan_termux ;;
+    esac
 
     # Universal steps for all desktop distributions
     if [ "$TARGET_DISTRO" != "termux" ]; then
         if [ "$CFG_NVIM_CLONE" = true ]; then
             local nvim_dir="${XDG_CONFIG_HOME:-$HOME/.config}/nvim"
             if [ ! -d "$nvim_dir" ]; then
-                PLAN_TITLES+=("Clone Neovim Configuration (Aadishx07/neovim_config)")
-                PLAN_COMMANDS+=("mkdir -p \"$(dirname \"$nvim_dir\")\" && git clone https://github.com/Aadishx07/neovim_config.git \"$nvim_dir\"")
-                PLAN_CWDS+=("$HOME")
+                plan_add "Clone Neovim Configuration (Aadishx07/neovim_config)" step_nvim_config
             fi
         fi
 
-        PLAN_TITLES+=("Create Standard Directories (~/Pictures/Screenshots)")
-        PLAN_COMMANDS+=("mkdir -p \"$HOME/Pictures/Screenshots\"")
-        PLAN_CWDS+=("$HOME")
+        plan_add "Create Standard Directories (~/Pictures/Screenshots)" step_standard_dirs
     fi
 }
 
 run_execution_plan() {
     local dry_run="${1:-false}"
+    export DRY_RUN_MODE="$dry_run"
 
     build_plan
 
@@ -703,7 +293,7 @@ run_execution_plan() {
         return 0
     fi
 
-    [ "$TERM" != "dumb" ] && clear 2>/dev/null || true
+    if [ "$TERM" != "dumb" ]; then clear 2>/dev/null || true; fi
     echo -e "${BOLD}${CYAN}============================================================${NC}"
     echo -e "${BOLD}${CYAN} POST-INSTALLATION SUITE - ARCHINSTALL PURE BASH RUNNER     ${NC}"
     echo -e "${BOLD}${CYAN}============================================================${NC}"
@@ -714,8 +304,21 @@ run_execution_plan() {
     echo -e "${BOLD}${CYAN}============================================================${NC}"
     echo ""
     echo -e "${BOLD}Planned Steps (${total_steps} total):${NC}"
+    local i
     for ((i = 0; i < total_steps; i++)); do
         printf "  %2d. %s\n" "$((i + 1))" "${PLAN_TITLES[i]}"
+        if [ "$dry_run" = true ]; then
+            local step_fn="${PLAN_FNS[i]}"
+            local -a step_args=()
+            if [ -n "${PLAN_ARGS[i]}" ]; then
+                IFS=$'\x1f' read -r -d '' -a step_args < <(printf "%s\0" "${PLAN_ARGS[i]}")
+            fi
+            if [ ${#step_args[@]} -gt 0 ]; then
+                printf "      fn: %s %s\n" "$step_fn" "${step_args[*]}"
+            else
+                printf "      fn: %s\n" "$step_fn"
+            fi
+        fi
     done
     echo ""
 
@@ -749,11 +352,16 @@ run_execution_plan() {
     local start_total
     start_total=$(date +%s)
     local has_errors=false
+    local failed_steps=()
 
     for ((i = 0; i < total_steps; i++)); do
         local title="${PLAN_TITLES[i]}"
-        local cmd="${PLAN_COMMANDS[i]}"
-        local cwd="${PLAN_CWDS[i]}"
+        local fn="${PLAN_FNS[i]}"
+        local -a step_args=()
+        if [ -n "${PLAN_ARGS[i]}" ]; then
+            IFS=$'\x1f' read -r -d '' -a step_args < <(printf "%s\0" "${PLAN_ARGS[i]}")
+        fi
+        local cwd="${PLAN_CWDS[i]:-$SCRIPT_DIR}"
         local step_num=$((i + 1))
 
         echo ""
@@ -764,7 +372,7 @@ run_execution_plan() {
 
         (
             cd "$cwd"
-            eval "$cmd"
+            "$fn" "${step_args[@]}"
         ) || exit_code=$?
 
         local step_duration=$(($(date +%s) - step_start))
@@ -773,7 +381,12 @@ run_execution_plan() {
             echo -e "    ${GREEN}✓ Success (${step_duration}s)${NC}"
         else
             has_errors=true
+            failed_steps+=("$title")
             echo -e "    ${RED}✖ FAILED: ${title} (Exit code: ${exit_code}, ${step_duration}s)${NC}"
+            if [ "${STRICT_MODE:-false}" = true ]; then
+                log_error "Aborting immediately on step failure (--strict mode enabled)."
+                break
+            fi
         fi
     done
 
@@ -787,6 +400,11 @@ run_execution_plan() {
     echo -e "${BOLD}${CYAN}============================================================${NC}"
     if [ "$has_errors" = true ]; then
         echo -e "${RED}${BOLD} Installation finished with WARNINGS/ERRORS in ${total_time}s.${NC}"
+        echo -e " Failed steps (${#failed_steps[@]}):"
+        local fstep
+        for fstep in "${failed_steps[@]}"; do
+            echo -e "   - ${RED}${fstep}${NC}"
+        done
         echo -e " Check the session log for detailed diagnostics: ${LOG_FILE}"
     else
         echo -e "${GREEN}${BOLD} Installation COMPLETED SUCCESSFULLY in ${total_time}s!${NC}"
@@ -795,7 +413,14 @@ run_execution_plan() {
     echo -e "${BOLD}${CYAN}============================================================${NC}"
 
     if [ -c /dev/tty ] && [ "$FORCE_CLI" = false ]; then
-        local done_msg="Post-Installation has finished!\n\nTarget Distribution: ${DISTRO_NAME}\nElapsed Time: ${total_time} seconds\nFull Log: ${LOG_FILE}\n\nPlease restart your session or reboot for all changes to take effect."
+        local done_msg="Post-Installation has finished!\n\nTarget Distribution: ${DISTRO_NAME}\nElapsed Time: ${total_time} seconds\nFull Log: ${LOG_FILE}"
+        if [ "$has_errors" = true ]; then
+            done_msg+="\n\nFailed Steps:\n"
+            for fstep in "${failed_steps[@]}"; do
+                done_msg+=" - ${fstep}\n"
+            done
+        fi
+        done_msg+="\n\nPlease restart your session or reboot for all changes to take effect."
         ui_msg "Installation Complete" "$done_msg"
     fi
 }
@@ -890,6 +515,7 @@ Options:
   --tui                 Force launch interactive TUI (dialog/whiptail)
   --cli, --headless     Run non-interactively using detected hardware defaults
   --dry-run, -d         Simulate and display execution plan without running commands
+  --strict              Abort installation immediately on first failed step
   --distro <distro>     Override distribution (arch, debian, fedora, kali, termux)
   --desktop <de>        Override desktop environment (kde, i3, bspwm, both, none)
   -h, --help            Show this help message
@@ -911,6 +537,7 @@ EOF
 FORCE_TUI=false
 FORCE_CLI=false
 DRY_RUN=false
+STRICT_MODE=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -924,6 +551,10 @@ while [[ $# -gt 0 ]]; do
         ;;
     --dry-run | -d)
         DRY_RUN=true
+        shift
+        ;;
+    --strict)
+        STRICT_MODE=true
         shift
         ;;
     --distro)
