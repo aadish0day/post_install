@@ -263,12 +263,7 @@ is_nvim_targeted() {
     # 1. Neovim is already installed on the host
     command -v nvim >/dev/null 2>&1 && return 0
 
-    # 2. Installed by base distribution packages (Arch, Kali)
-    case "$TARGET_DISTRO" in
-    arch | kali) return 0 ;;
-    esac
-
-    # 3. Selected in coding tools suite
+    # 2. Selected in coding tools suite
     if [ "${CFG_CODING:-false}" = true ]; then
         local tool
         for tool in "${CFG_CODING_TOOLS[@]}"; do

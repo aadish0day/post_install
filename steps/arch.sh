@@ -77,17 +77,13 @@ step_arch_base_pkgs() {
 
 step_arch_coding() {
     if [ "${DRY_RUN_MODE:-false}" = true ]; then return 0; fi
-    local aur
-    aur="$(aur_cmd)"
-    if [ -z "$aur" ]; then
-        echo "Error: no AUR helper found (paru or yay required for coding tools)" >&2
-        return 1
-    fi
+    local pacman_pkgs=()
     local pkgs=()
     local run_flutter=false
     local t
     for t in "${CFG_CODING_TOOLS[@]}"; do
         case "$t" in
+        neovim) pacman_pkgs+=("neovim") ;;
         vscode) pkgs+=("visual-studio-code-bin") ;;
         cursor) pkgs+=("cursor-bin") ;;
         claude_code) pkgs+=("claude-code") ;;
@@ -100,7 +96,17 @@ step_arch_coding() {
         esac
     done
 
+    if [ ${#pacman_pkgs[@]} -gt 0 ]; then
+        sudo pacman -S --needed --noconfirm "${pacman_pkgs[@]}"
+    fi
+
     if [ ${#pkgs[@]} -gt 0 ]; then
+        local aur
+        aur="$(aur_cmd)"
+        if [ -z "$aur" ]; then
+            echo "Error: no AUR helper found (paru or yay required for coding tools: ${pkgs[*]})" >&2
+            return 1
+        fi
         "$aur" -S --needed --noconfirm "${pkgs[@]}"
     fi
 
@@ -168,6 +174,28 @@ step_arch_services_shell() {
     fi
 }
 
+arch_needs_aur() {
+    # If any coding tools requiring AUR are selected
+    if [ "${CFG_CODING:-false}" = true ] && [ ${#CFG_CODING_TOOLS[@]} -gt 0 ]; then
+        local tool
+        for tool in "${CFG_CODING_TOOLS[@]}"; do
+            case "$tool" in
+            vscode | cursor | claude_code | android_studio | flutter | antigravity) return 0 ;;
+            esac
+        done
+    fi
+
+    # If any productivity apps are selected (all are AUR in Arch)
+    if [ "${CFG_PRODUCTIVITY:-false}" = true ] && [ ${#CFG_PROD_APPS[@]} -gt 0 ]; then
+        return 0
+    fi
+
+    # If Burp Suite is selected
+    [ "${CFG_SECURITY_BURP:-false}" = true ] && return 0
+
+    return 1
+}
+
 build_plan_arch() {
     local distro_dir="${SCRIPT_DIR}/arch"
 
@@ -186,16 +214,21 @@ build_plan_arch() {
 
     plan_add "Install Arch Base Packages & Utilities" step_arch_base_pkgs
 
-    if [ "$CFG_AUR" = "both" ]; then
+    local effective_aur="$CFG_AUR"
+    if [ "$effective_aur" = "none" ] && arch_needs_aur; then
+        effective_aur="paru"
+    fi
+
+    if [ "$effective_aur" = "both" ]; then
         if [ -f "$distro_dir/apps/paru.sh" ]; then
             plan_add "Install Paru AUR Helper (arch/apps/paru.sh)" run_module "arch/apps/paru.sh"
         fi
         if [ -f "$distro_dir/apps/yay.sh" ]; then
             plan_add "Install Yay AUR Helper (arch/apps/yay.sh)" run_module "arch/apps/yay.sh"
         fi
-    elif [ "$CFG_AUR" = "paru" ]; then
+    elif [ "$effective_aur" = "paru" ]; then
         plan_add "Install Paru AUR Helper (arch/apps/paru.sh)" step_arch_aur_helper "paru"
-    elif [ "$CFG_AUR" = "yay" ]; then
+    elif [ "$effective_aur" = "yay" ]; then
         plan_add "Install Yay AUR Helper (arch/apps/yay.sh)" step_arch_aur_helper "yay"
     fi
 
@@ -243,26 +276,8 @@ build_plan_arch() {
         plan_add "Install Docker Engine & Buildx (arch/apps/docker.sh)" run_module "arch/apps/docker.sh"
     fi
 
-    if [ "$CFG_CODING" = true ]; then
-        local pkgs=()
-        local run_flutter=false
-        local t
-        for t in "${CFG_CODING_TOOLS[@]}"; do
-            case "$t" in
-            vscode) pkgs+=("visual-studio-code-bin") ;;
-            cursor) pkgs+=("cursor-bin") ;;
-            claude_code) pkgs+=("claude-code") ;;
-            android_studio) pkgs+=("android-studio") ;;
-            flutter)
-                pkgs+=("flutter-bin")
-                run_flutter=true
-                ;;
-            antigravity) pkgs+=("antigravity-cli" "antigravity-ide") ;;
-            esac
-        done
-        if [ ${#pkgs[@]} -gt 0 ] || [ "$run_flutter" = true ]; then
-            plan_add "Install Developer & Coding Suite (AUR)" step_arch_coding
-        fi
+    if [ "$CFG_CODING" = true ] && [ ${#CFG_CODING_TOOLS[@]} -gt 0 ]; then
+        plan_add "Install Developer & Coding Suite (${#CFG_CODING_TOOLS[@]} tools)" step_arch_coding
     fi
 
     if [ "$CFG_SECURITY_BURP" = true ] && [ -f "$distro_dir/apps/burp/install.sh" ]; then

@@ -46,7 +46,7 @@ CATALOG_VIRT=(
     "vmware|VMware Workstation Host & Kernel Modules|CFG_VMWARE|"
 )
 CATALOG_CODING=(
-    "neovim|Neovim Modern Text Editor|CFG_CODING_TOOLS|nonarch"
+    "neovim|Neovim Modern Text Editor|CFG_CODING_TOOLS|all"
     "vscode|Visual Studio Code|CFG_CODING_TOOLS|"
     "cursor|Cursor AI Code Editor|CFG_CODING_TOOLS|"
     "claude_code|Claude Code CLI|CFG_CODING_TOOLS|"

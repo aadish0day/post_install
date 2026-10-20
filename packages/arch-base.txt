@@ -47,7 +47,6 @@ mjpegtools
 mkinitcpio
 mpv
 ncdu
-neovim
 nodejs
 npm
 ntp
