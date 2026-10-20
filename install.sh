@@ -64,7 +64,7 @@ log_step() { echo -e "${BOLD}${CYAN}==>${NC} ${BOLD}$1${NC}"; }
 if [ -n "${POST_INSTALL_LOGGED:-}" ] && [ -n "${POST_INSTALL_LOG_FILE:-}" ]; then
     LOG_FILE="$POST_INSTALL_LOG_FILE"
 else
-    LOG_FILE="/tmp/post-install-$(date +%Y%m%d_%H%M%S).log"
+    LOG_FILE="/tmp/post-install-${USER:-$(id -un 2>/dev/null || echo user)}-$(date +%Y%m%d_%H%M%S)-$$.log"
 fi
 
 ensure_script() {
