@@ -602,6 +602,7 @@ fi
 
 # TUI is default when interactive
 if [ -t 0 ] && [ -t 1 ]; then
+    ui_ensure_dialog
     run_tui
 else
     run_execution_plan false
