@@ -7,6 +7,56 @@ step_debian_productivity() {
     PROD_APPS="$apps_str" run_module "debian/apps/productivity.sh"
 }
 
+debian_needs_pacstall() {
+    case "${CFG_DESKTOP:-none}" in
+    kde | i3 | bspwm | tiling | both) return 0 ;;
+    esac
+
+    [ "${CFG_GAMING:-false}" = true ] && return 0
+
+    if [ "${CFG_CODING:-false}" = true ]; then
+        local tool
+        for tool in "${CFG_CODING_TOOLS[@]}"; do
+            case "$tool" in
+            vscode | android-studio) return 0 ;;
+            esac
+        done
+    fi
+
+    if [ "${CFG_PRODUCTIVITY:-false}" = true ]; then
+        local app
+        for app in "${CFG_PROD_APPS[@]}"; do
+            case "$app" in
+            ani_cli | anydesk | thorium | zen | vesktop | obsidian) return 0 ;;
+            esac
+        done
+    fi
+
+    return 1
+}
+
+debian_needs_flatpak() {
+    [ "${CFG_DESKTOP:-none}" = "kde" ] && return 0
+
+    if [ "${CFG_CODING:-false}" = true ]; then
+        local tool
+        for tool in "${CFG_CODING_TOOLS[@]}"; do
+            [ "$tool" = "android-studio" ] && return 0
+        done
+    fi
+
+    if [ "${CFG_PRODUCTIVITY:-false}" = true ]; then
+        local app
+        for app in "${CFG_PROD_APPS[@]}"; do
+            case "$app" in
+            zen | obsidian | localsend) return 0 ;;
+            esac
+        done
+    fi
+
+    return 1
+}
+
 build_plan_debian() {
     local distro_dir="${SCRIPT_DIR}/debian"
 
@@ -24,11 +74,11 @@ build_plan_debian() {
         plan_add "Configure System Repositories (debian/system/repos.sh)" run_module "debian/system/repos.sh"
     fi
 
-    if [ -f "$distro_dir/system/pacstall.sh" ]; then
+    if debian_needs_pacstall && [ -f "$distro_dir/system/pacstall.sh" ]; then
         plan_add "Install Pacstall AUR Helper for Debian (debian/system/pacstall.sh)" run_module "debian/system/pacstall.sh"
     fi
 
-    if [ -f "$distro_dir/system/flatpak.sh" ]; then
+    if debian_needs_flatpak && [ -f "$distro_dir/system/flatpak.sh" ]; then
         plan_add "Configure Flatpak & Flathub (debian/system/flatpak.sh)" run_module "debian/system/flatpak.sh"
     fi
 

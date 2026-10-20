@@ -13,7 +13,7 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/common.sh"
 packages=(
     # CLI essentials
     android-tools aria2 atool bat duf fastfetch fd-find fzf gcc gettext git git-lfs gh
-    highlight htop inxi jq less libtool make man-db man-pages maven ncdu neovim nodejs npm
+    highlight htop inxi jq less libtool make man-db man-pages maven ncdu nodejs npm
     parallel plocate pv ranger ripgrep tar tree tree-sitter-cli trash-cli tmux
     unzip xz zip zstd lz4 7zip zoxide zsh dosfstools usbutils curl wget ca-certificates
     lsd btop uv python3-pip kernel-headers kernel-devel

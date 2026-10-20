@@ -16,7 +16,7 @@ packages=(
     adb fastboot aria2 atool 7zip unzip zip tar xz-utils zstd lz4 dosfstools usbutils
     # Core CLI
     bat duf fastfetch fd-find fzf htop inxi jq less lsd ncdu parallel plocate pv ripgrep sd
-    tree trash-cli tmux zoxide zsh man-db manpages manpages-dev neovim git git-lfs gh curl wget
+    tree trash-cli tmux zoxide zsh man-db manpages manpages-dev git git-lfs gh curl wget
     # Build & dev
     build-essential gcc make gettext libtool doxygen maven nodejs npm python3-pip linux-headers-amd64
     # Media & documents

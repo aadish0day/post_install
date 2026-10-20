@@ -259,6 +259,28 @@ set_distro_defaults() {
 set_distro_defaults
 
 
+is_nvim_targeted() {
+    # 1. Neovim is already installed on the host
+    command -v nvim >/dev/null 2>&1 && return 0
+
+    # 2. Installed by base distribution packages (Arch, Kali)
+    case "$TARGET_DISTRO" in
+    arch | kali) return 0 ;;
+    esac
+
+    # 3. Selected in coding tools suite
+    if [ "${CFG_CODING:-false}" = true ]; then
+        local tool
+        for tool in "${CFG_CODING_TOOLS[@]}"; do
+            if [ "$tool" = "neovim" ]; then
+                return 0
+            fi
+        done
+    fi
+
+    return 1
+}
+
 build_plan() {
     plan_init
 
@@ -272,7 +294,7 @@ build_plan() {
 
     # Universal steps for all desktop distributions
     if [ "$TARGET_DISTRO" != "termux" ]; then
-        if [ "$CFG_NVIM_CLONE" = true ]; then
+        if [ "$CFG_NVIM_CLONE" = true ] && is_nvim_targeted; then
             local nvim_dir="${XDG_CONFIG_HOME:-$HOME/.config}/nvim"
             if [ ! -d "$nvim_dir" ]; then
                 plan_add "Clone Neovim Configuration (Aadishx07/neovim_config)" step_nvim_config
