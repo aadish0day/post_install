@@ -82,21 +82,38 @@ ui_menu() {
     shift 3
     local items=("$@")
 
+    local term_lines term_cols
+    term_lines=$(tput lines 2>/dev/null || echo 24)
+    term_cols=$(tput cols 2>/dev/null || echo 80)
+    [[ "$term_lines" =~ ^[0-9]+$ ]] || term_lines=24
+    [[ "$term_cols" =~ ^[0-9]+$ ]] || term_cols=80
+
+    local box_width=92
+    if [ "$term_cols" -lt 98 ]; then
+        box_width=$(( term_cols - 6 ))
+    fi
+    [ "$box_width" -lt 76 ] && box_width=76
+
     local count=$(( ${#items[@]} / 2 ))
     local box_height=$(( count + 8 ))
-    [ "$box_height" -lt 14 ] && box_height=14
-    [ "$box_height" -gt 22 ] && box_height=22
+    local max_box=$(( term_lines - 4 ))
+    [ "$max_box" -lt 16 ] && max_box=16
+    [ "$box_height" -gt "$max_box" ] && box_height="$max_box"
+    [ "$box_height" -lt 16 ] && box_height=16
+
     local menu_height=$count
-    [ "$menu_height" -gt 14 ] && menu_height=14
+    local max_menu=$(( box_height - 8 ))
+    [ "$menu_height" -gt "$max_menu" ] && menu_height="$max_menu"
+    [ "$menu_height" -lt 6 ] && menu_height=6
 
     case "$UI_TOOL" in
     whiptail)
         whiptail --default-item "$default_tag" --title "$title" --menu "$prompt" \
-            "$box_height" 84 "$menu_height" "${items[@]}" 3>&1 1>&2 2>&3 </dev/tty
+            "$box_height" "$box_width" "$menu_height" "${items[@]}" 3>&1 1>&2 2>&3 </dev/tty
         ;;
     dialog)
         dialog --default-item "$default_tag" --no-hot-list --stdout --title "$title" --menu "$prompt" \
-            "$box_height" 84 "$menu_height" "${items[@]}" </dev/tty
+            "$box_height" "$box_width" "$menu_height" "${items[@]}" </dev/tty
         ;;
     *)
         return 1
@@ -108,35 +125,92 @@ ui_checklist() {
     local title="$1"
     local prompt="$2"
     shift 2
-    local items=("$@")
+    local -a items=("$@")
 
-    local count=$(( ${#items[@]} / 3 ))
-    local box_height=$(( count + 8 ))
-    [ "$box_height" -lt 14 ] && box_height=14
-    [ "$box_height" -gt 24 ] && box_height=24
-    local list_height=$count
-    [ "$list_height" -gt 16 ] && list_height=16
+    local term_lines term_cols
+    term_lines=$(tput lines 2>/dev/null || echo 24)
+    term_cols=$(tput cols 2>/dev/null || echo 80)
+    [[ "$term_lines" =~ ^[0-9]+$ ]] || term_lines=24
+    [[ "$term_cols" =~ ^[0-9]+$ ]] || term_cols=80
 
-    local raw=""
-    case "$UI_TOOL" in
-    whiptail)
-        raw=$(whiptail --title "$title" --checklist "$prompt" \
-            "$box_height" 80 "$list_height" "${items[@]}" 3>&1 1>&2 2>&3 </dev/tty) || return $?
-        ;;
-    dialog)
-        raw=$(dialog --no-hot-list --stdout --title "$title" --checklist "$prompt" \
-            "$box_height" 80 "$list_height" "${items[@]}" </dev/tty) || return $?
-        ;;
-    *)
-        return 1
-        ;;
-    esac
-
-    # Normalize output: strip quotes, output one tag per line
-    if [ -n "$raw" ]; then
-        printf '%s\n' "$raw" | tr ' ' '\n' | tr -d '"' | sed '/^$/d'
+    local box_width=92
+    if [ "$term_cols" -lt 98 ]; then
+        box_width=$(( term_cols - 6 ))
     fi
-    return 0
+    [ "$box_width" -lt 76 ] && box_width=76
+
+    while true; do
+        local -a display_items=(
+            "ALL"  "--> [Select All Components]"  "OFF"
+            "NONE" "--> [Deselect All Components]" "OFF"
+        )
+        display_items+=("${items[@]}")
+
+        local count=$(( ${#display_items[@]} / 3 ))
+        local box_height=$(( count + 9 ))
+        local max_box=$(( term_lines - 4 ))
+        [ "$max_box" -lt 16 ] && max_box=16
+        [ "$box_height" -gt "$max_box" ] && box_height="$max_box"
+        [ "$box_height" -lt 16 ] && box_height=16
+
+        local list_height=$count
+        local max_list=$(( box_height - 7 ))
+        [ "$list_height" -gt "$max_list" ] && list_height="$max_list"
+        [ "$list_height" -lt 6 ] && list_height=6
+
+        local raw=""
+        case "$UI_TOOL" in
+        whiptail)
+            raw=$(whiptail --title "$title" --checklist "$prompt" \
+                "$box_height" "$box_width" "$list_height" "${display_items[@]}" 3>&1 1>&2 2>&3 </dev/tty) || return $?
+            ;;
+        dialog)
+            raw=$(dialog --no-hot-list --stdout --title "$title" --checklist "$prompt" \
+                "$box_height" "$box_width" "$list_height" "${display_items[@]}" </dev/tty) || return $?
+            ;;
+        *)
+            return 1
+            ;;
+        esac
+
+        local -a selected=()
+        local line
+        local has_all=false
+        local has_none=false
+        while IFS= read -r line; do
+            line="${line//\"/}"
+            line="${line// /}"
+            [ -z "$line" ] && continue
+            if [ "$line" = "ALL" ]; then
+                has_all=true
+            elif [ "$line" = "NONE" ]; then
+                has_none=true
+            else
+                selected+=("$line")
+            fi
+        done < <(printf '%s\n' "$raw" | tr ' ' '\n' | tr -d '"')
+
+        if [ "$has_all" = true ]; then
+            local i
+            for ((i = 0; i < ${#items[@]}; i += 3)); do
+                items[i + 2]="ON"
+            done
+            continue
+        fi
+
+        if [ "$has_none" = true ]; then
+            local i
+            for ((i = 0; i < ${#items[@]}; i += 3)); do
+                items[i + 2]="OFF"
+            done
+            continue
+        fi
+
+        if [ ${#selected[@]} -gt 0 ]; then
+            printf '%s\n' "${selected[@]}"
+        fi
+        return 0
+    done
 }
 
 ui_yesno() {

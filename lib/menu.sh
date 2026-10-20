@@ -70,7 +70,7 @@ CATALOG_PROD=(
     "advcpmv|advcpmv (cp/mv with progress bars)|CFG_PROD_APPS|arch"
 )
 
-CHECKLIST_PROMPT="Toggle the components to configure:\n\n[j/k]=Navigate  [SPACE]=Toggle  [ENTER]=Confirm"
+CHECKLIST_PROMPT="Toggle components to configure (select ALL/NONE to bulk toggle):\n\n[j/k]=Navigate  [SPACE]=Toggle  [ENTER]=Confirm"
 
 menu_lookup() {
     local want="$1" row
