@@ -25,7 +25,7 @@ has_amd_gpu() { lspci 2>/dev/null | grep -Ei "vga|3d controller|display" | grep 
 command -v lspci >/dev/null 2>&1 || apt_install pciutils
 
 tune_grub() {
-    local params=("amd_pstate=active" "amd_prefcore=enable") cmdline param
+    local params=("amd_pstate=active" "amd_prefcore=enable" "usbcore.autosuspend=-1") cmdline param
     if in_container || [ ! -f /etc/default/grub ]; then
         warn "No GRUB config (or running in a container) - skipping amd_pstate kernel parameters."
         return

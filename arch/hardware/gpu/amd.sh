@@ -36,7 +36,7 @@ install_cpu() {
 }
 
 tune_grub() {
-    local params=("amd_pstate=active" "amd_prefcore=enable")
+    local params=("amd_pstate=active" "amd_prefcore=enable" "usbcore.autosuspend=-1")
     local cmdline param
 
     if [ ! -f /etc/default/grub ]; then

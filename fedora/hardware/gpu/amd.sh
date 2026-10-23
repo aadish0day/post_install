@@ -28,7 +28,7 @@ found=false
 if has_amd_cpu; then
     log "AMD CPU detected - installing microcode and enabling amd_pstate..."
     dnf_install amd-ucode-firmware microcode_ctl linux-firmware
-    grub_add_args amd_pstate=active amd_prefcore=enable
+    grub_add_args amd_pstate=active amd_prefcore=enable usbcore.autosuspend=-1
     found=true
 fi
 
