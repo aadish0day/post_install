@@ -14,7 +14,7 @@ MENU_ROWS=(
     "burp|Burp Suite Professional|toggle|CFG_SECURITY_BURP|arch kali|menu_badge_burp"
     "gaming|@gaming|toggle|CFG_GAMING|arch debian fedora|menu_badge_gaming"
     "aiml|AI / ML Acceleration (ROCm)|toggle|CFG_AIML|arch debian fedora|menu_badge_aiml"
-    "prod|@prod|multi|CFG_PROD_APPS|arch debian fedora|menu_badge_prod"
+    "prod|@prod|multi|CFG_PROD_APPS|arch debian fedora kali|menu_badge_prod"
     "aur|AUR Helper Selection|choice|CFG_AUR|arch|menu_badge_aur"
     "mirrors|Mirror Optimization (Reflector India)|toggle|CFG_MIRRORS|arch|menu_badge_mirrors"
     "kali_meta|Kali Metapackages|choice|CFG_KALI_META|kali|menu_badge_kali_meta"
@@ -30,7 +30,7 @@ declare -A MENU_ORDER=(
     [arch]="distro desktop hardware virt docker coding burp gaming aiml prod aur mirrors install abort"
     [debian]="distro desktop hardware virt docker coding gaming aiml prod install abort"
     [fedora]="distro desktop hardware virt docker coding gaming aiml prod install abort"
-    [kali]="distro burp kali_meta wifi docker install abort"
+    [kali]="distro burp kali_meta wifi docker prod install abort"
     [termux]="distro termux_core fonts install abort"
 )
 
@@ -66,7 +66,7 @@ CATALOG_PROD=(
     "ani_cli|ani-cli (Anime streaming CLI)|CFG_PROD_APPS|"
     "libreoffice|LibreOffice (Office productivity suite)|CFG_PROD_APPS|debian"
     "xdm|XDM (Xtreme Download Manager)|CFG_PROD_APPS|"
-    "advcpmv|advcpmv (cp/mv with progress bars)|CFG_PROD_APPS|arch"
+    "advcpmv|advcpmv (cp/mv with progress bars)|CFG_PROD_APPS|arch debian kali"
 )
 
 CHECKLIST_PROMPT="Toggle components to configure (select ALL/NONE to bulk toggle):\n\n[j/k]=Navigate  [SPACE]=Toggle  [ENTER]=Confirm"

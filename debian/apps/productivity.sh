@@ -110,7 +110,7 @@ if app_wanted "gallery_dl" || app_wanted "markitdown"; then
     app_wanted "markitdown" && { bash "$SCRIPT_DIR/markitdown.sh" || failed+=("markitdown"); }
 fi
 
-log "Note: advcpmv (patched cp/mv with progress bars) has no Debian package; skipped."
+app_wanted "advcpmv" && { bash "$SCRIPT_DIR/advcpmv.sh" || failed+=("advcpmv"); }
 
 if [ "${#failed[@]}" -gt 0 ]; then
     err "Failed to install: ${failed[*]}"

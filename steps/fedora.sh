@@ -120,7 +120,10 @@ build_plan_fedora() {
 
         local has_xdm=false p
         for p in "${CFG_PROD_APPS[@]}"; do
-            if [ "$p" = "xdm" ]; then has_xdm=true; break; fi
+            if [ "$p" = "xdm" ]; then
+                has_xdm=true
+                break
+            fi
         done
         if [ "$has_xdm" = true ] && [ -f "$distro_dir/apps/xdm.sh" ]; then
             plan_add "Install XDM Download Manager (fedora/apps/xdm.sh)" run_module "fedora/apps/xdm.sh"

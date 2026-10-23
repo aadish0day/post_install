@@ -17,10 +17,13 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 # 1. Logging and output helpers
-log()  { printf "${BLUE}[INFO]${NC} %s\n" "$*"; }
+log() { printf "${BLUE}[INFO]${NC} %s\n" "$*"; }
 warn() { printf "${YELLOW}[WARN]${NC} %s\n" "$*" >&2; }
-err()  { printf "${RED}[ERROR]${NC} %s\n" "$*" >&2; }
-die()  { err "$*"; exit 1; }
+err() { printf "${RED}[ERROR]${NC} %s\n" "$*" >&2; }
+die() {
+    err "$*"
+    exit 1
+}
 
 # 2. Simulation and container checks
 is_simulate() {
@@ -37,8 +40,8 @@ check_network() {
     if ping -c 1 -W 2 1.1.1.1 &>/dev/null || ping -c 1 -W 2 8.8.8.8 &>/dev/null; then
         return 0
     fi
-    curl -fsSIL --connect-timeout 3 https://www.google.com &>/dev/null || \
-    curl -fsSIL --connect-timeout 3 https://archlinux.org &>/dev/null
+    curl -fsSIL --connect-timeout 3 https://www.google.com &>/dev/null ||
+        curl -fsSIL --connect-timeout 3 https://archlinux.org &>/dev/null
 }
 
 download() {
@@ -99,7 +102,7 @@ append_line_once() {
     mkdir -p "$(dirname "$file")" 2>/dev/null || true
     touch "$file"
     if ! grep -qF "$line" "$file" 2>/dev/null; then
-        printf '%s\n' "$line" >> "$file"
+        printf '%s\n' "$line" >>"$file"
     fi
 }
 

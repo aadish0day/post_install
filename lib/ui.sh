@@ -60,9 +60,18 @@ ui_ensure_dialog() {
             *)
                 for l in $id_like; do
                     case "$l" in
-                    arch) distro="arch"; break ;;
-                    fedora | rhel) distro="fedora"; break ;;
-                    debian | ubuntu) distro="debian"; break ;;
+                    arch)
+                        distro="arch"
+                        break
+                        ;;
+                    fedora | rhel)
+                        distro="fedora"
+                        break
+                        ;;
+                    debian | ubuntu)
+                        distro="debian"
+                        break
+                        ;;
                     esac
                 done
                 ;;
@@ -72,8 +81,8 @@ ui_ensure_dialog() {
 
     case "$distro" in
     arch)
-        $sudo_cmd pacman -S --needed --noconfirm dialog 2>/dev/null || \
-        $sudo_cmd pacman -Sy --needed --noconfirm dialog || true
+        $sudo_cmd pacman -S --needed --noconfirm dialog 2>/dev/null ||
+            $sudo_cmd pacman -Sy --needed --noconfirm dialog || true
         ;;
     fedora)
         if command -v dnf5 >/dev/null 2>&1; then
@@ -91,8 +100,8 @@ ui_ensure_dialog() {
         ;;
     *)
         if command -v pacman >/dev/null 2>&1; then
-            $sudo_cmd pacman -S --needed --noconfirm dialog 2>/dev/null || \
-            $sudo_cmd pacman -Sy --needed --noconfirm dialog || true
+            $sudo_cmd pacman -S --needed --noconfirm dialog 2>/dev/null ||
+                $sudo_cmd pacman -Sy --needed --noconfirm dialog || true
         elif command -v dnf5 >/dev/null 2>&1; then
             $sudo_cmd dnf5 install -y dialog || true
         elif command -v dnf >/dev/null 2>&1; then
@@ -200,19 +209,19 @@ ui_menu() {
 
     local box_width=92
     if [ "$term_cols" -lt 98 ]; then
-        box_width=$(( term_cols - 6 ))
+        box_width=$((term_cols - 6))
     fi
     [ "$box_width" -lt 76 ] && box_width=76
 
-    local count=$(( ${#items[@]} / 2 ))
-    local box_height=$(( count + 8 ))
-    local max_box=$(( term_lines - 4 ))
+    local count=$((${#items[@]} / 2))
+    local box_height=$((count + 8))
+    local max_box=$((term_lines - 4))
     [ "$max_box" -lt 16 ] && max_box=16
     [ "$box_height" -gt "$max_box" ] && box_height="$max_box"
     [ "$box_height" -lt 16 ] && box_height=16
 
     local menu_height=$count
-    local max_menu=$(( box_height - 8 ))
+    local max_menu=$((box_height - 8))
     [ "$menu_height" -gt "$max_menu" ] && menu_height="$max_menu"
     [ "$menu_height" -lt 6 ] && menu_height=6
 
@@ -245,26 +254,26 @@ ui_checklist() {
 
     local box_width=92
     if [ "$term_cols" -lt 98 ]; then
-        box_width=$(( term_cols - 6 ))
+        box_width=$((term_cols - 6))
     fi
     [ "$box_width" -lt 76 ] && box_width=76
 
     while true; do
         local -a display_items=(
-            "ALL"  "--> [Select All Components]"  "OFF"
+            "ALL" "--> [Select All Components]" "OFF"
             "NONE" "--> [Deselect All Components]" "OFF"
         )
         display_items+=("${items[@]}")
 
-        local count=$(( ${#display_items[@]} / 3 ))
-        local box_height=$(( count + 9 ))
-        local max_box=$(( term_lines - 4 ))
+        local count=$((${#display_items[@]} / 3))
+        local box_height=$((count + 9))
+        local max_box=$((term_lines - 4))
         [ "$max_box" -lt 16 ] && max_box=16
         [ "$box_height" -gt "$max_box" ] && box_height="$max_box"
         [ "$box_height" -lt 16 ] && box_height=16
 
         local list_height=$count
-        local max_list=$(( box_height - 7 ))
+        local max_list=$((box_height - 7))
         [ "$list_height" -gt "$max_list" ] && list_height="$max_list"
         [ "$list_height" -lt 6 ] && list_height=6
 

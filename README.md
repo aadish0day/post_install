@@ -165,13 +165,10 @@ post_install/
 │   ├── kali.conf               # Kali Linux profile defaults
 │   └── termux.conf             # Android Termux profile defaults
 │
-├── packages/                   # Managed package manifests
-│   └── arch-base.txt           # Verified official Arch Linux base package list
-│
 ├── tests/                      # Automated validation suite
 │   └── dryrun.sh               # Dry-run safety net test with stubbed destructive binaries
 │
-├── arch/                       # Arch Linux modular sub-scripts (apps, hardware, desktop, virt)
+├── arch/                       # Arch Linux modular sub-scripts (apps, hardware, desktop, virt, packages.txt)
 ├── debian/                     # Debian modular sub-scripts & debian/lib/common.sh
 ├── fedora/                     # Fedora modular sub-scripts, config, & fedora/lib/common.sh
 ├── kali/                       # Kali Linux modular sub-scripts (apps, hardware)
@@ -231,7 +228,7 @@ Hardware auto-detection overrides profile defaults dynamically (e.g. `CFG_AMD_GP
 ### 1. Arch Linux
 - **Mirrors**: Automated ranking via `reflector` with rate sorting and 30s timeout protection.
 - **Kernel Headers**: Dynamically selects `linux-headers`, `linux-lts-headers`, `linux-zen-headers`, or `linux-hardened-headers` based on `uname -r`.
-- **Base Packages**: Clean package manifest in `packages/arch-base.txt` verified against official Arch Linux repositories.
+- **Base Packages**: Clean package manifest in `arch/packages.txt` verified against official Arch Linux repositories.
 - **AUR Helper**: Installs `paru` (or `yay`) with automated compilation fallback and inter-helper failover (`paru` falls back to `yay`, and vice versa).
 - **Desktop**: KDE Plasma 6 (Wayland session, standard apps) and X11 tiling window managers (i3, bspwm, or both).
 - **GPU & Hardware**: AMD (with optional `--pro` components), NVIDIA (Turing+ open DKMS detection), Intel, ASUS ROG power management (`asusctl` battery limit clamping), Precision Touchpad.

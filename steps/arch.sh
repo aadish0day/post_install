@@ -5,10 +5,10 @@ arch_kernel_headers() {
     local kver
     kver="$(uname -r 2>/dev/null || echo "")"
     case "$kver" in
-        *-lts*)      echo "linux-lts-headers" ;;
-        *-zen*)      echo "linux-zen-headers" ;;
-        *-hardened*) echo "linux-hardened-headers" ;;
-        *)           echo "linux-headers" ;;
+    *-lts*) echo "linux-lts-headers" ;;
+    *-zen*) echo "linux-zen-headers" ;;
+    *-hardened*) echo "linux-hardened-headers" ;;
+    *) echo "linux-headers" ;;
     esac
 }
 
@@ -44,14 +44,14 @@ step_arch_mirrors() {
     sudo pacman -S --needed reflector --noconfirm
     timeout 30s sudo reflector --latest 10 --fastest 5 --protocol https \
         --connection-timeout 5 --download-timeout 5 --threads 8 \
-        --country India --sort rate --save /etc/pacman.d/mirrorlist || \
+        --country India --sort rate --save /etc/pacman.d/mirrorlist ||
         echo "Reflector timed out or failed; keeping existing mirrorlist."
     sudo pacman -Syu --noconfirm
 }
 
 step_arch_base_pkgs() {
     if [ "${DRY_RUN_MODE:-false}" = true ]; then return 0; fi
-    local base_file="$SCRIPT_DIR/packages/arch-base.txt"
+    local base_file="$SCRIPT_DIR/arch/packages.txt"
     local pkgs=()
     local kheaders
     kheaders="$(arch_kernel_headers)"
@@ -64,7 +64,7 @@ step_arch_base_pkgs() {
         else
             pkgs+=("$line")
         fi
-    done < "$base_file"
+    done <"$base_file"
 
     if [ ${#pkgs[@]} -gt 0 ]; then
         sudo pacman -S --needed --noconfirm "${pkgs[@]}"
@@ -297,7 +297,10 @@ build_plan_arch() {
 
         local has_xdm=false p
         for p in "${CFG_PROD_APPS[@]}"; do
-            if [ "$p" = "xdm" ]; then has_xdm=true; break; fi
+            if [ "$p" = "xdm" ]; then
+                has_xdm=true
+                break
+            fi
         done
         if [ "$has_xdm" = true ] && [ -f "$distro_dir/apps/xdm.sh" ]; then
             plan_add "Install XDM Download Manager (arch/apps/xdm.sh)" run_module "arch/apps/xdm.sh"

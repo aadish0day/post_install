@@ -69,6 +69,7 @@ build_plan_debian() {
     plan_managed_app "productivity"
     plan_managed_app "markitdown"
     plan_managed_app "xdm"
+    plan_managed_app "advcpmv"
 
     if [ -f "$distro_dir/system/repos.sh" ]; then
         plan_add "Configure System Repositories (debian/system/repos.sh)" run_module "debian/system/repos.sh"
@@ -148,7 +149,10 @@ build_plan_debian() {
 
         local has_xdm=false p
         for p in "${CFG_PROD_APPS[@]}"; do
-            if [ "$p" = "xdm" ]; then has_xdm=true; break; fi
+            if [ "$p" = "xdm" ]; then
+                has_xdm=true
+                break
+            fi
         done
         if [ "$has_xdm" = true ] && [ -f "$distro_dir/apps/xdm.sh" ]; then
             plan_add "Install XDM Download Manager (debian/apps/xdm.sh)" run_module "debian/apps/xdm.sh"
