@@ -6,7 +6,8 @@ step_kali_core() {
     sudo apt update
     sudo apt install -y nala
     sudo nala update
-    sudo nala upgrade -y
+    sudo nala upgrade --download-only -y
+    sudo apt upgrade -y
     sudo nala install -y git git-lfs stow zsh tmux curl wget vim fzf zoxide lsd trash-cli htop open-vm-tools starship
     mkdir -p ~/cybersec
     if [ ! -d ~/dotfile ]; then
