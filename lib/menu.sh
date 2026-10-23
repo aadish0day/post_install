@@ -14,11 +14,12 @@ MENU_ROWS=(
     "burp|Burp Suite Professional|toggle|CFG_SECURITY_BURP|arch kali|menu_badge_burp"
     "gaming|@gaming|toggle|CFG_GAMING|arch debian fedora|menu_badge_gaming"
     "aiml|AI / ML Acceleration (ROCm)|toggle|CFG_AIML|arch debian fedora|menu_badge_aiml"
-    "prod|@prod|multi|CFG_PROD_APPS|arch debian fedora kali|menu_badge_prod"
+    "prod|@prod|multi|CFG_PROD_APPS|arch debian fedora|menu_badge_prod"
     "aur|AUR Helper Selection|choice|CFG_AUR|arch|menu_badge_aur"
     "mirrors|Mirror Optimization (Reflector India)|toggle|CFG_MIRRORS|arch|menu_badge_mirrors"
     "kali_meta|Kali Metapackages|choice|CFG_KALI_META|kali|menu_badge_kali_meta"
     "wifi|Realtek WiFi Driver (RTL8821AU)|toggle|CFG_KALI_WIFI|kali|menu_badge_wifi"
+    "advcpmv|Advanced Copy (advcpmv progress bar)|toggle|CFG_ADVCPMV|kali|menu_badge_advcpmv"
     "termux_core|Termux Environment Setup|info||termux|menu_badge_termux_core"
     "fonts|JetBrains Mono Nerd Font|toggle|CFG_FONTS|termux|menu_badge_fonts"
     "install|--> Install|action||arch debian fedora kali termux|menu_badge_install"
@@ -30,7 +31,7 @@ declare -A MENU_ORDER=(
     [arch]="distro desktop hardware virt docker coding burp gaming aiml prod aur mirrors install abort"
     [debian]="distro desktop hardware virt docker coding gaming aiml prod install abort"
     [fedora]="distro desktop hardware virt docker coding gaming aiml prod install abort"
-    [kali]="distro burp kali_meta wifi docker prod install abort"
+    [kali]="distro burp kali_meta wifi docker advcpmv install abort"
     [termux]="distro termux_core fonts install abort"
 )
 
@@ -66,7 +67,7 @@ CATALOG_PROD=(
     "ani_cli|ani-cli (Anime streaming CLI)|CFG_PROD_APPS|"
     "libreoffice|LibreOffice (Office productivity suite)|CFG_PROD_APPS|debian"
     "xdm|XDM (Xtreme Download Manager)|CFG_PROD_APPS|"
-    "advcpmv|advcpmv (cp/mv with progress bars)|CFG_PROD_APPS|arch debian kali"
+    "advcpmv|advcpmv (cp/mv with progress bars)|CFG_PROD_APPS|arch debian"
 )
 
 CHECKLIST_PROMPT="Toggle components to configure (select ALL/NONE to bulk toggle):\n\n[j/k]=Navigate  [SPACE]=Toggle  [ENTER]=Confirm"
@@ -241,6 +242,10 @@ menu_badge_kali_meta() {
 
 menu_badge_wifi() {
     if [ "$CFG_KALI_WIFI" = true ]; then printf '[Yes]'; else printf '[No]'; fi
+}
+
+menu_badge_advcpmv() {
+    if [ "${CFG_ADVCPMV:-false}" = true ]; then printf '[Yes]'; else printf '[No]'; fi
 }
 
 menu_badge_termux_core() {

@@ -28,19 +28,12 @@ step_kali_searchsploit() {
     fi
 }
 
-step_kali_productivity() {
-    local apps_str="$1"
-    if [ "${DRY_RUN_MODE:-false}" = true ]; then return 0; fi
-    PROD_APPS="$apps_str" run_module "debian/apps/productivity.sh"
-}
-
 build_plan_kali() {
     local distro_dir="${SCRIPT_DIR}/kali"
 
     plan_managed_app "docker"
     plan_managed_app "burp"
     plan_managed_app "advcpmv"
-    plan_managed_app "productivity"
 
     plan_add "Kali Linux Core Setup (kali/kali.sh)" step_kali_core
 
@@ -60,9 +53,8 @@ build_plan_kali() {
         plan_add "Setup Burp Suite Professional (kali/apps/burp/install.sh)" run_module "kali/apps/burp/install.sh"
     fi
 
-    if [ "$CFG_PRODUCTIVITY" = true ] && [ ${#CFG_PROD_APPS[@]} -gt 0 ]; then
-        plan_add "Install Productivity Applications (${#CFG_PROD_APPS[@]} apps)" \
-            step_kali_productivity "${CFG_PROD_APPS[*]}"
+    if [ "${CFG_ADVCPMV:-false}" = true ] && [ -f "$distro_dir/apps/advcpmv.sh" ]; then
+        plan_add "Install Advanced Copy with Progress Bar (kali/apps/advcpmv.sh)" run_module "kali/apps/advcpmv.sh"
     fi
 
     if [ "$CFG_KALI_SEARCHSPLOIT" = true ]; then
