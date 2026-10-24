@@ -3,33 +3,36 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$HOME/Documents/Crack/Burpsuite-Professional"
-BURP_VERSION="2026"
-JAR_NAME="burpsuite_pro_v$BURP_VERSION.jar"
-DOWNLOAD_URL="https://github.com/xiv3r/Burpsuite-Professional/releases/download/burpsuite-pro/$JAR_NAME"
+BURP_VERSION="2026.3.3"
+JAR_NAME="burpsuite_pro_v2026.jar"
+DOWNLOAD_URL="https://portswigger.net/burp/releases/download?product=pro&version=$BURP_VERSION&type=Jar"
+LOADER_URL="https://codeberg.org/code07/test01/raw/branch/main/loader.jar"
 
 echo "=== Installing Burp Suite Professional (Arch Linux) ==="
 
 # 1. Dependency installation (Pacman handles idempotency via --needed)
 echo "Installing dependencies..."
-sudo pacman -S --noconfirm --needed jdk21-openjdk git aria2
+sudo pacman -S --noconfirm --needed jdk21-openjdk wget curl
 
 echo "Setting Java 21 as default..."
 sudo archlinux-java set java-21-openjdk 2>/dev/null || sudo update-alternatives --set java /usr/lib/jvm/java-21-openjdk/bin/java 2>/dev/null || true
 
-# 2. Repository preparation
+# 2. Install directory preparation
 if [ -d "$REPO_DIR" ]; then
-    echo "Cleaning existing repository at $REPO_DIR..."
+    echo "Cleaning existing directory at $REPO_DIR..."
     rm -rf "$REPO_DIR"
 fi
 
-echo "Cloning Burpsuite-Professional repo..."
-git clone https://github.com/xiv3r/Burpsuite-Professional.git "$REPO_DIR"
+mkdir -p "$REPO_DIR"
+
+echo "Downloading loader.jar..."
+curl -fL --progress-bar -o "$REPO_DIR/loader.jar" "$LOADER_URL"
 
 cd "$REPO_DIR"
 
 # 3. Downloading Burp Suite Pro JAR
-echo "Downloading Burp Suite Professional Latest ($JAR_NAME)..."
-aria2c --check-certificate=false -s 16 -x 16 -k 1M -o "$JAR_NAME" "$DOWNLOAD_URL"
+echo "Downloading Burp Suite Professional $BURP_VERSION ($JAR_NAME)..."
+wget -O "$JAR_NAME" --quiet --show-progress "$DOWNLOAD_URL"
 
 # Calculate and display checksums
 if [ -f "$JAR_NAME" ]; then
