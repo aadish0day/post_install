@@ -59,9 +59,9 @@ fi
 
 # Add user to other required groups
 echo "Adding user to additional groups..."
-GROUPS="dialout wireshark bluetooth netdev kaboxer vboxsf docker"
+EXTRA_GROUPS="dialout wireshark bluetooth netdev kaboxer vboxsf docker"
 
-for group in $GROUPS; do
+for group in $EXTRA_GROUPS; do
     if getent group "$group" >/dev/null 2>&1; then
         usermod -aG "$group" "$NEW_USER"
     fi
@@ -97,7 +97,7 @@ if [[ "$AUTO_LOGIN" == "yes" || "$AUTO_LOGIN" == "y" ]]; then
         cp /etc/lightdm/lightdm.conf /etc/lightdm/lightdm.conf.backup
     fi
 
-    if grep -q "autologin-user=" /etc/lightdm/lightdm.conf 2>/dev/null; then
+    if grep -q "^autologin-user=" /etc/lightdm/lightdm.conf 2>/dev/null; then
         sed -i "s/^autologin-user=.*/autologin-user=$NEW_USER/" /etc/lightdm/lightdm.conf
     else
         echo -e "\n[Seat:*]\nautologin-user=$NEW_USER\nautologin-user-timeout=0" >>/etc/lightdm/lightdm.conf

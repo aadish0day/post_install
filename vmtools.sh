@@ -71,7 +71,7 @@ auto_detect() {
                 echo "Detected: Arch-based system ($PRETTY_NAME)"
                 install_arch
                 ;;
-            ubuntu|debian|linuxmint|pop)
+            ubuntu|debian|linuxmint|pop|kali|raspbian)
                 echo "Detected: Debian-based system ($PRETTY_NAME)"
                 install_debian
                 ;;
@@ -80,9 +80,22 @@ auto_detect() {
                 install_fedora
                 ;;
             *)
-                echo "Error: Could not auto-detect distribution: $PRETTY_NAME"
-                echo "Please select manually."
-                exit 1
+                case "${ID_LIKE:-}" in
+                    *arch*)
+                        install_arch
+                        ;;
+                    *debian*)
+                        install_debian
+                        ;;
+                    *fedora*|*rhel*|*centos*)
+                        install_fedora
+                        ;;
+                    *)
+                        echo "Error: Could not auto-detect distribution: $PRETTY_NAME"
+                        echo "Please select manually."
+                        exit 1
+                        ;;
+                esac
                 ;;
         esac
     else

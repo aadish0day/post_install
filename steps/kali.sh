@@ -51,7 +51,7 @@ build_plan_kali() {
     fi
 
     if [ "$CFG_SECURITY_BURP" = true ] && [ -f "$distro_dir/apps/burp/install.sh" ]; then
-        plan_add "Setup Burp Suite Professional (kali/apps/burp/install.sh)" run_module "kali/apps/burp/install.sh"
+        plan_add "Setup Burp Suite Community (kali/apps/burp/install.sh)" run_module "kali/apps/burp/install.sh"
     fi
 
     if [ "${CFG_ADVCPMV:-false}" = true ] && [ -f "$distro_dir/apps/advcpmv.sh" ]; then

@@ -13,7 +13,7 @@ fedora_needs_flatpak() {
     if [ "${CFG_CODING:-false}" = true ]; then
         local tool
         for tool in "${CFG_CODING_TOOLS[@]}"; do
-            [ "$tool" = "android-studio" ] && return 0
+            [ "$tool" = "android_studio" ] && return 0
         done
     fi
 

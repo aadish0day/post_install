@@ -18,7 +18,7 @@ debian_needs_pacstall() {
         local tool
         for tool in "${CFG_CODING_TOOLS[@]}"; do
             case "$tool" in
-            vscode | android-studio) return 0 ;;
+            vscode | android_studio) return 0 ;;
             esac
         done
     fi
@@ -41,7 +41,7 @@ debian_needs_flatpak() {
     if [ "${CFG_CODING:-false}" = true ]; then
         local tool
         for tool in "${CFG_CODING_TOOLS[@]}"; do
-            [ "$tool" = "android-studio" ] && return 0
+            [ "$tool" = "android_studio" ] && return 0
         done
     fi
 

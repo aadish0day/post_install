@@ -60,9 +60,9 @@ else
 fi
 
 # 3. Enable GameMode daemon service if available
-if systemctl --user list-unit-files | grep -q "gamemoded.service"; then
-    log "Enabling GameMode user daemon..."
-    systemctl --user enable --now gamemoded.service 2>/dev/null || true
+if systemctl list-unit-files | grep -q "gamemoded.service"; then
+    log "Enabling GameMode daemon..."
+    sudo systemctl enable --now gamemoded.service 2>/dev/null || true
 fi
 
 # 4. Add user to gamemode group if group exists

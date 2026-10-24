@@ -268,6 +268,7 @@ menu_catalog_visible() {
     local guard="$1"
     [ -z "$guard" ] && return 0
     case "$guard" in
+    all) return 0 ;;
     arch) [ "$TARGET_DISTRO" = "arch" ] ;;
     nonarch) [ "$TARGET_DISTRO" != "arch" ] ;;
     *)

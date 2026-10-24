@@ -10,7 +10,8 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/common.sh"
 
 log "Installing Docker CE on Debian/Ubuntu..."
 
-if is_ubuntu; then
+os_id="$(. /etc/os-release && echo "${ID:-}")"
+if is_ubuntu || [ "$os_id" = "linuxmint" ]; then
     repo_distro="ubuntu"
 else
     repo_distro="debian"

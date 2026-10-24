@@ -110,7 +110,7 @@ if [ -z "${POST_INSTALL_LOGGED:-}" ]; then
     fi
     if [ ! -t 0 ] || [ ! -t 1 ]; then
         exec > >(tee "$LOG_FILE") 2>&1
-        trap 'wait' EXIT
+        trap 'wait; cleanup_on_exit' EXIT
     fi
 fi
 
