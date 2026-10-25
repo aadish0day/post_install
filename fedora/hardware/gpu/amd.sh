@@ -14,8 +14,8 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../lib/common.sh"
 
 for arg in "$@"; do
     case "$arg" in
-    --pro) warn "--pro (AMD Pro AUR packages) is Arch-only; ignoring on Fedora." ;;
-    *) die "Unknown option: $arg" ;;
+        --pro) warn "--pro (AMD Pro AUR packages) is Arch-only; ignoring on Fedora." ;;
+        *) die "Unknown option: $arg" ;;
     esac
 done
 

@@ -66,12 +66,12 @@ install_laptop_power_cfg() {
     # nvidia-laptop-power-cfg must be built as a non-root user
     if [ -n "${SUDO_USER:-}" ]; then
         sudo -u "$SUDO_USER" bash -c '
-                cd /tmp &&
-                rm -rf nvidia-laptop-power-cfg &&
-                git clone --depth 1 https://gitlab.com/asus-linux/nvidia-laptop-power-cfg.git &&
-                cd nvidia-laptop-power-cfg &&
-                makepkg -sfi --noconfirm
-            '
+        cd /tmp &&
+            rm -rf nvidia-laptop-power-cfg &&
+            git clone --depth 1 https://gitlab.com/asus-linux/nvidia-laptop-power-cfg.git &&
+            cd nvidia-laptop-power-cfg &&
+            makepkg -sfi --noconfirm
+        '
     else
         echo "nvidia-laptop-power-cfg needs to be built as a non-root user:"
         echo "  git clone https://gitlab.com/asus-linux/nvidia-laptop-power-cfg.git"

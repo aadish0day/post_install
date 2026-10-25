@@ -98,11 +98,11 @@ require_root "$@"
 INSTALL_PRO=false
 for arg in "$@"; do
     case "$arg" in
-    --pro) INSTALL_PRO=true ;;
-    *)
-        echo "Unknown option: $arg" >&2
-        exit 1
-        ;;
+        --pro) INSTALL_PRO=true ;;
+        *)
+            echo "Unknown option: $arg" >&2
+            exit 1
+            ;;
     esac
 done
 

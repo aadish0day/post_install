@@ -14,7 +14,7 @@ for cmd in "${FORBIDDEN_CMDS[@]}"; do
 echo "FORBIDDEN: $cmd called with: \$*" >&2
 exit 99
 STUB
-    chmod +x "$STUB_DIR/$cmd"
+chmod +x "$STUB_DIR/$cmd"
 done
 
 DISTROS=(arch debian fedora kali termux)

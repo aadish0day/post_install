@@ -16,9 +16,9 @@ ALL_TOOLS=(neovim vscode cursor claude_code android_studio flutter antigravity)
 tools=("$@")
 [ "${#tools[@]}" -gt 0 ] || tools=("${ALL_TOOLS[@]}")
 
-install_neovim() {
-    bash "$SCRIPT_DIR/neovim.sh"
-}
+    install_neovim() {
+        bash "$SCRIPT_DIR/neovim.sh"
+    }
 
 install_vscode() {
     if command -v code >/dev/null 2>&1; then
@@ -113,14 +113,14 @@ install_claude_code() {
 
 for tool in "${tools[@]}"; do
     case "$tool" in
-    neovim) log "==> Neovim" && install_neovim ;;
-    vscode) log "==> Visual Studio Code" && install_vscode ;;
-    cursor) log "==> Cursor" && install_cursor ;;
-    claude_code) log "==> Claude Code" && install_claude_code ;;
-    android_studio) log "==> Android Studio" && install_android_studio ;;
-    flutter) log "==> Flutter SDK" && install_flutter ;;
-    antigravity) log "==> Antigravity" && install_antigravity ;;
-    *) warn "Unknown tool: $tool (valid: ${ALL_TOOLS[*]})" ;;
+        neovim) log "==> Neovim" && install_neovim ;;
+        vscode) log "==> Visual Studio Code" && install_vscode ;;
+        cursor) log "==> Cursor" && install_cursor ;;
+        claude_code) log "==> Claude Code" && install_claude_code ;;
+        android_studio) log "==> Android Studio" && install_android_studio ;;
+        flutter) log "==> Flutter SDK" && install_flutter ;;
+        antigravity) log "==> Antigravity" && install_antigravity ;;
+        *) warn "Unknown tool: $tool (valid: ${ALL_TOOLS[*]})" ;;
     esac
 done
 

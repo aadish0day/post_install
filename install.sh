@@ -132,29 +132,29 @@ detect_system() {
         . /etc/os-release
         DISTRO_NAME="${PRETTY_NAME:-${NAME:-Linux}}"
         case "${ID:-}" in
-        kali) DETECTED_DISTRO="kali" ;;
-        arch | manjaro | endeavouros | garuda | artix | cachyos) DETECTED_DISTRO="arch" ;;
-        fedora | rhel | centos | rocky | almalinux | nobara) DETECTED_DISTRO="fedora" ;;
-        debian | ubuntu | pop | linuxmint | elementary | raspbian) DETECTED_DISTRO="debian" ;;
-        *)
-            DETECTED_DISTRO="unknown"
-            for like in ${ID_LIKE:-}; do
-                case "$like" in
-                arch)
-                    DETECTED_DISTRO="arch"
-                    break
-                    ;;
-                fedora | rhel)
-                    DETECTED_DISTRO="fedora"
-                    break
-                    ;;
-                debian | ubuntu)
-                    DETECTED_DISTRO="debian"
-                    break
-                    ;;
-                esac
-            done
-            ;;
+            kali) DETECTED_DISTRO="kali" ;;
+            arch | manjaro | endeavouros | garuda | artix | cachyos) DETECTED_DISTRO="arch" ;;
+            fedora | rhel | centos | rocky | almalinux | nobara) DETECTED_DISTRO="fedora" ;;
+            debian | ubuntu | pop | linuxmint | elementary | raspbian) DETECTED_DISTRO="debian" ;;
+            *)
+                DETECTED_DISTRO="unknown"
+                for like in ${ID_LIKE:-}; do
+                    case "$like" in
+                        arch)
+                            DETECTED_DISTRO="arch"
+                            break
+                            ;;
+                        fedora | rhel)
+                            DETECTED_DISTRO="fedora"
+                            break
+                            ;;
+                        debian | ubuntu)
+                            DETECTED_DISTRO="debian"
+                            break
+                            ;;
+                    esac
+                done
+                ;;
         esac
     else
         DETECTED_DISTRO="unknown"
@@ -280,11 +280,11 @@ build_plan() {
     plan_init
 
     case "$TARGET_DISTRO" in
-    arch) build_plan_arch ;;
-    kali) build_plan_kali ;;
-    debian) build_plan_debian ;;
-    fedora) build_plan_fedora ;;
-    termux) build_plan_termux ;;
+        arch) build_plan_arch ;;
+        kali) build_plan_kali ;;
+        debian) build_plan_debian ;;
+        fedora) build_plan_fedora ;;
+        termux) build_plan_termux ;;
     esac
 
     # Universal steps for all desktop distributions
@@ -307,141 +307,141 @@ run_execution_plan() {
     build_plan
 
     local total_steps=${#PLAN_TITLES[@]}
-    if [ "$total_steps" -eq 0 ]; then
-        log_warn "No steps planned for execution."
-        return 0
-    fi
+        if [ "$total_steps" -eq 0 ]; then
+            log_warn "No steps planned for execution."
+            return 0
+        fi
 
-    if [ "$TERM" != "dumb" ]; then clear 2>/dev/null || true; fi
-    echo -e "${BOLD}${CYAN}============================================================${NC}"
-    echo -e "${BOLD}${CYAN} POST-INSTALLATION SUITE - ARCHINSTALL PURE BASH RUNNER     ${NC}"
-    echo -e "${BOLD}${CYAN}============================================================${NC}"
-    echo -e " Target Distribution: ${BOLD}${DISTRO_NAME}${NC} (${TARGET_DISTRO})"
-    echo -e " Hostname / User:     ${SYS_HOSTNAME} (${SYS_USER})"
-    echo -e " CPU / GPU:           ${CPU_MODEL} | AMD:${HAS_AMD_GPU} NV:${HAS_NVIDIA_GPU} Intel:${HAS_INTEL_GPU}"
-    echo -e " Mode:                $([ "$dry_run" = true ] && echo -e "${YELLOW}DRY-RUN (Simulation)${NC}" || echo -e "${GREEN}LIVE EXECUTION${NC}")"
-    echo -e "${BOLD}${CYAN}============================================================${NC}"
-    echo ""
-    echo -e "${BOLD}Planned Steps (${total_steps} total):${NC}"
-    local i
-    for ((i = 0; i < total_steps; i++)); do
-        printf "  %2d. %s\n" "$((i + 1))" "${PLAN_TITLES[i]}"
+        if [ "$TERM" != "dumb" ]; then clear 2>/dev/null || true; fi
+        echo -e "${BOLD}${CYAN}============================================================${NC}"
+        echo -e "${BOLD}${CYAN} POST-INSTALLATION SUITE - ARCHINSTALL PURE BASH RUNNER     ${NC}"
+        echo -e "${BOLD}${CYAN}============================================================${NC}"
+        echo -e " Target Distribution: ${BOLD}${DISTRO_NAME}${NC} (${TARGET_DISTRO})"
+        echo -e " Hostname / User:     ${SYS_HOSTNAME} (${SYS_USER})"
+        echo -e " CPU / GPU:           ${CPU_MODEL} | AMD:${HAS_AMD_GPU} NV:${HAS_NVIDIA_GPU} Intel:${HAS_INTEL_GPU}"
+        echo -e " Mode:                $([ "$dry_run" = true ] && echo -e "${YELLOW}DRY-RUN (Simulation)${NC}" || echo -e "${GREEN}LIVE EXECUTION${NC}")"
+        echo -e "${BOLD}${CYAN}============================================================${NC}"
+        echo ""
+        echo -e "${BOLD}Planned Steps (${total_steps} total):${NC}"
+        local i
+        for ((i = 0; i < total_steps; i++)); do
+            printf "  %2d. %s\n" "$((i + 1))" "${PLAN_TITLES[i]}"
+            if [ "$dry_run" = true ]; then
+                local step_fn="${PLAN_FNS[i]}"
+                local -a step_args=()
+                if [ -n "${PLAN_ARGS[i]}" ]; then
+                    IFS=$'\x1f' read -r -d '' -a step_args < <(printf "%s\0" "${PLAN_ARGS[i]}")
+                fi
+                if [ ${#step_args[@]} -gt 0 ]; then
+                    printf "      fn: %s %s\n" "$step_fn" "${step_args[*]}"
+                else
+                    printf "      fn: %s\n" "$step_fn"
+                fi
+            fi
+        done
+        echo ""
+
         if [ "$dry_run" = true ]; then
-            local step_fn="${PLAN_FNS[i]}"
+            log_success "Dry run complete! (0 commands executed)"
+            return 0
+        fi
+
+        # Keep sudo alive during the plan
+        local sudo_pid=""
+        if [ "$TARGET_DISTRO" != "termux" ]; then
+            if [ "$(id -u)" -ne 0 ]; then
+                log_info "Acquiring sudo credentials for installation..."
+                if ! sudo -v; then
+                    log_error "Failed to acquire sudo credentials."
+                    return 1
+                fi
+            fi
+            keep_sudo_alive() {
+                while true; do
+                    sleep 50
+                    sudo -n true 2>/dev/null || true
+                done
+            }
+        keep_sudo_alive &
+        sudo_pid=$!
+        CLEANUP_PIDS+=("$sudo_pid")
+        fi
+
+        log_info "Starting execution..."
+        local start_total
+        start_total=$(date +%s)
+        local has_errors=false
+        local failed_steps=()
+
+        for ((i = 0; i < total_steps; i++)); do
+            local title="${PLAN_TITLES[i]}"
+            local fn="${PLAN_FNS[i]}"
             local -a step_args=()
             if [ -n "${PLAN_ARGS[i]}" ]; then
                 IFS=$'\x1f' read -r -d '' -a step_args < <(printf "%s\0" "${PLAN_ARGS[i]}")
             fi
-            if [ ${#step_args[@]} -gt 0 ]; then
-                printf "      fn: %s %s\n" "$step_fn" "${step_args[*]}"
-            else
-                printf "      fn: %s\n" "$step_fn"
-            fi
-        fi
-    done
-    echo ""
+            local cwd="${PLAN_CWDS[i]:-$SCRIPT_DIR}"
+            local step_num=$((i + 1))
 
-    if [ "$dry_run" = true ]; then
-        log_success "Dry run complete! (0 commands executed)"
-        return 0
-    fi
+            echo ""
+            log_step "[$step_num/$total_steps] $title"
+            local step_start
+            step_start=$(date +%s)
+            local exit_code=0
 
-    # Keep sudo alive during the plan
-    local sudo_pid=""
-    if [ "$TARGET_DISTRO" != "termux" ]; then
-        if [ "$(id -u)" -ne 0 ]; then
-            log_info "Acquiring sudo credentials for installation..."
-            if ! sudo -v; then
-                log_error "Failed to acquire sudo credentials."
-                return 1
-            fi
-        fi
-        keep_sudo_alive() {
-            while true; do
-                sleep 50
-                sudo -n true 2>/dev/null || true
+            (
+                cd "$cwd"
+                "$fn" "${step_args[@]}"
+                ) || exit_code=$?
+
+                local step_duration=$(($(date +%s) - step_start))
+
+                if [ "$exit_code" -eq 0 ]; then
+                    echo -e "    ${GREEN}✓ Success (${step_duration}s)${NC}"
+                else
+                    has_errors=true
+                    failed_steps+=("$title")
+                    echo -e "    ${RED}✖ FAILED: ${title} (Exit code: ${exit_code}, ${step_duration}s)${NC}"
+                    if [ "${STRICT_MODE:-false}" = true ]; then
+                        log_error "Aborting immediately on step failure (--strict mode enabled)."
+                        break
+                    fi
+                fi
             done
-        }
-        keep_sudo_alive &
-        sudo_pid=$!
-        CLEANUP_PIDS+=("$sudo_pid")
-    fi
 
-    log_info "Starting execution..."
-    local start_total
-    start_total=$(date +%s)
-    local has_errors=false
-    local failed_steps=()
-
-    for ((i = 0; i < total_steps; i++)); do
-        local title="${PLAN_TITLES[i]}"
-        local fn="${PLAN_FNS[i]}"
-        local -a step_args=()
-        if [ -n "${PLAN_ARGS[i]}" ]; then
-            IFS=$'\x1f' read -r -d '' -a step_args < <(printf "%s\0" "${PLAN_ARGS[i]}")
-        fi
-        local cwd="${PLAN_CWDS[i]:-$SCRIPT_DIR}"
-        local step_num=$((i + 1))
-
-        echo ""
-        log_step "[$step_num/$total_steps] $title"
-        local step_start
-        step_start=$(date +%s)
-        local exit_code=0
-
-        (
-            cd "$cwd"
-            "$fn" "${step_args[@]}"
-        ) || exit_code=$?
-
-        local step_duration=$(($(date +%s) - step_start))
-
-        if [ "$exit_code" -eq 0 ]; then
-            echo -e "    ${GREEN}✓ Success (${step_duration}s)${NC}"
-        else
-            has_errors=true
-            failed_steps+=("$title")
-            echo -e "    ${RED}✖ FAILED: ${title} (Exit code: ${exit_code}, ${step_duration}s)${NC}"
-            if [ "${STRICT_MODE:-false}" = true ]; then
-                log_error "Aborting immediately on step failure (--strict mode enabled)."
-                break
+            if [ -n "$sudo_pid" ]; then
+                kill "$sudo_pid" 2>/dev/null || true
             fi
-        fi
-    done
 
-    if [ -n "$sudo_pid" ]; then
-        kill "$sudo_pid" 2>/dev/null || true
-    fi
+            local total_time=$(($(date +%s) - start_total))
 
-    local total_time=$(($(date +%s) - start_total))
+            echo ""
+            echo -e "${BOLD}${CYAN}============================================================${NC}"
+            if [ "$has_errors" = true ]; then
+                echo -e "${RED}${BOLD} Installation finished with WARNINGS/ERRORS in ${total_time}s.${NC}"
+                echo -e " Failed steps (${#failed_steps[@]}):"
+                    local fstep
+                    for fstep in "${failed_steps[@]}"; do
+                        echo -e "   - ${RED}${fstep}${NC}"
+                    done
+                    echo -e " Check the session log for detailed diagnostics: ${LOG_FILE}"
+                else
+                    echo -e "${GREEN}${BOLD} Installation COMPLETED SUCCESSFULLY in ${total_time}s!${NC}"
+                    echo -e " Please restart your session or reboot for all changes to take effect."
+            fi
+            echo -e "${BOLD}${CYAN}============================================================${NC}"
 
-    echo ""
-    echo -e "${BOLD}${CYAN}============================================================${NC}"
-    if [ "$has_errors" = true ]; then
-        echo -e "${RED}${BOLD} Installation finished with WARNINGS/ERRORS in ${total_time}s.${NC}"
-        echo -e " Failed steps (${#failed_steps[@]}):"
-        local fstep
-        for fstep in "${failed_steps[@]}"; do
-            echo -e "   - ${RED}${fstep}${NC}"
-        done
-        echo -e " Check the session log for detailed diagnostics: ${LOG_FILE}"
-    else
-        echo -e "${GREEN}${BOLD} Installation COMPLETED SUCCESSFULLY in ${total_time}s!${NC}"
-        echo -e " Please restart your session or reboot for all changes to take effect."
-    fi
-    echo -e "${BOLD}${CYAN}============================================================${NC}"
-
-    if [ -c /dev/tty ] && [ "$FORCE_CLI" = false ]; then
-        local done_msg="Post-Installation has finished!\n\nTarget Distribution: ${DISTRO_NAME}\nElapsed Time: ${total_time} seconds\nFull Log: ${LOG_FILE}"
-        if [ "$has_errors" = true ]; then
-            done_msg+="\n\nFailed Steps:\n"
-            for fstep in "${failed_steps[@]}"; do
-                done_msg+=" - ${fstep}\n"
-            done
-        fi
-        done_msg+="\n\nPlease restart your session or reboot for all changes to take effect."
-        ui_msg "Installation Complete" "$done_msg"
-    fi
+            if [ -c /dev/tty ] && [ "$FORCE_CLI" = false ]; then
+                local done_msg="Post-Installation has finished!\n\nTarget Distribution: ${DISTRO_NAME}\nElapsed Time: ${total_time} seconds\nFull Log: ${LOG_FILE}"
+                if [ "$has_errors" = true ]; then
+                    done_msg+="\n\nFailed Steps:\n"
+                    for fstep in "${failed_steps[@]}"; do
+                        done_msg+=" - ${fstep}\n"
+                    done
+                fi
+                done_msg+="\n\nPlease restart your session or reboot for all changes to take effect."
+                ui_msg "Installation Complete" "$done_msg"
+            fi
 }
 
 # ============================================================================
@@ -470,57 +470,57 @@ run_cli_interactive() {
     choice="${choice:-1}"
 
     case "$choice" in
-    1) run_execution_plan false ;;
-    2)
-        echo "1) KDE Plasma  2) i3 Window Manager  3) BSPWM  4) Both (i3 + BSPWM)  5) None"
-        read -rp "Select desktop [1-5]: " de_c </dev/tty || de_c="1"
-        case "$de_c" in
-        1) CFG_DESKTOP="kde" ;;
-        2) CFG_DESKTOP="i3" ;;
-        3) CFG_DESKTOP="bspwm" ;;
-        4) CFG_DESKTOP="both" ;;
-        *) CFG_DESKTOP="none" ;;
-        esac
-        run_cli_interactive
-        ;;
-    3)
-        if [ "$CFG_DOCKER" = true ]; then CFG_DOCKER=false; else CFG_DOCKER=true; fi
-        run_cli_interactive
-        ;;
-    4)
-        if [ "$CFG_GAMING" = true ]; then CFG_GAMING=false; else CFG_GAMING=true; fi
-        run_cli_interactive
-        ;;
-    5)
-        if [ "$CFG_AIML" = true ]; then CFG_AIML=false; else CFG_AIML=true; fi
-        run_cli_interactive
-        ;;
-    6)
-        echo "1) Arch  2) Debian  3) Fedora  4) Kali  5) Termux"
-        read -rp "Select distro [1-5]: " d_c </dev/tty || d_c="1"
-        case "$d_c" in
-        1) TARGET_DISTRO="arch" ;;
-        2) TARGET_DISTRO="debian" ;;
-        3) TARGET_DISTRO="fedora" ;;
-        4) TARGET_DISTRO="kali" ;;
-        5) TARGET_DISTRO="termux" ;;
-        esac
-        set_distro_defaults
-        run_cli_interactive
-        ;;
-    7)
-        run_execution_plan true
-        read -rp "Press Enter to return to menu..." </dev/tty || true
-        run_cli_interactive
-        ;;
-    8)
-        log_info "Exiting."
-        exit 0
-        ;;
-    *)
-        log_error "Invalid selection."
-        exit 1
-        ;;
+        1) run_execution_plan false ;;
+        2)
+            echo "1) KDE Plasma  2) i3 Window Manager  3) BSPWM  4) Both (i3 + BSPWM)  5) None"
+            read -rp "Select desktop [1-5]: " de_c </dev/tty || de_c="1"
+            case "$de_c" in
+                1) CFG_DESKTOP="kde" ;;
+                2) CFG_DESKTOP="i3" ;;
+                3) CFG_DESKTOP="bspwm" ;;
+                4) CFG_DESKTOP="both" ;;
+                *) CFG_DESKTOP="none" ;;
+            esac
+            run_cli_interactive
+            ;;
+        3)
+            if [ "$CFG_DOCKER" = true ]; then CFG_DOCKER=false; else CFG_DOCKER=true; fi
+            run_cli_interactive
+            ;;
+        4)
+            if [ "$CFG_GAMING" = true ]; then CFG_GAMING=false; else CFG_GAMING=true; fi
+            run_cli_interactive
+            ;;
+        5)
+            if [ "$CFG_AIML" = true ]; then CFG_AIML=false; else CFG_AIML=true; fi
+            run_cli_interactive
+            ;;
+        6)
+            echo "1) Arch  2) Debian  3) Fedora  4) Kali  5) Termux"
+            read -rp "Select distro [1-5]: " d_c </dev/tty || d_c="1"
+            case "$d_c" in
+                1) TARGET_DISTRO="arch" ;;
+                2) TARGET_DISTRO="debian" ;;
+                3) TARGET_DISTRO="fedora" ;;
+                4) TARGET_DISTRO="kali" ;;
+                5) TARGET_DISTRO="termux" ;;
+            esac
+            set_distro_defaults
+            run_cli_interactive
+            ;;
+        7)
+            run_execution_plan true
+            read -rp "Press Enter to return to menu..." </dev/tty || true
+            run_cli_interactive
+            ;;
+        8)
+            log_info "Exiting."
+            exit 0
+            ;;
+        *)
+            log_error "Invalid selection."
+            exit 1
+            ;;
     esac
 }
 
@@ -560,39 +560,39 @@ STRICT_MODE=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-    --tui)
-        FORCE_TUI=true
-        shift
-        ;;
-    --cli | --headless)
-        FORCE_CLI=true
-        shift
-        ;;
-    --dry-run | -d)
-        DRY_RUN=true
-        shift
-        ;;
-    --strict)
-        STRICT_MODE=true
-        shift
-        ;;
-    --distro)
-        TARGET_DISTRO="$2"
-        set_distro_defaults
-        shift 2
-        ;;
-    --desktop)
-        CFG_DESKTOP="$2"
-        shift 2
-        ;;
-    -h | --help)
-        show_help
-        exit 0
-        ;;
-    *)
-        log_warn "Unknown argument: $1"
-        shift
-        ;;
+        --tui)
+            FORCE_TUI=true
+            shift
+            ;;
+        --cli | --headless)
+            FORCE_CLI=true
+            shift
+            ;;
+        --dry-run | -d)
+            DRY_RUN=true
+            shift
+            ;;
+        --strict)
+            STRICT_MODE=true
+            shift
+            ;;
+        --distro)
+            TARGET_DISTRO="$2"
+            set_distro_defaults
+            shift 2
+            ;;
+        --desktop)
+            CFG_DESKTOP="$2"
+            shift 2
+            ;;
+        -h | --help)
+            show_help
+            exit 0
+            ;;
+        *)
+            log_warn "Unknown argument: $1"
+            shift
+            ;;
     esac
 done
 

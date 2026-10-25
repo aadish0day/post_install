@@ -14,10 +14,10 @@ install_from_github() {
     local raw_arch arch url tmp
     raw_arch="$(uname -m)"
     case "$raw_arch" in
-    x86_64 | amd64) arch="x86_64" ;;
-    aarch64 | arm64) arch="arm64" ;;
-    armv7*) arch="armv7" ;;
-    *) die "Unsupported architecture: $raw_arch" ;;
+        x86_64 | amd64) arch="x86_64" ;;
+        aarch64 | arm64) arch="arm64" ;;
+        armv7*) arch="armv7" ;;
+        *) die "Unsupported architecture: $raw_arch" ;;
     esac
 
     url="$(github_asset_url jesseduffield/lazydocker "_Linux_${arch}\.tar\.gz$")" || true

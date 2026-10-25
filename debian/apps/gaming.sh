@@ -68,10 +68,10 @@ if ! command -v umu-run >/dev/null 2>&1; then
     else
         # From the codename, not VERSION_ID (LMDE 6 is Debian 12)
         case "$(os_codename)" in
-        bookworm) umu_target="debian-12" ;;
-        trixie) umu_target="debian-13" ;;
-        forky) umu_target="debian-14" ;;
-        *) umu_target="debian-unknown" ;;
+            bookworm) umu_target="debian-12" ;;
+            trixie) umu_target="debian-13" ;;
+            forky) umu_target="debian-14" ;;
+            *) umu_target="debian-unknown" ;;
         esac
     fi
     url="$(github_asset_url Open-Wine-Components/umu-launcher "python3-umu-launcher_.*_amd64_${umu_target}\.deb$")" || true

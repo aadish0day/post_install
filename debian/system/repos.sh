@@ -24,17 +24,17 @@ else
         log "Enabling '$components' in debian.sources (preserving security stanzas)..."
         tmp_sources="$(mktemp -t debian.sources.XXXXXX)"
         awk -v comp="$components" '
-/^[[:space:]]*$/ {
-    flush_stanza()
-    print $0
-    next
-}
-{
-    stanza_len++
-    stanza_lines[stanza_len] = $0
-    if ($0 ~ /debian-security/) {
-        is_security = 1
-    }
+        /^[[:space:]]*$/ {
+            flush_stanza()
+            print $0
+            next
+        }
+    {
+        stanza_len++
+        stanza_lines[stanza_len] = $0
+        if ($0 ~ /debian-security/) {
+            is_security = 1
+        }
 }
 END {
     flush_stanza()
@@ -46,15 +46,15 @@ function flush_stanza() {
             if (!is_security && line ~ /^Components:[[:space:]]*/) {
                 line = "Components: " comp
             }
-            print line
-        }
-        stanza_len = 0
-        is_security = 0
+        print line
     }
+stanza_len = 0
+is_security = 0
+}
 }
 ' /etc/apt/sources.list.d/debian.sources > "$tmp_sources"
-        $SUDO cp "$tmp_sources" /etc/apt/sources.list.d/debian.sources
-        rm -f "$tmp_sources"
+$SUDO cp "$tmp_sources" /etc/apt/sources.list.d/debian.sources
+rm -f "$tmp_sources"
     fi
 
     if [ -f /etc/apt/sources.list ] && grep -qE '^deb .*debian' /etc/apt/sources.list; then

@@ -5,10 +5,10 @@ arch_kernel_headers() {
     local kver
     kver="$(uname -r 2>/dev/null || echo "")"
     case "$kver" in
-    *-lts*) echo "linux-lts-headers" ;;
-    *-zen*) echo "linux-zen-headers" ;;
-    *-hardened*) echo "linux-hardened-headers" ;;
-    *) echo "linux-headers" ;;
+        *-lts*) echo "linux-lts-headers" ;;
+        *-zen*) echo "linux-zen-headers" ;;
+        *-hardened*) echo "linux-hardened-headers" ;;
+        *) echo "linux-headers" ;;
     esac
 }
 
@@ -83,16 +83,16 @@ step_arch_coding() {
     local t
     for t in "${CFG_CODING_TOOLS[@]}"; do
         case "$t" in
-        neovim) pacman_pkgs+=("neovim") ;;
-        vscode) pkgs+=("visual-studio-code-bin") ;;
-        cursor) pkgs+=("cursor-bin") ;;
-        claude_code) pkgs+=("claude-code") ;;
-        android_studio) pkgs+=("android-studio") ;;
-        flutter)
-            pkgs+=("flutter-bin")
-            run_flutter=true
-            ;;
-        antigravity) pkgs+=("antigravity-cli" "antigravity-ide") ;;
+            neovim) pacman_pkgs+=("neovim") ;;
+            vscode) pkgs+=("visual-studio-code-bin") ;;
+            cursor) pkgs+=("cursor-bin") ;;
+            claude_code) pkgs+=("claude-code") ;;
+            android_studio) pkgs+=("android-studio") ;;
+            flutter)
+                pkgs+=("flutter-bin")
+                run_flutter=true
+                ;;
+            antigravity) pkgs+=("antigravity-cli" "antigravity-ide") ;;
         esac
     done
 
@@ -136,17 +136,17 @@ step_arch_prod_apps() {
     local p
     for p in "${CFG_PROD_APPS[@]}"; do
         case "$p" in
-        thorium) need_thorium=true ;;
-        zen) prod_pkgs+=("zen-browser-bin") ;;
-        vesktop) prod_pkgs+=("vesktop-bin") ;;
-        localsend) prod_pkgs+=("localsend-bin") ;;
-        anydesk) prod_pkgs+=("anydesk-bin") ;;
-        obsidian) prod_pkgs+=("obsidian") ;;
-        markitdown) prod_pkgs+=("markitdown-bin") ;;
-        gallery_dl) prod_pkgs+=("gallery-dl-bin") ;;
-        ani_cli) prod_pkgs+=("ani-cli") ;;
-        advcpmv) prod_pkgs+=("advcpmv") ;;
-        libreoffice) prod_pkgs+=("libreoffice-fresh") ;;
+            thorium) need_thorium=true ;;
+            zen) prod_pkgs+=("zen-browser-bin") ;;
+            vesktop) prod_pkgs+=("vesktop-bin") ;;
+            localsend) prod_pkgs+=("localsend-bin") ;;
+            anydesk) prod_pkgs+=("anydesk-bin") ;;
+            obsidian) prod_pkgs+=("obsidian") ;;
+            markitdown) prod_pkgs+=("markitdown-bin") ;;
+            gallery_dl) prod_pkgs+=("gallery-dl-bin") ;;
+            ani_cli) prod_pkgs+=("ani-cli") ;;
+            advcpmv) prod_pkgs+=("advcpmv") ;;
+            libreoffice) prod_pkgs+=("libreoffice-fresh") ;;
         esac
     done
 
@@ -180,7 +180,7 @@ arch_needs_aur() {
         local tool
         for tool in "${CFG_CODING_TOOLS[@]}"; do
             case "$tool" in
-            vscode | cursor | claude_code | android_studio | flutter | antigravity) return 0 ;;
+                vscode | cursor | claude_code | android_studio | flutter | antigravity) return 0 ;;
             esac
         done
     fi
@@ -295,16 +295,16 @@ build_plan_arch() {
     if [ "$CFG_PRODUCTIVITY" = true ] && [ ${#CFG_PROD_APPS[@]} -gt 0 ]; then
         plan_add "Install Essential AUR Productivity Tools (${#CFG_PROD_APPS[@]} apps)" step_arch_prod_apps
 
-        local has_xdm=false p
-        for p in "${CFG_PROD_APPS[@]}"; do
-            if [ "$p" = "xdm" ]; then
-                has_xdm=true
-                break
+            local has_xdm=false p
+            for p in "${CFG_PROD_APPS[@]}"; do
+                if [ "$p" = "xdm" ]; then
+                    has_xdm=true
+                    break
+                fi
+            done
+            if [ "$has_xdm" = true ] && [ -f "$distro_dir/apps/xdm.sh" ]; then
+                plan_add "Install XDM Download Manager (arch/apps/xdm.sh)" run_module "arch/apps/xdm.sh"
             fi
-        done
-        if [ "$has_xdm" = true ] && [ -f "$distro_dir/apps/xdm.sh" ]; then
-            plan_add "Install XDM Download Manager (arch/apps/xdm.sh)" run_module "arch/apps/xdm.sh"
-        fi
     fi
 
     append_extra_scripts "$distro_dir" "arch"

@@ -39,11 +39,11 @@ fi
 # AnyDesk (Arch: anydesk-bin)
 if app_wanted "anydesk"; then
     write_repo anydesk "[anydesk]
-name=AnyDesk Fedora - stable
-baseurl=http://rpm.anydesk.com/rhel/x86_64/
-gpgcheck=1
-repo_gpgcheck=1
-gpgkey=https://keys.anydesk.com/repos/RPM-GPG-KEY"
+    name=AnyDesk Fedora - stable
+    baseurl=http://rpm.anydesk.com/rhel/x86_64/
+    gpgcheck=1
+    repo_gpgcheck=1
+    gpgkey=https://keys.anydesk.com/repos/RPM-GPG-KEY"
     dnf_install anydesk
 fi
 

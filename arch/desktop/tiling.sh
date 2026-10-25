@@ -12,18 +12,18 @@ WM_CHOICE="${1:-both}"
 
 wm_packages=()
 case "$WM_CHOICE" in
-i3)
-    wm_packages+=(i3-wm)
-    echo "Configuring X11 Tiling Environment (i3-wm)..."
-    ;;
-bspwm)
-    wm_packages+=(bspwm sxhkd)
-    echo "Configuring X11 Tiling Environment (bspwm + sxhkd)..."
-    ;;
-both | tiling | *)
-    wm_packages=(i3-wm bspwm sxhkd)
-    echo "Configuring X11 Tiling Environment (i3-wm + bspwm + sxhkd)..."
-    ;;
+    i3)
+        wm_packages+=(i3-wm)
+        echo "Configuring X11 Tiling Environment (i3-wm)..."
+        ;;
+    bspwm)
+        wm_packages+=(bspwm sxhkd)
+        echo "Configuring X11 Tiling Environment (bspwm + sxhkd)..."
+        ;;
+    both | tiling | *)
+        wm_packages=(i3-wm bspwm sxhkd)
+        echo "Configuring X11 Tiling Environment (i3-wm + bspwm + sxhkd)..."
+        ;;
 esac
 
 # List of X11 tiling desktop essentials

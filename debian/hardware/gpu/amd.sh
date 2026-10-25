@@ -14,8 +14,8 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../lib/common.sh"
 
 for arg in "$@"; do
     case "$arg" in
-    --pro) warn "AMD Pro packages are only available on Arch; ignoring --pro." ;;
-    *) die "Unknown option: $arg" ;;
+        --pro) warn "AMD Pro packages are only available on Arch; ignoring --pro." ;;
+        *) die "Unknown option: $arg" ;;
     esac
 done
 
@@ -26,21 +26,21 @@ command -v lspci >/dev/null 2>&1 || apt_install pciutils
 
 tune_grub() {
     local params=("amd_pstate=active" "amd_prefcore=enable" "usbcore.autosuspend=-1") cmdline param
-    if in_container || [ ! -f /etc/default/grub ]; then
-        warn "No GRUB config (or running in a container) - skipping amd_pstate kernel parameters."
-        return
-    fi
-    cmdline="$(sed -nE 's/^GRUB_CMDLINE_LINUX_DEFAULT="(.*)"/\1/p' /etc/default/grub)"
-    for param in "${params[@]}"; do
-        [[ " $cmdline " == *" $param "* ]] || cmdline="${cmdline:+$cmdline }$param"
-    done
-    if is_simulate; then
-        log "[simulate] would set GRUB_CMDLINE_LINUX_DEFAULT=\"$cmdline\""
-        return
-    fi
-    log "Setting GRUB_CMDLINE_LINUX_DEFAULT=\"$cmdline\"..."
-    $SUDO sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=\".*\"|GRUB_CMDLINE_LINUX_DEFAULT=\"$cmdline\"|" /etc/default/grub
-    $SUDO update-grub || warn "update-grub failed"
+        if in_container || [ ! -f /etc/default/grub ]; then
+            warn "No GRUB config (or running in a container) - skipping amd_pstate kernel parameters."
+            return
+        fi
+        cmdline="$(sed -nE 's/^GRUB_CMDLINE_LINUX_DEFAULT="(.*)"/\1/p' /etc/default/grub)"
+        for param in "${params[@]}"; do
+            [[ " $cmdline " == *" $param "* ]] || cmdline="${cmdline:+$cmdline }$param"
+        done
+        if is_simulate; then
+            log "[simulate] would set GRUB_CMDLINE_LINUX_DEFAULT=\"$cmdline\""
+            return
+        fi
+        log "Setting GRUB_CMDLINE_LINUX_DEFAULT=\"$cmdline\"..."
+        $SUDO sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=\".*\"|GRUB_CMDLINE_LINUX_DEFAULT=\"$cmdline\"|" /etc/default/grub
+        $SUDO update-grub || warn "update-grub failed"
 }
 
 found=false

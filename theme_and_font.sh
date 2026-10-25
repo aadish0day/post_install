@@ -77,10 +77,10 @@ FONTS_DIR="${HOME}/.local/share/fonts"
 
 # Create the directory if it does not exist
 if [ ! -d "$FONTS_DIR" ]; then
-	echo "Creating directory: $FONTS_DIR"
-	mkdir -p "$FONTS_DIR"
+    echo "Creating directory: $FONTS_DIR"
+    mkdir -p "$FONTS_DIR"
 else
-	echo "Found existing fonts directory: $FONTS_DIR"
+    echo "Found existing fonts directory: $FONTS_DIR"
 fi
 
 # GitHub repository from which to fetch the latest release
@@ -95,8 +95,8 @@ LATEST_VERSION=$(echo "$LATEST_RELEASE_JSON" | grep '"tag_name":' | sed -E 's/.*
 
 # Check if we got a version number
 if [[ -z "$LATEST_VERSION" ]]; then
-	echo "Failed to fetch the latest version number." >&2
-	exit 1
+    echo "Failed to fetch the latest version number." >&2
+    exit 1
 fi
 
 echo "Latest version is $LATEST_VERSION"
@@ -107,16 +107,16 @@ ZIP="FiraMono.zip"
 # Download the zip file using the latest version number
 echo "Downloading Fira Mono Nerd Font version $LATEST_VERSION..."
 if curl --fail --location --show-error -o "$ZIP" "https://github.com/$FONT_REPO/releases/download/$LATEST_VERSION/$ZIP"; then
-	echo "Download successful."
+    echo "Download successful."
 else
-	echo "Failed to download the font zip file." >&2
-	exit 1
+    echo "Failed to download the font zip file." >&2
+    exit 1
 fi
 
 # Check if unzip is installed
 if ! command -v unzip >/dev/null 2>&1; then
-	echo "Error: 'unzip' is not installed. Please install 'unzip' before running this script." >&2
-	exit 1
+    echo "Error: 'unzip' is not installed. Please install 'unzip' before running this script." >&2
+    exit 1
 fi
 
 # Unzip the font files into the designated directory

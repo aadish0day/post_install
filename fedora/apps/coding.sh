@@ -19,9 +19,9 @@ ALL_TOOLS=(neovim vscode cursor claude_code android_studio flutter antigravity)
 TOOLS=("$@")
 [ ${#TOOLS[@]} -eq 0 ] && TOOLS=("${ALL_TOOLS[@]}")
 
-install_neovim() {
-    dnf_install neovim python3-neovim
-}
+    install_neovim() {
+        dnf_install neovim python3-neovim
+    }
 
 install_vscode() {
     if rpm -q code &>/dev/null; then
@@ -34,13 +34,13 @@ install_vscode() {
     fi
     $SUDO rpm --import https://packages.microsoft.com/keys/microsoft.asc
     write_repo vscode "[code]
-name=Visual Studio Code
-baseurl=https://packages.microsoft.com/yumrepos/vscode
-enabled=1
-autorefresh=1
-type=rpm-md
-gpgcheck=1
-gpgkey=https://packages.microsoft.com/keys/microsoft.asc"
+    name=Visual Studio Code
+    baseurl=https://packages.microsoft.com/yumrepos/vscode
+    enabled=1
+    autorefresh=1
+    type=rpm-md
+    gpgcheck=1
+    gpgkey=https://packages.microsoft.com/keys/microsoft.asc"
     dnf_install --strict code
 }
 
@@ -110,11 +110,11 @@ install_antigravity() {
     log "Antigravity repository metadata signature verified"
 
     write_repo antigravity "[antigravity-rpm]
-name=Antigravity RPM Repository
-baseurl=$base
-enabled=1
-gpgcheck=0
-repo_gpgcheck=0"
+    name=Antigravity RPM Repository
+    baseurl=$base
+    enabled=1
+    gpgcheck=0
+    repo_gpgcheck=0"
     dnf_install --strict antigravity
 }
 
@@ -139,11 +139,11 @@ install_claude_code() {
 
 for tool in "${TOOLS[@]}"; do
     case "$tool" in
-    neovim | vscode | cursor | claude_code | android_studio | flutter | antigravity)
-        log "=== $tool ==="
-        "install_$tool"
-        ;;
-    *) warn "Unknown tool '$tool' (valid: ${ALL_TOOLS[*]})" ;;
+        neovim | vscode | cursor | claude_code | android_studio | flutter | antigravity)
+            log "=== $tool ==="
+            "install_$tool"
+            ;;
+        *) warn "Unknown tool '$tool' (valid: ${ALL_TOOLS[*]})" ;;
     esac
 done
 

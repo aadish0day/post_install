@@ -23,8 +23,8 @@ has_asus_hardware() {
     combined="$(cat /sys/class/dmi/id/sys_vendor /sys/class/dmi/id/product_name \
         /sys/class/dmi/id/product_family 2>/dev/null | tr '[:upper:]' '[:lower:]')"
     case "$combined" in
-    *asus* | *rog* | *tuf* | *zephyrus* | *strix* | *zenbook*) return 0 ;;
-    *) return 1 ;;
+        *asus* | *rog* | *tuf* | *zephyrus* | *strix* | *zenbook*) return 0 ;;
+        *) return 1 ;;
     esac
 }
 

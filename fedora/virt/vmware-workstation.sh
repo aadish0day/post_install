@@ -30,7 +30,7 @@ VMware Workstation bundle not found.
   3. Re-run: bash fedora/virt/vmware-workstation.sh
 
 MSG
-    exit 0
+exit 0
 fi
 
 if is_simulate; then

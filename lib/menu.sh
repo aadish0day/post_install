@@ -85,59 +85,59 @@ menu_lookup() {
 
 menu_visible() {
     case " $1 " in
-    *" $TARGET_DISTRO "*) return 0 ;;
-    *) return 1 ;;
+        *" $TARGET_DISTRO "*) return 0 ;;
+        *) return 1 ;;
     esac
 }
 
 menu_label_for() {
     local label="$1"
     case "$label" in
-    @hardware)
-        if [ "$TARGET_DISTRO" = "arch" ]; then
-            printf 'Hardware & Drivers (%s/hardware/)' "$TARGET_DISTRO"
-        else
-            printf 'Hardware & Drivers'
-        fi
-        ;;
-    @virt)
-        if [ "$TARGET_DISTRO" = "arch" ]; then
-            printf 'Virtualization (%s/virt/)' "$TARGET_DISTRO"
-        else
-            printf 'Virtualization'
-        fi
-        ;;
-    @docker)
-        if [ "$TARGET_DISTRO" = "arch" ]; then
-            printf 'Docker Engine & Buildx'
-        elif [ "$TARGET_DISTRO" = "kali" ]; then
-            printf 'Docker CE Engine'
-        else
-            printf 'Docker Engine'
-        fi
-        ;;
-    @coding)
-        if [ "$TARGET_DISTRO" = "arch" ]; then
-            printf 'Developer Tools (AUR)'
-        else
-            printf 'Developer Suite'
-        fi
-        ;;
-    @gaming)
-        if [ "$TARGET_DISTRO" = "arch" ]; then
-            printf 'Gaming Stack & Wine'
-        else
-            printf 'Gaming Stack'
-        fi
-        ;;
-    @prod)
-        if [ "$TARGET_DISTRO" = "arch" ]; then
-            printf 'Productivity & Browsers (AUR)'
-        else
-            printf 'Productivity Applications'
-        fi
-        ;;
-    *) printf '%s' "$label" ;;
+        @hardware)
+            if [ "$TARGET_DISTRO" = "arch" ]; then
+                printf 'Hardware & Drivers (%s/hardware/)' "$TARGET_DISTRO"
+            else
+                printf 'Hardware & Drivers'
+            fi
+            ;;
+        @virt)
+            if [ "$TARGET_DISTRO" = "arch" ]; then
+                printf 'Virtualization (%s/virt/)' "$TARGET_DISTRO"
+            else
+                printf 'Virtualization'
+            fi
+            ;;
+        @docker)
+            if [ "$TARGET_DISTRO" = "arch" ]; then
+                printf 'Docker Engine & Buildx'
+            elif [ "$TARGET_DISTRO" = "kali" ]; then
+                printf 'Docker CE Engine'
+            else
+                printf 'Docker Engine'
+            fi
+            ;;
+        @coding)
+            if [ "$TARGET_DISTRO" = "arch" ]; then
+                printf 'Developer Tools (AUR)'
+            else
+                printf 'Developer Suite'
+            fi
+            ;;
+        @gaming)
+            if [ "$TARGET_DISTRO" = "arch" ]; then
+                printf 'Gaming Stack & Wine'
+            else
+                printf 'Gaming Stack'
+            fi
+            ;;
+        @prod)
+            if [ "$TARGET_DISTRO" = "arch" ]; then
+                printf 'Productivity & Browsers (AUR)'
+            else
+                printf 'Productivity Applications'
+            fi
+            ;;
+        *) printf '%s' "$label" ;;
     esac
 }
 
@@ -147,11 +147,11 @@ menu_badge_distro() {
 
 menu_badge_desktop() {
     case "$CFG_DESKTOP" in
-    kde) printf '[KDE]' ;;
-    i3) printf '[i3]' ;;
-    bspwm) printf '[BSPWM]' ;;
-    both | tiling) printf '[i3 + BSPWM]' ;;
-    none | *) printf '[NONE]' ;;
+        kde) printf '[KDE]' ;;
+        i3) printf '[i3]' ;;
+        bspwm) printf '[BSPWM]' ;;
+        both | tiling) printf '[i3 + BSPWM]' ;;
+        none | *) printf '[NONE]' ;;
     esac
 }
 
@@ -203,8 +203,8 @@ menu_badge_docker() {
 menu_badge_coding() {
     if [ "$CFG_CODING" = true ]; then
         printf '[%d tools]' "${#CFG_CODING_TOOLS[@]}"
-    else
-        printf '[No]'
+        else
+            printf '[No]'
     fi
 }
 
@@ -223,8 +223,8 @@ menu_badge_aiml() {
 menu_badge_prod() {
     if [ "$CFG_PRODUCTIVITY" = true ] && [ ${#CFG_PROD_APPS[@]} -gt 0 ]; then
         printf '[%d apps]' "${#CFG_PROD_APPS[@]}"
-    else
-        printf '[No]'
+        else
+            printf '[No]'
     fi
 }
 
@@ -268,12 +268,12 @@ menu_catalog_visible() {
     local guard="$1"
     [ -z "$guard" ] && return 0
     case "$guard" in
-    all) return 0 ;;
-    arch) [ "$TARGET_DISTRO" = "arch" ] ;;
-    nonarch) [ "$TARGET_DISTRO" != "arch" ] ;;
-    *)
-        [[ " $guard " =~ [[:space:]]${TARGET_DISTRO}[[:space:]] ]]
-        ;;
+        all) return 0 ;;
+        arch) [ "$TARGET_DISTRO" = "arch" ] ;;
+        nonarch) [ "$TARGET_DISTRO" != "arch" ] ;;
+        *)
+            [[ " $guard " =~ [[:space:]]${TARGET_DISTRO}[[:space:]] ]]
+            ;;
     esac
 }
 
@@ -330,185 +330,185 @@ menu_choice_kali_meta() {
 
 menu_multi_hardware() {
     local items=() entry tag label var guard state
-    for entry in "${CATALOG_HARDWARE[@]}"; do
-        IFS='|' read -r tag label var guard <<<"$entry"
-        menu_catalog_visible "$guard" || continue
-        label="${label//\{D\}/$TARGET_DISTRO}"
-        state=OFF
-        [ "${!var}" = true ] && state=ON
-        items+=("$tag" "$label" "$state")
-    done
+        for entry in "${CATALOG_HARDWARE[@]}"; do
+            IFS='|' read -r tag label var guard <<<"$entry"
+            menu_catalog_visible "$guard" || continue
+            label="${label//\{D\}/$TARGET_DISTRO}"
+            state=OFF
+            [ "${!var}" = true ] && state=ON
+            items+=("$tag" "$label" "$state")
+        done
 
-    local sel=""
-    sel=$(ui_checklist "Hardware & Drivers (${TARGET_DISTRO}/hardware/)" "$CHECKLIST_PROMPT" "${items[@]}") || return 0
+        local sel=""
+        sel=$(ui_checklist "Hardware & Drivers (${TARGET_DISTRO}/hardware/)" "$CHECKLIST_PROMPT" "${items[@]}") || return 0
 
-    for entry in "${CATALOG_HARDWARE[@]}"; do
-        IFS='|' read -r tag label var guard <<<"$entry"
-        printf -v "$var" '%s' false
-    done
-    while IFS= read -r tag; do
-        case "$tag" in
-        asus) CFG_ASUS=true ;;
-        amd) CFG_AMD_GPU=true ;;
-        intel) CFG_INTEL_GPU=true ;;
-        nvidia) CFG_NVIDIA_GPU=true ;;
-        esac
-    done <<<"$sel"
+        for entry in "${CATALOG_HARDWARE[@]}"; do
+            IFS='|' read -r tag label var guard <<<"$entry"
+            printf -v "$var" '%s' false
+        done
+        while IFS= read -r tag; do
+            case "$tag" in
+                asus) CFG_ASUS=true ;;
+                amd) CFG_AMD_GPU=true ;;
+                intel) CFG_INTEL_GPU=true ;;
+                nvidia) CFG_NVIDIA_GPU=true ;;
+            esac
+        done <<<"$sel"
 
-    # 1. AMD Pro sub-prompt (Arch only)
-    if [ "$CFG_AMD_GPU" = true ] && [ "$TARGET_DISTRO" = "arch" ]; then
-        local pro_default="no"
-        [ "$CFG_AMD_PRO" = true ] && pro_default="yes"
-        local pro_choice
-        pro_choice=$(ui_menu "Install AMD Pro Packages? (arch/hardware/gpu/amd.sh --pro)" \
-            "Install proprietary AMD Pro components (AMF, OpenCL, OGLP from AUR)?" "$pro_default" \
-            "no" "No  - Open-source Mesa stack only (Recommended)" \
-            "yes" "Yes - Also install AMD Pro AUR packages (AMF, OpenCL, OGLP)") || pro_choice="$pro_default"
-        if [ "$pro_choice" = "yes" ]; then
-            CFG_AMD_PRO=true
+        # 1. AMD Pro sub-prompt (Arch only)
+        if [ "$CFG_AMD_GPU" = true ] && [ "$TARGET_DISTRO" = "arch" ]; then
+            local pro_default="no"
+            [ "$CFG_AMD_PRO" = true ] && pro_default="yes"
+            local pro_choice
+            pro_choice=$(ui_menu "Install AMD Pro Packages? (arch/hardware/gpu/amd.sh --pro)" \
+                "Install proprietary AMD Pro components (AMF, OpenCL, OGLP from AUR)?" "$pro_default" \
+                "no" "No  - Open-source Mesa stack only (Recommended)" \
+                "yes" "Yes - Also install AMD Pro AUR packages (AMF, OpenCL, OGLP)") || pro_choice="$pro_default"
+            if [ "$pro_choice" = "yes" ]; then
+                CFG_AMD_PRO=true
+            else
+                CFG_AMD_PRO=false
+            fi
         else
             CFG_AMD_PRO=false
         fi
-    else
-        CFG_AMD_PRO=false
-    fi
 
-    # 2. ASUS battery limit sub-prompt (60/80/85/100/custom with 50-100 clamp)
-    if [ "$CFG_ASUS" = true ]; then
-        ui_restore_cursor
-        local limit_choice
-        limit_choice=$(ui_menu "ASUS Battery Charge Limit" \
-            "Select battery charge threshold limit (prolongs battery health):\n\nCurrent threshold: ${CFG_ASUS_LIMIT}%" \
-            "$CFG_ASUS_LIMIT" \
-            "85" "85% - Balanced ROG default (Recommended)" \
-            "80" "80% - Extended battery longevity" \
-            "60" "60% - Maximum lifespan (Stationary / Desk use)" \
-            "100" "100% - Full capacity (Maximum mobile runtime)" \
-            "custom" "Custom - Enter specific percentage (50-100)...") || limit_choice="$CFG_ASUS_LIMIT"
-
-        if [ "$limit_choice" = "custom" ]; then
-            local limit_str=""
+        # 2. ASUS battery limit sub-prompt (60/80/85/100/custom with 50-100 clamp)
+        if [ "$CFG_ASUS" = true ]; then
             ui_restore_cursor
-            limit_str=$(ui_input "Custom ASUS Battery Limit" "Enter battery charge threshold percentage (50-100):" "$CFG_ASUS_LIMIT") || limit_str="$CFG_ASUS_LIMIT"
-            if [ -n "$limit_str" ] && [[ "$limit_str" =~ ^[0-9]+$ ]]; then
-                [ "$limit_str" -lt 50 ] && limit_str=50
-                [ "$limit_str" -gt 100 ] && limit_str=100
-                CFG_ASUS_LIMIT="$limit_str"
+            local limit_choice
+            limit_choice=$(ui_menu "ASUS Battery Charge Limit" \
+                "Select battery charge threshold limit (prolongs battery health):\n\nCurrent threshold: ${CFG_ASUS_LIMIT}%" \
+                "$CFG_ASUS_LIMIT" \
+                "85" "85% - Balanced ROG default (Recommended)" \
+                "80" "80% - Extended battery longevity" \
+                "60" "60% - Maximum lifespan (Stationary / Desk use)" \
+                "100" "100% - Full capacity (Maximum mobile runtime)" \
+                "custom" "Custom - Enter specific percentage (50-100)...") || limit_choice="$CFG_ASUS_LIMIT"
+
+            if [ "$limit_choice" = "custom" ]; then
+                local limit_str=""
+                ui_restore_cursor
+                limit_str=$(ui_input "Custom ASUS Battery Limit" "Enter battery charge threshold percentage (50-100):" "$CFG_ASUS_LIMIT") || limit_str="$CFG_ASUS_LIMIT"
+                if [ -n "$limit_str" ] && [[ "$limit_str" =~ ^[0-9]+$ ]]; then
+                    [ "$limit_str" -lt 50 ] && limit_str=50
+                    [ "$limit_str" -gt 100 ] && limit_str=100
+                    CFG_ASUS_LIMIT="$limit_str"
+                fi
+            elif [ -n "$limit_choice" ] && [[ "$limit_choice" =~ ^[0-9]+$ ]]; then
+                CFG_ASUS_LIMIT="$limit_choice"
             fi
-        elif [ -n "$limit_choice" ] && [[ "$limit_choice" =~ ^[0-9]+$ ]]; then
-            CFG_ASUS_LIMIT="$limit_choice"
         fi
-    fi
 }
 
 menu_multi_virt() {
     local items=() entry tag label var guard state
-    for entry in "${CATALOG_VIRT[@]}"; do
-        IFS='|' read -r tag label var guard <<<"$entry"
-        menu_catalog_visible "$guard" || continue
-        state=OFF
-        [ "${!var}" = true ] && state=ON
-        items+=("$tag" "$label" "$state")
-    done
+        for entry in "${CATALOG_VIRT[@]}"; do
+            IFS='|' read -r tag label var guard <<<"$entry"
+            menu_catalog_visible "$guard" || continue
+            state=OFF
+            [ "${!var}" = true ] && state=ON
+            items+=("$tag" "$label" "$state")
+        done
 
-    local sel=""
-    sel=$(ui_checklist "Virtualization Setup (${TARGET_DISTRO}/virt/)" "$CHECKLIST_PROMPT" "${items[@]}") || return 0
+        local sel=""
+        sel=$(ui_checklist "Virtualization Setup (${TARGET_DISTRO}/virt/)" "$CHECKLIST_PROMPT" "${items[@]}") || return 0
 
-    for entry in "${CATALOG_VIRT[@]}"; do
-        IFS='|' read -r tag label var guard <<<"$entry"
-        printf -v "$var" '%s' false
-    done
-    while IFS= read -r tag; do
-        case "$tag" in
-        kvm) CFG_KVM=true ;;
-        vmware) CFG_VMWARE=true ;;
-        esac
-    done <<<"$sel"
+        for entry in "${CATALOG_VIRT[@]}"; do
+            IFS='|' read -r tag label var guard <<<"$entry"
+            printf -v "$var" '%s' false
+        done
+        while IFS= read -r tag; do
+            case "$tag" in
+                kvm) CFG_KVM=true ;;
+                vmware) CFG_VMWARE=true ;;
+            esac
+        done <<<"$sel"
 }
 
 menu_multi_coding() {
     local items=() entry tag label guard state t
-    for entry in "${CATALOG_CODING[@]}"; do
-        IFS='|' read -r tag label _var guard <<<"$entry"
-        menu_catalog_visible "$guard" || continue
-        state=OFF
-        for t in "${CFG_CODING_TOOLS[@]}"; do
-            if [ "$t" = "$tag" ]; then
-                state=ON
-                break
-            fi
+        for entry in "${CATALOG_CODING[@]}"; do
+            IFS='|' read -r tag label _var guard <<<"$entry"
+            menu_catalog_visible "$guard" || continue
+            state=OFF
+            for t in "${CFG_CODING_TOOLS[@]}"; do
+                if [ "$t" = "$tag" ]; then
+                    state=ON
+                    break
+                fi
+            done
+            items+=("$tag" "$label" "$state")
         done
-        items+=("$tag" "$label" "$state")
-    done
 
-    local sel=""
-    sel=$(ui_checklist "Developer & Coding Suite" "$CHECKLIST_PROMPT" "${items[@]}") || return 0
+        local sel=""
+        sel=$(ui_checklist "Developer & Coding Suite" "$CHECKLIST_PROMPT" "${items[@]}") || return 0
 
-    CFG_CODING_TOOLS=()
-    while IFS= read -r tag; do
-        case "$tag" in
-        neovim | vscode | cursor | claude_code | android_studio | flutter | antigravity)
-            CFG_CODING_TOOLS+=("$tag")
-            ;;
-        esac
-    done <<<"$sel"
+        CFG_CODING_TOOLS=()
+        while IFS= read -r tag; do
+            case "$tag" in
+                neovim | vscode | cursor | claude_code | android_studio | flutter | antigravity)
+                    CFG_CODING_TOOLS+=("$tag")
+                    ;;
+            esac
+        done <<<"$sel"
 
-    if [ ${#CFG_CODING_TOOLS[@]} -gt 0 ]; then
-        CFG_CODING=true
-    else
-        CFG_CODING=false
-    fi
+        if [ ${#CFG_CODING_TOOLS[@]} -gt 0 ]; then
+            CFG_CODING=true
+        else
+            CFG_CODING=false
+        fi
 }
 
 menu_multi_prod() {
     local items=() entry tag label guard state p
-    for entry in "${CATALOG_PROD[@]}"; do
-        IFS='|' read -r tag label _var guard <<<"$entry"
-        menu_catalog_visible "$guard" || continue
-        state=OFF
-        for p in "${CFG_PROD_APPS[@]}"; do
-            if [ "$p" = "$tag" ]; then
-                state=ON
-                break
-            fi
+        for entry in "${CATALOG_PROD[@]}"; do
+            IFS='|' read -r tag label _var guard <<<"$entry"
+            menu_catalog_visible "$guard" || continue
+            state=OFF
+            for p in "${CFG_PROD_APPS[@]}"; do
+                if [ "$p" = "$tag" ]; then
+                    state=ON
+                    break
+                fi
+            done
+            items+=("$tag" "$label" "$state")
         done
-        items+=("$tag" "$label" "$state")
-    done
 
-    local sel=""
-    sel=$(ui_checklist "Productivity & Browsers" "$CHECKLIST_PROMPT" "${items[@]}") || return 0
+        local sel=""
+        sel=$(ui_checklist "Productivity & Browsers" "$CHECKLIST_PROMPT" "${items[@]}") || return 0
 
-    CFG_PROD_APPS=()
-    while IFS= read -r tag; do
-        case "$tag" in
-        thorium | zen | vesktop | localsend | anydesk | obsidian | markitdown | gallery_dl | ani_cli | xdm | advcpmv | libreoffice)
-            CFG_PROD_APPS+=("$tag")
-            ;;
-        esac
-    done <<<"$sel"
+        CFG_PROD_APPS=()
+        while IFS= read -r tag; do
+            case "$tag" in
+                thorium | zen | vesktop | localsend | anydesk | obsidian | markitdown | gallery_dl | ani_cli | xdm | advcpmv | libreoffice)
+                    CFG_PROD_APPS+=("$tag")
+                    ;;
+            esac
+        done <<<"$sel"
 
-    if [ ${#CFG_PROD_APPS[@]} -gt 0 ]; then
-        CFG_PRODUCTIVITY=true
-    else
-        CFG_PRODUCTIVITY=false
-    fi
+        if [ ${#CFG_PROD_APPS[@]} -gt 0 ]; then
+            CFG_PRODUCTIVITY=true
+        else
+            CFG_PRODUCTIVITY=false
+        fi
 }
 
 menu_activate() {
     local choice="$1"
     menu_lookup "$choice" || return 0
     case "$ROW_KIND" in
-    toggle)
-        local cur="${!ROW_VAR}"
-        if [ "$cur" = true ]; then
-            printf -v "$ROW_VAR" '%s' false
-        else
-            printf -v "$ROW_VAR" '%s' true
-        fi
-        ;;
-    choice) "menu_choice_$ROW_TAG" ;;
-    multi) "menu_multi_$ROW_TAG" ;;
-    info | action) : ;;
+        toggle)
+            local cur="${!ROW_VAR}"
+            if [ "$cur" = true ]; then
+                printf -v "$ROW_VAR" '%s' false
+            else
+                printf -v "$ROW_VAR" '%s' true
+            fi
+            ;;
+        choice) "menu_choice_$ROW_TAG" ;;
+        multi) "menu_multi_$ROW_TAG" ;;
+        info | action) : ;;
     esac
 }
 
@@ -561,24 +561,24 @@ run_tui() {
         fi
 
         case "$choice" in
-        install)
-            build_plan
-            local plan_msg="Ready to execute ./${TARGET_DISTRO}/ post-installation plan (${#PLAN_TITLES[@]} steps).\n\nTarget OS: ${DISTRO_NAME}\nSession Log: ${LOG_FILE}\n\nStart installation now?"
-            if ui_yesno "Confirm Installation" "$plan_msg"; then
-                run_execution_plan false
-                break
-            fi
-            ;;
-        abort | "")
-            if ui_yesno "Exit Installer?" "Are you sure you want to exit without applying changes?"; then
-                if [ "$TERM" != "dumb" ]; then clear 2>/dev/null || true; fi
-                log_info "Exiting Post-Installation Suite. Have a productive day!"
-                break
-            fi
-            ;;
-        *)
-            menu_activate "$choice"
-            ;;
-        esac
-    done
+            install)
+                build_plan
+                local plan_msg="Ready to execute ./${TARGET_DISTRO}/ post-installation plan (${#PLAN_TITLES[@]} steps).\n\nTarget OS: ${DISTRO_NAME}\nSession Log: ${LOG_FILE}\n\nStart installation now?"
+                    if ui_yesno "Confirm Installation" "$plan_msg"; then
+                        run_execution_plan false
+                        break
+                    fi
+                    ;;
+                abort | "")
+                    if ui_yesno "Exit Installer?" "Are you sure you want to exit without applying changes?"; then
+                        if [ "$TERM" != "dumb" ]; then clear 2>/dev/null || true; fi
+                        log_info "Exiting Post-Installation Suite. Have a productive day!"
+                        break
+                    fi
+                    ;;
+                *)
+                    menu_activate "$choice"
+                    ;;
+            esac
+        done
 }

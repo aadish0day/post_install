@@ -23,16 +23,16 @@ install_arch() {
     echo ""
     echo "Installing open-vm-tools for Arch Linux..."
     sudo pacman -S --noconfirm open-vm-tools xf86-input-vmmouse gtkmm3
-    
+
     echo "Enabling services..."
     sudo systemctl enable vmtoolsd.service
     sudo systemctl enable vmware-vmblock-fuse.service
     sudo systemctl start vmtoolsd.service
     sudo systemctl start vmware-vmblock-fuse.service
-    
+
     echo "Adding user to vmware group..."
     # sudo usermod -aG vmware $USER
-    
+
     echo ""
     echo "✓ Installation complete for Arch Linux!"
     echo "⚠ Please log out and back in for group changes to take effect."
@@ -43,7 +43,7 @@ install_debian() {
     echo "Installing open-vm-tools for Debian/Ubuntu..."
     sudo apt update
     sudo apt install -y open-vm-tools open-vm-tools-desktop
-    
+
     echo ""
     echo "✓ Installation complete for Debian/Ubuntu!"
     echo "Services will start automatically."
@@ -53,11 +53,11 @@ install_fedora() {
     echo ""
     echo "Installing open-vm-tools for Fedora/RHEL..."
     sudo dnf install -y open-vm-tools open-vm-tools-desktop
-    
+
     echo "Enabling services..."
     sudo systemctl enable vmtoolsd.service
     sudo systemctl start vmtoolsd.service
-    
+
     echo ""
     echo "✓ Installation complete for Fedora/RHEL!"
 }
@@ -65,7 +65,7 @@ install_fedora() {
 auto_detect() {
     if [ -f /etc/os-release ]; then
         . /etc/os-release
-        
+
         case "$ID" in
             arch|manjaro|endeavouros)
                 echo "Detected: Arch-based system ($PRETTY_NAME)"

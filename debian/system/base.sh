@@ -91,18 +91,18 @@ install_yazi() {
     url="$(github_asset_url sxyazi/yazi 'yazi-x86_64-unknown-linux-gnu\.zip$')" || true
     [ -n "$url" ] || {
         warn "Could not resolve latest yazi release."
-        return 1
+            return 1
     }
-    if is_simulate; then
-        url_ok "$url" >/dev/null && log "[simulate] would install yazi from $url"
-        return 0
-    fi
-    tmp="$(mktemp -d)"
-    download "$url" "$tmp/yazi.zip"
-    unzip -q "$tmp/yazi.zip" -d "$tmp"
-    $SUDO install -m 0755 "$tmp"/yazi-*/yazi "$tmp"/yazi-*/ya /usr/local/bin/
-    rm -rf "$tmp"
-    log "Installed yazi $(/usr/local/bin/yazi --version 2>/dev/null | head -n1)"
+if is_simulate; then
+    url_ok "$url" >/dev/null && log "[simulate] would install yazi from $url"
+    return 0
+fi
+tmp="$(mktemp -d)"
+download "$url" "$tmp/yazi.zip"
+unzip -q "$tmp/yazi.zip" -d "$tmp"
+$SUDO install -m 0755 "$tmp"/yazi-*/yazi "$tmp"/yazi-*/ya /usr/local/bin/
+rm -rf "$tmp"
+log "Installed yazi $(/usr/local/bin/yazi --version 2>/dev/null | head -n1)"
 }
 
 if ! command -v yazi >/dev/null 2>&1; then

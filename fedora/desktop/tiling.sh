@@ -18,18 +18,18 @@ WM_CHOICE="${1:-both}"
 
 wm_packages=()
 case "$WM_CHOICE" in
-i3)
-    wm_packages+=(i3)
-    log "Configuring X11 Tiling Environment (i3)..."
-    ;;
-bspwm)
-    wm_packages+=(bspwm sxhkd)
-    log "Configuring X11 Tiling Environment (bspwm + sxhkd)..."
-    ;;
-both | tiling | *)
-    wm_packages=(i3 bspwm sxhkd)
-    log "Configuring X11 Tiling Environment (i3 + bspwm + sxhkd)..."
-    ;;
+    i3)
+        wm_packages+=(i3)
+        log "Configuring X11 Tiling Environment (i3)..."
+        ;;
+    bspwm)
+        wm_packages+=(bspwm sxhkd)
+        log "Configuring X11 Tiling Environment (bspwm + sxhkd)..."
+        ;;
+    both | tiling | *)
+        wm_packages=(i3 bspwm sxhkd)
+        log "Configuring X11 Tiling Environment (i3 + bspwm + sxhkd)..."
+        ;;
 esac
 
 x11_tiling_packages=(

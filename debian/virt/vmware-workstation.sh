@@ -33,7 +33,7 @@ To install VMware Workstation Pro (free for personal use):
   2. Download VMware-Workstation-Full-<version>.x86_64.bundle to ~/Downloads
   3. Re-run: debian/virt/vmware-workstation.sh ~/Downloads/VMware-Workstation-*.bundle
 EOF
-    exit 0
+exit 0
 elif is_simulate; then
     log "[simulate] would run $bundle"
     exit 0

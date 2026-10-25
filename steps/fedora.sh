@@ -21,7 +21,7 @@ fedora_needs_flatpak() {
         local app
         for app in "${CFG_PROD_APPS[@]}"; do
             case "$app" in
-            zen | obsidian | localsend) return 0 ;;
+                zen | obsidian | localsend) return 0 ;;
             esac
         done
     fi

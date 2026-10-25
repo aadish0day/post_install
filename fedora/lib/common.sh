@@ -39,59 +39,59 @@ is_dnf5() {
 # --strict turns unavailable packages into an error.
 dnf_install() {
     local extra=() strict=0
-    while [ $# -gt 0 ] && [[ "$1" == --* ]]; do
-        if [ "$1" = "--strict" ]; then
-            strict=1
+        while [ $# -gt 0 ] && [[ "$1" == --* ]]; do
+            if [ "$1" = "--strict" ]; then
+                strict=1
+            else
+                extra+=("$1")
+            fi
+            shift
+        done
+        [ $# -eq 0 ] && return 0
+
+        local out rc=0 skipped
+        out="$(mktemp)"
+
+        if is_simulate; then
+            log "[simulate] dnf install ${*}"
+            if ! command -v dnf &>/dev/null; then
+                rm -f "$out"
+                return 0
+            fi
+            $SUDO dnf install --assumeno --skip-unavailable "${extra[@]}" "$@" >"$out" 2>&1 || rc=$?
+            if grep -qE "Failed to resolve the transaction|^Problem|conflicting requests|nothing provides" "$out"; then
+                cat "$out" >&2
+                rm -f "$out"
+                err "dnf could not resolve the transaction"
+                return 1
+            fi
+            # --assumeno exits 1 after a successful resolve ("Operation aborted")
+            if [ "$rc" -ne 0 ] && ! grep -qE "Operation aborted|Nothing to do" "$out"; then
+                cat "$out" >&2
+                rm -f "$out"
+                return "$rc"
+            fi
+            grep -E "^ Installing:|^ Upgrading:|^ Replacing:|^ Removing:|Nothing to do" "$out" | sed 's/^/    /' || true
         else
-            extra+=("$1")
+            log "dnf install ${*}"
+            $SUDO dnf install -y --skip-unavailable "${extra[@]}" "$@" 2>&1 | tee "$out" || rc=$?
+            if [ "$rc" -ne 0 ]; then
+                rm -f "$out"
+                err "dnf install failed (exit $rc)"
+                return "$rc"
+            fi
         fi
-        shift
-    done
-    [ $# -eq 0 ] && return 0
 
-    local out rc=0 skipped
-    out="$(mktemp)"
-
-    if is_simulate; then
-        log "[simulate] dnf install ${*}"
-        if ! command -v dnf &>/dev/null; then
-            rm -f "$out"
-            return 0
+        skipped="$(grep -oE "No match for argument: [^ ]+" "$out" | awk '{print $NF}' | tr '\n' ' ' || true)"
+        rm -f "$out"
+        if [ -n "$skipped" ]; then
+            if [ "$strict" -eq 1 ]; then
+                err "Required packages not available: $skipped"
+                return 1
+            fi
+            warn "Not available in enabled repos, skipped: $skipped"
         fi
-        $SUDO dnf install --assumeno --skip-unavailable "${extra[@]}" "$@" >"$out" 2>&1 || rc=$?
-        if grep -qE "Failed to resolve the transaction|^Problem|conflicting requests|nothing provides" "$out"; then
-            cat "$out" >&2
-            rm -f "$out"
-            err "dnf could not resolve the transaction"
-            return 1
-        fi
-        # --assumeno exits 1 after a successful resolve ("Operation aborted")
-        if [ "$rc" -ne 0 ] && ! grep -qE "Operation aborted|Nothing to do" "$out"; then
-            cat "$out" >&2
-            rm -f "$out"
-            return "$rc"
-        fi
-        grep -E "^ Installing:|^ Upgrading:|^ Replacing:|^ Removing:|Nothing to do" "$out" | sed 's/^/    /' || true
-    else
-        log "dnf install ${*}"
-        $SUDO dnf install -y --skip-unavailable "${extra[@]}" "$@" 2>&1 | tee "$out" || rc=$?
-        if [ "$rc" -ne 0 ]; then
-            rm -f "$out"
-            err "dnf install failed (exit $rc)"
-            return "$rc"
-        fi
-    fi
-
-    skipped="$(grep -oE "No match for argument: [^ ]+" "$out" | awk '{print $NF}' | tr '\n' ' ' || true)"
-    rm -f "$out"
-    if [ -n "$skipped" ]; then
-        if [ "$strict" -eq 1 ]; then
-            err "Required packages not available: $skipped"
-            return 1
-        fi
-        warn "Not available in enabled repos, skipped: $skipped"
-    fi
-    return 0
+        return 0
 }
 
 # install_rpm_url URL  (dnf resolves the rpm's dependencies)
@@ -115,10 +115,10 @@ install_rpm_url() {
     fi
     $SUDO dnf install -y "$tmp/package.rpm" || {
         warn "Failed to install rpm $url"
-        rm -rf "$tmp"
-        return 1
+            rm -rf "$tmp"
+            return 1
     }
-    rm -rf "$tmp"
+rm -rf "$tmp"
 }
 
 # url_check URL  (returns 0 if reachable, 1 if unreachable)
@@ -272,11 +272,11 @@ install_github_binary() {
     log "Downloading $url"
     curl -fSL --retry 3 -o "$tmp/asset" "$url"
     case "$url" in
-    *.zip)
-        command -v unzip &>/dev/null || $SUDO dnf install -y unzip
-        unzip -q "$tmp/asset" -d "$tmp/x"
-        ;;
-    *) mkdir -p "$tmp/x" && tar -xf "$tmp/asset" -C "$tmp/x" ;;
+        *.zip)
+            command -v unzip &>/dev/null || $SUDO dnf install -y unzip
+            unzip -q "$tmp/asset" -d "$tmp/x"
+            ;;
+        *) mkdir -p "$tmp/x" && tar -xf "$tmp/asset" -C "$tmp/x" ;;
     esac
     for bin in "$@"; do
         file="$(find "$tmp/x" -type f -name "$bin" | head -n1)"
@@ -336,14 +336,14 @@ uv_tool_install() {
     local pkgs=()
     while [ $# -gt 0 ]; do
         case "$1" in
-        --with)
-            shift
-            [ $# -gt 0 ] || die "--with requires a package name"
-            with_args+=(--with "$1")
-            ;;
-        *)
-            pkgs+=("$1")
-            ;;
+            --with)
+                shift
+                [ $# -gt 0 ] || die "--with requires a package name"
+                with_args+=(--with "$1")
+                ;;
+            *)
+                pkgs+=("$1")
+                ;;
         esac
         shift
     done
