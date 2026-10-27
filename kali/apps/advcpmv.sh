@@ -38,9 +38,9 @@ TARGET_USER="${SUDO_USER:-$USER}"
 TARGET_HOME=$(getent passwd "$TARGET_USER" | cut -d: -f6 2>/dev/null || echo "$HOME")
 TARGET_HOME="${TARGET_HOME:-$HOME}"
 
-# 2. Check if already installed
-if command -v advcp >/dev/null 2>&1 && command -v advmv >/dev/null 2>&1; then
-    log "advcpmv binaries are already installed: $(command -v advcp), $(command -v advmv)"
+# 2. Check if already installed in /usr/bin
+if [ -x /usr/bin/advcp ] && [ -x /usr/bin/advmv ]; then
+    log "advcpmv binaries are already installed in /usr/bin."
 else
     log "Installing build dependencies for advcpmv..."
     DEPS=(build-essential patch curl xz-utils texinfo)
@@ -63,18 +63,20 @@ else
     log "Building advcpmv..."
     (cd "$BUILD_DIR" && sh install.sh)
 
-    log "Installing binaries to /usr/local/bin..."
-    sudo install -m 0755 "$BUILD_DIR/advcp" /usr/local/bin/advcp
-    sudo install -m 0755 "$BUILD_DIR/advmv" /usr/local/bin/advmv
+    log "Installing binaries to /usr/bin..."
+    sudo install -m 0755 "$BUILD_DIR/advcp" /usr/bin/advcp
+    sudo install -m 0755 "$BUILD_DIR/advmv" /usr/bin/advmv
 
     log "Creating symlinks (cpg, mvg)..."
-    sudo ln -sf /usr/local/bin/advcp /usr/local/bin/cpg
-    sudo ln -sf /usr/local/bin/advmv /usr/local/bin/mvg
+    sudo ln -sf /usr/bin/advcp /usr/bin/cpg
+    sudo ln -sf /usr/bin/advmv /usr/bin/mvg
+    sudo ln -sf /usr/bin/advcp /usr/local/bin/advcp 2>/dev/null || true
+    sudo ln -sf /usr/bin/advmv /usr/local/bin/advmv 2>/dev/null || true
 fi
 
-# 3. Locate binaries for aliases
-ADVCP_BIN="$(command -v advcp || echo /usr/local/bin/advcp)"
-ADVMV_BIN="$(command -v advmv || echo /usr/local/bin/advmv)"
+# 3. Locate binaries for aliases (target /usr/bin/advcp)
+ADVCP_BIN="/usr/bin/advcp"
+ADVMV_BIN="/usr/bin/advmv"
 
 # 4. Configure Shell Aliases for Target User & Root
 log "Configuring shell aliases for user '$TARGET_USER' (home: $TARGET_HOME)..."

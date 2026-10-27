@@ -11,8 +11,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/../lib/common.sh"
 
-if command -v advcp >/dev/null 2>&1 && command -v advmv >/dev/null 2>&1; then
-    log "advcpmv is already installed."
+if [ -x /usr/bin/advcp ] && [ -x /usr/bin/advmv ]; then
+    log "advcpmv binaries are already installed in /usr/bin."
 else
     if is_simulate; then
         log "[simulate] would install dependencies and compile advcpmv from upstream"
@@ -33,19 +33,21 @@ else
         log "Building advcpmv..."
         (cd "$BUILD_DIR" && sh install.sh)
 
-        log "Installing binaries to /usr/local/bin..."
-        $SUDO install -m 0755 "$BUILD_DIR/advcp" /usr/local/bin/advcp
-        $SUDO install -m 0755 "$BUILD_DIR/advmv" /usr/local/bin/advmv
+        log "Installing binaries to /usr/bin..."
+        $SUDO install -m 0755 "$BUILD_DIR/advcp" /usr/bin/advcp
+        $SUDO install -m 0755 "$BUILD_DIR/advmv" /usr/bin/advmv
 
         log "Creating symlinks (cpg, mvg)..."
-        $SUDO ln -sf /usr/local/bin/advcp /usr/local/bin/cpg
-        $SUDO ln -sf /usr/local/bin/advmv /usr/local/bin/mvg
+        $SUDO ln -sf /usr/bin/advcp /usr/bin/cpg
+        $SUDO ln -sf /usr/bin/advmv /usr/bin/mvg
+        $SUDO ln -sf /usr/bin/advcp /usr/local/bin/advcp 2>/dev/null || true
+        $SUDO ln -sf /usr/bin/advmv /usr/local/bin/advmv 2>/dev/null || true
     fi
 fi
 
 if ! is_simulate; then
-    ADVCP_BIN="$(command -v advcp || echo /usr/local/bin/advcp)"
-    ADVMV_BIN="$(command -v advmv || echo /usr/local/bin/advmv)"
+    ADVCP_BIN="/usr/bin/advcp"
+    ADVMV_BIN="/usr/bin/advmv"
 
     log "Configuring shell aliases..."
     for rcfile in "$HOME/.bashrc" "$HOME/.zshrc"; do
