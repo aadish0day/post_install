@@ -13,44 +13,47 @@ source "$SCRIPT_DIR/../lib/common.sh"
 
 if command -v advcp >/dev/null 2>&1 && command -v advmv >/dev/null 2>&1; then
     log "advcpmv is already installed."
-    exit 0
-fi
+else
+    if is_simulate; then
+        log "[simulate] would install dependencies and compile advcpmv from upstream"
+    else
+        log "Installing dependencies for advcpmv..."
+        apt_install build-essential patch curl xz-utils
 
-if is_simulate; then
-    log "[simulate] would install dependencies and compile advcpmv from upstream"
-    exit 0
-fi
+        BUILD_DIR="$(mktemp -d /tmp/advcpmv_build_XXXXXX)"
+        trap 'rm -rf "$BUILD_DIR"' EXIT
 
-log "Installing dependencies for advcpmv..."
-apt_install build-essential patch curl xz-utils
+        log "Downloading upstream advcpmv installer..."
+        curl -fsSL https://raw.githubusercontent.com/jarun/advcpmv/master/install.sh -o "$BUILD_DIR/install.sh"
 
-BUILD_DIR="$(mktemp -d /tmp/advcpmv_build_XXXXXX)"
-trap 'rm -rf "$BUILD_DIR"' EXIT
+        log "Patching installer for parallel compilation..."
+        # shellcheck disable=SC2016
+        sed -i 's/^[[:space:]]*make[[:space:]]*$/    make -j$(nproc)/' "$BUILD_DIR/install.sh"
 
-log "Downloading upstream advcpmv installer..."
-curl -fsSL https://raw.githubusercontent.com/jarun/advcpmv/master/install.sh -o "$BUILD_DIR/install.sh"
+        log "Building advcpmv..."
+        (cd "$BUILD_DIR" && sh install.sh)
 
-log "Patching installer for parallel compilation..."
-# shellcheck disable=SC2016
-sed -i 's/^[[:space:]]*make[[:space:]]*$/    make -j$(nproc)/' "$BUILD_DIR/install.sh"
+        log "Installing binaries to /usr/local/bin..."
+        $SUDO install -m 0755 "$BUILD_DIR/advcp" /usr/local/bin/advcp
+        $SUDO install -m 0755 "$BUILD_DIR/advmv" /usr/local/bin/advmv
 
-log "Building advcpmv..."
-(cd "$BUILD_DIR" && sh install.sh)
-
-log "Installing binaries to /usr/local/bin..."
-$SUDO install -m 0755 "$BUILD_DIR/advcp" /usr/local/bin/advcp
-$SUDO install -m 0755 "$BUILD_DIR/advmv" /usr/local/bin/advmv
-
-log "Creating symlinks (cpg, mvg)..."
-$SUDO ln -sf /usr/local/bin/advcp /usr/local/bin/cpg
-$SUDO ln -sf /usr/local/bin/advmv /usr/local/bin/mvg
-
-log "Configuring shell aliases..."
-for rcfile in "$HOME/.bashrc" "$HOME/.zshrc"; do
-    if [ -f "$rcfile" ]; then
-        append_line_once "$rcfile" "alias cp='/usr/local/bin/advcp -g'"
-        append_line_once "$rcfile" "alias mv='/usr/local/bin/advmv -g'"
+        log "Creating symlinks (cpg, mvg)..."
+        $SUDO ln -sf /usr/local/bin/advcp /usr/local/bin/cpg
+        $SUDO ln -sf /usr/local/bin/advmv /usr/local/bin/mvg
     fi
-done
+fi
+
+if ! is_simulate; then
+    ADVCP_BIN="$(command -v advcp || echo /usr/local/bin/advcp)"
+    ADVMV_BIN="$(command -v advmv || echo /usr/local/bin/advmv)"
+
+    log "Configuring shell aliases..."
+    for rcfile in "$HOME/.bashrc" "$HOME/.zshrc"; do
+        if [ -f "$rcfile" ]; then
+            append_line_once "$rcfile" "alias cp='$ADVCP_BIN -g'"
+            append_line_once "$rcfile" "alias mv='$ADVMV_BIN -g'"
+        fi
+    done
+fi
 
 log "advcpmv installation complete."
