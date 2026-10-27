@@ -18,7 +18,7 @@ else
         log "[simulate] would install dependencies and compile advcpmv from upstream"
     else
         log "Installing dependencies for advcpmv..."
-        apt_install build-essential patch curl xz-utils
+        apt_install build-essential patch curl xz-utils texinfo
 
         BUILD_DIR="$(mktemp -d /tmp/advcpmv_build_XXXXXX)"
         trap 'rm -rf "$BUILD_DIR"' EXIT
@@ -26,9 +26,9 @@ else
         log "Downloading upstream advcpmv installer..."
         curl -fsSL https://raw.githubusercontent.com/jarun/advcpmv/master/install.sh -o "$BUILD_DIR/install.sh"
 
-        log "Patching installer for parallel compilation..."
+        log "Patching installer for parallel compilation and doc bypass..."
         # shellcheck disable=SC2016
-        sed -i 's/^[[:space:]]*make[[:space:]]*$/    make -j$(nproc)/' "$BUILD_DIR/install.sh"
+        sed -i 's/^[[:space:]]*make[[:space:]]*$/    touch doc\/*.info 2>\/dev\/null || true\n    make -j$(nproc) src\/cp src\/mv || make -j$(nproc)/' "$BUILD_DIR/install.sh"
 
         log "Building advcpmv..."
         (cd "$BUILD_DIR" && sh install.sh)
