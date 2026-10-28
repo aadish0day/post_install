@@ -3,10 +3,25 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$HOME/Documents/Crack/Burpsuite-Professional"
-BURP_VERSION="${BURP_VERSION:-2026.10.1}"
+LOADER_URL="https://codeberg.org/code07/test01/raw/branch/main/loader.jar"
+
+# Fetch the latest version that has a JAR download from PortSwigger's release API
+echo "Fetching latest Burp Suite version..."
+BURP_VERSION="${BURP_VERSION:-$(curl -s 'https://portswigger.net/burp/releases/data?pageSize=10' |
+    python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+for r in data['ResultSet']['Results']:
+    if any(b['BuildCategoryPlatform'] == 'Jar' for b in r.get('builds', [])):
+        print(r['version']); break
+" 2>/dev/null)}"
+if [ -z "$BURP_VERSION" ]; then
+    echo "ERROR: Could not determine latest Burp Suite version. Check your internet connection."
+    exit 1
+fi
 JAR_NAME="burpsuite_pro_v${BURP_VERSION}.jar"
 DOWNLOAD_URL="https://portswigger.net/burp/releases/download?product=desktop&version=$BURP_VERSION&type=Jar"
-LOADER_URL="https://codeberg.org/code07/test01/raw/branch/main/loader.jar"
+echo "Latest version: $BURP_VERSION"
 
 echo "=== Installing Burp Suite Professional ==="
 
@@ -28,20 +43,17 @@ fi
 # 2. Install directory preparation
 mkdir -p "$REPO_DIR"
 
-if [ ! -f "$REPO_DIR/loader.jar" ]; then
-    echo "Downloading loader.jar..."
-    curl -fL --progress-bar -o "$REPO_DIR/loader.jar" "$LOADER_URL"
-fi
+echo "Downloading loader.jar..."
+curl -fL --progress-bar -o "$REPO_DIR/loader.jar" "$LOADER_URL"
 
 cd "$REPO_DIR"
 
-# 3. Downloading Burp Suite Pro JAR
-if [ -f "$JAR_NAME" ]; then
-    echo "Found existing $JAR_NAME, skipping download."
-else
-    echo "Downloading Burp Suite Professional $BURP_VERSION ($JAR_NAME)..."
-    wget -O "$JAR_NAME" --quiet --show-progress "$DOWNLOAD_URL"
-fi
+# Remove old Burp JARs before downloading the latest
+find "$REPO_DIR" -maxdepth 1 -name 'burpsuite_pro_v*.jar' ! -name "$JAR_NAME" -delete 2>/dev/null || true
+
+# 3. Download the latest Burp Suite Pro JAR
+echo "Downloading Burp Suite Professional $BURP_VERSION ($JAR_NAME)..."
+wget -O "$JAR_NAME" --quiet --show-progress "$DOWNLOAD_URL"
 
 # Calculate and display checksums
 if [ -f "$JAR_NAME" ]; then
