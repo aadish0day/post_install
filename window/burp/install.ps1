@@ -2,8 +2,8 @@
 .SYNOPSIS
     Automated Burp Suite Professional Installer for Windows.
 .DESCRIPTION
-    Full-featured PowerShell port of arch/apps/burp/install.sh.
-    - Deep Java 21+ detection (PATH, Registry, Program Files).
+    PowerShell installer for Burp Suite Professional:
+    - Detects Java 21+ (PATH, Registry, Program Files).
     - Auto-installs Java 21 via winget (with silent MSI fallback).
     - Dynamically queries PortSwigger release API for the latest Pro JAR.
     - Downloads key loader with failover mirrors.
@@ -23,25 +23,23 @@ param (
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
-# Ensure modern TLS 1.2 and TLS 1.3 are enabled for downloads
+# Enable modern TLS 1.2 and TLS 1.3
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor [Net.SecurityProtocolType]::Tls13
 
-Write-Host @"
-===============================================================
-       Burp Suite Professional Installer for Windows
-===============================================================
-"@ -ForegroundColor Cyan
+Write-Host "===============================================================" -ForegroundColor Cyan
+Write-Host "       Burp Suite Professional Installer for Windows           " -ForegroundColor Cyan
+Write-Host "===============================================================" -ForegroundColor Cyan
 
 # ------------------------------------------------------------------------------
 # 1. Directory Initialization
 # ------------------------------------------------------------------------------
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 if ([string]::IsNullOrWhiteSpace($ScriptDir)) {
-    $ScriptDir = Get-Location
+    $ScriptDir = (Get-Location).Path
 }
 
 $InstallDir = [System.IO.Path]::GetFullPath($InstallPath)
-Write-Host "[1/8] Setting up installation target: $InstallDir" -ForegroundColor Cyan
+Write-Host "`n(1/8) Setting up installation target: $InstallDir" -ForegroundColor Cyan
 
 if (-not (Test-Path $InstallDir)) {
     New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
@@ -53,7 +51,7 @@ if (-not (Test-Path $InstallDir)) {
 # ------------------------------------------------------------------------------
 # 2. Comprehensive Java 21+ Detection & Auto-Installation (winget + fallback)
 # ------------------------------------------------------------------------------
-Write-Host "`n[2/8] Checking Java runtime environment (Requires Java 21+)..." -ForegroundColor Cyan
+Write-Host "`n(2/8) Checking Java runtime environment (Requires Java 21+)..." -ForegroundColor Cyan
 
 function Refresh-EnvironmentPath {
     $machinePath = [System.Environment]::GetEnvironmentVariable("Path", "Machine")
@@ -69,9 +67,9 @@ function Test-JavaVersion {
         if ($out -match 'version "(\d+)(\.[\d\._]+)?"') {
             $major = [int]$matches[1]
             return [PSCustomObject]@{
-                Path    = $ExecutablePath
-                Major   = $major
-                Raw     = $out.Trim()
+                Path  = $ExecutablePath
+                Major = $major
+                Raw   = $out.Trim()
             }
         }
     } catch {}
@@ -88,9 +86,12 @@ if ($javaInPath) {
     $testResult = Test-JavaVersion -ExecutablePath $javaInPath.Source
     if ($testResult -and $testResult.Major -ge 21) {
         $validJava = $testResult
-        Write-Host "      [✓] Compatible Java found in PATH: Java $($validJava.Major) ($($validJava.Path))" -ForegroundColor Green
+        $majorVer = $validJava.Major
+        $jPath = $validJava.Path
+        Write-Host "      [OK] Compatible Java found in PATH: Java $majorVer ($jPath)" -ForegroundColor Green
     } elseif ($testResult) {
-        Write-Host "      [!] Java in PATH is version $($testResult.Major) (Burp Suite Pro requires Java 21+)." -ForegroundColor Yellow
+        $oldVer = $testResult.Major
+        Write-Host "      [*] Java in PATH is version $oldVer (Burp Suite Pro requires Java 21+)." -ForegroundColor Yellow
     }
 }
 
@@ -112,7 +113,9 @@ if (-not $validJava) {
             $validJava = $testResult
             $javaBin = Split-Path -Parent $validJava.Path
             $env:Path = "$javaBin;" + $env:Path
-            Write-Host "      [✓] Found installed JDK $($validJava.Major) at: $($validJava.Path)" -ForegroundColor Green
+            $majorVer = $validJava.Major
+            $jPath = $validJava.Path
+            Write-Host "      [OK] Found installed JDK $majorVer at: $jPath" -ForegroundColor Green
             break
         }
     }
@@ -120,7 +123,7 @@ if (-not $validJava) {
 
 # 2C. If Java 21+ is missing, install via winget or direct MSI fallback
 if (-not $validJava) {
-    Write-Host "      [!] Java 21+ was not detected on this system." -ForegroundColor Yellow
+    Write-Host "      [*] Java 21+ was not detected on this system." -ForegroundColor Yellow
     $installedViaWinget = $false
 
     $wingetCmd = Get-Command winget.exe -ErrorAction SilentlyContinue
@@ -133,7 +136,7 @@ if (-not $validJava) {
             try {
                 $process = Start-Process -FilePath "winget.exe" -ArgumentList "install --id $pkg -e --silent --accept-source-agreements --accept-package-agreements" -NoNewWindow -Wait -PassThru
                 if ($process.ExitCode -eq 0) {
-                    Write-Host "      [✓] Successfully installed $pkg via winget!" -ForegroundColor Green
+                    Write-Host "      [OK] Successfully installed $pkg via winget!" -ForegroundColor Green
                     $installedViaWinget = $true
                     break
                 }
@@ -171,7 +174,6 @@ if (-not $validJava) {
     }
 
     if (-not $validJava) {
-        # Check newly created program files directories
         $newPaths = Resolve-Path @(
             "$env:ProgramFiles\Eclipse Adoptium\jdk-21*\bin\java.exe",
             "$env:ProgramFiles\Microsoft\jdk-21*\bin\java.exe"
@@ -188,14 +190,15 @@ if (-not $validJava) {
         Write-Error "ERROR: Could not verify Java 21+ installation. Please manually install JDK 21 from https://adoptium.net and rerun."
         exit 1
     } else {
-        Write-Host "      [✓] Java 21+ verified successfully: $($validJava.Raw)" -ForegroundColor Green
+        $jRaw = $validJava.Raw
+        Write-Host "      [OK] Java 21+ verified successfully: $jRaw" -ForegroundColor Green
     }
 }
 
 # ------------------------------------------------------------------------------
 # 3. Dynamic Release Version Fetch from PortSwigger
 # ------------------------------------------------------------------------------
-Write-Host "`n[3/8] Fetching latest Burp Suite Professional version from PortSwigger..." -ForegroundColor Cyan
+Write-Host "`n(3/8) Fetching latest Burp Suite Professional version from PortSwigger..." -ForegroundColor Cyan
 $BURP_VERSION = $null
 
 try {
@@ -226,7 +229,7 @@ Write-Host "      Target File:        $JarName" -ForegroundColor DarkGray
 # ------------------------------------------------------------------------------
 # 4. Download Key Loader
 # ------------------------------------------------------------------------------
-Write-Host "`n[4/8] Downloading key loader..." -ForegroundColor Cyan
+Write-Host "`n(4/8) Downloading key loader..." -ForegroundColor Cyan
 $TargetLoader = Join-Path $InstallDir "loader.jar"
 $loaderSources = @(
     "https://codeberg.org/code07/test01/raw/branch/main/loader.jar",
@@ -239,7 +242,8 @@ foreach ($url in $loaderSources) {
         Write-Host "      Fetching from $url ..." -ForegroundColor DarkGray
         Invoke-WebRequest -Uri $url -OutFile $TargetLoader
         if ((Test-Path $TargetLoader) -and ((Get-Item $TargetLoader).Length -gt 10240)) {
-            Write-Host "      [✓] Loader verified ($((Get-Item $TargetLoader).Length) bytes)." -ForegroundColor Green
+            $lBytes = (Get-Item $TargetLoader).Length
+            Write-Host "      [OK] Loader verified ($lBytes bytes)." -ForegroundColor Green
             $loaderDownloaded = $true
             break
         }
@@ -256,13 +260,13 @@ if (-not $loaderDownloaded) {
 # ------------------------------------------------------------------------------
 # 5. Clean Old Versions & Download Burp Suite Pro JAR
 # ------------------------------------------------------------------------------
-Write-Host "`n[5/8] Managing Burp Suite Pro JAR releases..." -ForegroundColor Cyan
+Write-Host "`n(5/8) Managing Burp Suite Pro JAR releases..." -ForegroundColor Cyan
 
-# Remove old versions to save disk space
 Get-ChildItem -Path $InstallDir -Filter "burpsuite_pro_v*.jar" -File -ErrorAction SilentlyContinue |
     Where-Object { $_.Name -ne $JarName } |
     ForEach-Object {
-        Write-Host "      Removing old version: $($_.Name)" -ForegroundColor DarkGray
+        $oldFile = $_.Name
+        Write-Host "      Removing old version: $oldFile" -ForegroundColor DarkGray
         Remove-Item -Path $_.FullName -Force -ErrorAction SilentlyContinue
     }
 
@@ -270,12 +274,11 @@ $TargetJar = Join-Path $InstallDir $JarName
 if ($ForceDownload -or (-not (Test-Path $TargetJar)) -or ((Get-Item $TargetJar).Length -lt 104857600)) {
     Write-Host "      Downloading $JarName (~700MB, fast silent mode)..." -ForegroundColor Yellow
     Invoke-WebRequest -Uri $DownloadUrl -OutFile $TargetJar
-    Write-Host "      [✓] Download completed." -ForegroundColor Green
+    Write-Host "      [OK] Download completed." -ForegroundColor Green
 } else {
-    Write-Host "      [✓] $JarName is already up-to-date in $InstallDir." -ForegroundColor Green
+    Write-Host "      [OK] $JarName is already up-to-date in $InstallDir." -ForegroundColor Green
 }
 
-# Checksums calculation
 Write-Host "      Calculating cryptographic checksums..." -ForegroundColor DarkGray
 $sha256 = (Get-FileHash -Path $TargetJar -Algorithm SHA256).Hash
 $md5 = (Get-FileHash -Path $TargetJar -Algorithm MD5).Hash
@@ -285,19 +288,19 @@ Write-Host "      MD5:    $md5" -ForegroundColor DarkCyan
 # ------------------------------------------------------------------------------
 # 6. Copy Local Assets (.config.ini & burp_suite_pro.ico)
 # ------------------------------------------------------------------------------
-Write-Host "`n[6/8] Deploying local assets & icons..." -ForegroundColor Cyan
+Write-Host "`n(6/8) Deploying local assets & icons..." -ForegroundColor Cyan
 
 $LocalConfig = Join-Path $ScriptDir ".config.ini"
 if (Test-Path $LocalConfig) {
     Copy-Item -Path $LocalConfig -Destination $InstallDir -Force
-    Write-Host "      [✓] Copied .config.ini to $InstallDir" -ForegroundColor Green
+    Write-Host "      [OK] Copied .config.ini to $InstallDir" -ForegroundColor Green
 }
 
 $LocalIcon = Join-Path $ScriptDir "burp_suite_pro.ico"
 $TargetIcon = Join-Path $InstallDir "burp_suite_pro.ico"
 if (Test-Path $LocalIcon) {
     Copy-Item -Path $LocalIcon -Destination $InstallDir -Force
-    Write-Host "      [✓] Copied official burp_suite_pro.ico to $InstallDir" -ForegroundColor Green
+    Write-Host "      [OK] Copied official burp_suite_pro.ico to $InstallDir" -ForegroundColor Green
 } else {
     Write-Warning "Local burp_suite_pro.ico not found at $LocalIcon."
 }
@@ -305,40 +308,29 @@ if (Test-Path $LocalIcon) {
 # ------------------------------------------------------------------------------
 # 7. Create Launchers & Desktop/Start Menu Shortcuts
 # ------------------------------------------------------------------------------
-Write-Host "`n[7/8] Creating launchers and Windows shortcuts..." -ForegroundColor Cyan
+Write-Host "`n(7/8) Creating launchers and Windows shortcuts..." -ForegroundColor Cyan
 
 # 7A. Burp.bat (Direct / CLI launcher with Java 21 module flags)
 $BatPath = Join-Path $InstallDir "Burp.bat"
-$BatContent = @"
-@echo off
-setlocal
-cd /d "%~dp0"
-start "" javaw -XX:+UseG1GC --add-opens=java.desktop/javax.swing=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm.Opcodes=ALL-UNNAMED -javaagent:"%~dp0loader.jar" -noverify -jar "%~dp0$JarName" %*
-endlocal
-"@
-Set-Content -Path $BatPath -Value $BatContent -Encoding ASCII
-Write-Host "      [✓] Generated $BatPath" -ForegroundColor Green
+$BatContent = "@echo off`r`nsetlocal`r`ncd /d `"%~dp0`"`r`nstart `"`" javaw -XX:+UseG1GC --add-opens=java.desktop/javax.swing=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm.Opcodes=ALL-UNNAMED -javaagent:`"%~dp0loader.jar`" -noverify -jar `"%~dp0$JarName`" %*`r`nendlocal`r`n"
+[System.IO.File]::WriteAllText($BatPath, $BatContent, [System.Text.Encoding]::ASCII)
+Write-Host "      [OK] Generated $BatPath" -ForegroundColor Green
 
 # 7B. Burp-Suite-Pro.vbs (Completely silent execution without console window)
 $VbsPath = Join-Path $InstallDir "Burp-Suite-Pro.vbs"
-$VbsContent = @"
-Set WshShell = CreateObject("WScript.Shell")
-WshShell.Run "cmd /c """ & CreateObject("Scripting.FileSystemObject").GetParentFolderName(WScript.ScriptFullName) & "\Burp.bat""", 0, False
-Set WshShell = Nothing
-"@
-Set-Content -Path $VbsPath -Value $VbsContent -Encoding ASCII
-Write-Host "      [✓] Generated $VbsPath" -ForegroundColor Green
+$VbsContent = "Set WshShell = CreateObject(`"WScript.Shell`")`r`nWshShell.Run `"cmd /c `"`"`" & CreateObject(`"Scripting.FileSystemObject`").GetParentFolderName(WScript.ScriptFullName) & `"\Burp.bat`"`"`", 0, False`r`nSet WshShell = Nothing`r`n"
+[System.IO.File]::WriteAllText($VbsPath, $VbsContent, [System.Text.Encoding]::ASCII)
+Write-Host "      [OK] Generated $VbsPath" -ForegroundColor Green
 
 # 7C. Create burpsuitepro.cmd CLI wrapper for PATH
 $CliCmdPath = Join-Path $InstallDir "burpsuitepro.cmd"
-$CliCmdContent = "@call `"%~dp0Burp.bat`" %*"
-Set-Content -Path $CliCmdPath -Value $CliCmdContent -Encoding ASCII
+$CliCmdContent = "@call `"%~dp0Burp.bat`" %*`r`n"
+[System.IO.File]::WriteAllText($CliCmdPath, $CliCmdContent, [System.Text.Encoding]::ASCII)
 
-# Add to User PATH if not already present
 $currentUserPath = [System.Environment]::GetEnvironmentVariable("Path", "User")
 if ($currentUserPath -notlike "*$InstallDir*") {
     [System.Environment]::SetEnvironmentVariable("Path", "$currentUserPath;$InstallDir", "User")
-    Write-Host "      [✓] Added $InstallDir to User PATH (run 'burpsuitepro' in any terminal)." -ForegroundColor Green
+    Write-Host "      [OK] Added $InstallDir to User PATH (run 'burpsuitepro' in any terminal)." -ForegroundColor Green
 }
 
 # 7D. Windows Desktop and Start Menu Shortcuts with official .ico
@@ -346,19 +338,15 @@ Write-Host "      Configuring Windows Start Menu Search & Desktop shortcuts..." 
 try {
     $WshShell = New-Object -ComObject WScript.Shell
 
-    # Prefer direct javaw.exe execution so Windows Search classifies it as a primary App
     $javawCmd = Get-Command javaw.exe -ErrorAction SilentlyContinue
-    $useDirectJavaw = $false
     $shortcutTarget = "wscript.exe"
     $shortcutArgs = "`"$VbsPath`""
 
     if ($javawCmd -and (Test-Path $javawCmd.Source)) {
         $shortcutTarget = $javawCmd.Source
         $shortcutArgs = "-XX:+UseG1GC --add-opens=java.desktop/javax.swing=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm.Opcodes=ALL-UNNAMED -javaagent:`"$TargetLoader`" -noverify -jar `"$TargetJar`""
-        $useDirectJavaw = $true
     }
 
-    # Helper function to create/update shortcut
     function Create-AppShortcut {
         param (
             [string]$Directory,
@@ -377,19 +365,18 @@ try {
             $sc.IconLocation = "$TargetIcon,0"
         }
         $sc.Save()
-        Write-Host "      [✓] Shortcut ready: $lnkPath" -ForegroundColor Green
+        Write-Host "      [OK] Shortcut ready: $lnkPath" -ForegroundColor Green
     }
 
-    # 1. Desktop Shortcut
+    # Desktop Shortcut
     $DesktopFolder = [Environment]::GetFolderPath("Desktop")
     Create-AppShortcut -Directory $DesktopFolder -Name "Burp Suite Professional" -Description "Burp Suite Professional - Web Application Security Testing"
 
-    # 2. Start Menu Programs (Enables Windows Key -> Search "Burp Suite Pro" / "Burp Suite Professional")
+    # Start Menu Programs (Enables Windows Key -> Search "Burp Suite Pro" / "Burp Suite Professional")
     $ProgramsFolder = [Environment]::GetFolderPath("Programs")
     Create-AppShortcut -Directory $ProgramsFolder -Name "Burp Suite Professional" -Description "Burp Suite Professional - Web Application Security Testing"
     Create-AppShortcut -Directory $ProgramsFolder -Name "Burp Suite Pro" -Description "Burp Suite Professional - Web Application Security Testing"
 
-    # Also register in All Users Start Menu if running as Administrator
     $CommonPrograms = [Environment]::GetFolderPath("CommonPrograms")
     if (Test-Path $CommonPrograms) {
         Create-AppShortcut -Directory $CommonPrograms -Name "Burp Suite Professional" -Description "Burp Suite Professional - Web Application Security Testing"
@@ -398,13 +385,10 @@ try {
 
     # Refresh Windows Shell & Icon Cache so Search indexes it immediately
     try {
-        $shellNotifyCode = @'
-        [System.Runtime.InteropServices.DllImport("shell32.dll")]
-        public static extern void SHChangeNotify(int wEventId, int uFlags, IntPtr dwItem1, IntPtr dwItem2);
-'@
+        $shellNotifyCode = '[System.Runtime.InteropServices.DllImport("shell32.dll")] public static extern void SHChangeNotify(int wEventId, int uFlags, IntPtr dwItem1, IntPtr dwItem2);'
         $shellNotify = Add-Type -MemberDefinition $shellNotifyCode -Name "ShellNotify" -Namespace "Win32" -PassThru -ErrorAction SilentlyContinue
         if ($shellNotify) {
-            [Win32.ShellNotify]::SHChangeNotify(0x08000000, 0, [IntPtr]::Zero, [IntPtr]::Zero) # SHCNE_ASSOCCHANGED
+            [Win32.ShellNotify]::SHChangeNotify(0x08000000, 0, [IntPtr]::Zero, [IntPtr]::Zero)
         }
     } catch {}
 
@@ -415,7 +399,7 @@ try {
 # ------------------------------------------------------------------------------
 # 8. Start Key Loader & Burp Suite Professional
 # ------------------------------------------------------------------------------
-Write-Host "`n[8/8] Starting Burp Suite Professional suite..." -ForegroundColor Cyan
+Write-Host "`n(8/8) Starting Burp Suite Professional suite..." -ForegroundColor Cyan
 
 if (-not $SkipLaunch) {
     if (Test-Path $TargetLoader) {
@@ -429,13 +413,10 @@ if (-not $SkipLaunch) {
     Write-Host "      Skipping launch (-SkipLaunch specified)." -ForegroundColor DarkGray
 }
 
-Write-Host @"
-
-===============================================================
-  Burp Suite Professional Installation Completed Successfully!
-===============================================================
-Directory: $InstallDir
-Shortcut:  Desktop & Start Menu ("Burp Suite Professional")
-CLI Command: burpsuitepro
-===============================================================
-"@ -ForegroundColor Green
+Write-Host "`n===============================================================" -ForegroundColor Green
+Write-Host "  Burp Suite Professional Installation Completed Successfully! " -ForegroundColor Green
+Write-Host "===============================================================" -ForegroundColor Green
+Write-Host "Directory:   $InstallDir"
+Write-Host "Shortcut:    Desktop & Start Menu ('Burp Suite Professional')"
+Write-Host "CLI Command: burpsuitepro"
+Write-Host "===============================================================" -ForegroundColor Green
