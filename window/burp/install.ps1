@@ -112,7 +112,7 @@ if (-not (Test-Path $InstallDir)) {
 }
 
 # ------------------------------------------------------------------------------
-# 2. Comprehensive Java 21+ Detection & Auto-Installation (winget + fallback)
+# 2. Comprehensive Java 21+ Detection & Auto-Installation
 # ------------------------------------------------------------------------------
 Write-Host "`n(2/8) Checking Java runtime environment (Requires Java 21+)..." -ForegroundColor Cyan
 
@@ -124,15 +124,26 @@ function Refresh-EnvironmentPath {
 
 function Test-JavaVersion {
     param ([string]$ExecutablePath)
+    if ([string]::IsNullOrWhiteSpace($ExecutablePath)) { return $null }
+    if (-not (Test-Path $ExecutablePath)) { return $null }
     try {
-        if (-not (Test-Path $ExecutablePath)) { return $null }
-        $out = & $ExecutablePath -version 2>&1 | Out-String
-        if ($out -match 'version "(\d+)(\.[\d\._]+)?"') {
+        # Use cmd.exe /c to guarantee clean text capture from stderr without ErrorRecord exceptions
+        $rawOut = (cmd.exe /c "`"$ExecutablePath`" -version 2>&1") | Out-String
+        if ([string]::IsNullOrWhiteSpace($rawOut)) { return $null }
+
+        $major = 0
+        if ($rawOut -match '(?i)(?:version\s+"?|openjdk\s+|java\s+)(\d+)') {
             $major = [int]$matches[1]
+            if ($major -eq 1 -and $rawOut -match '1\.(\d+)') {
+                $major = [int]$matches[1]
+            }
+        }
+
+        if ($major -gt 0) {
             return [PSCustomObject]@{
                 Path  = $ExecutablePath
                 Major = $major
-                Raw   = $out.Trim()
+                Raw   = $rawOut.Trim()
             }
         }
     } catch {}
@@ -149,47 +160,100 @@ if ($javaInPath) {
     $testResult = Test-JavaVersion -ExecutablePath $javaInPath.Source
     if ($testResult -and $testResult.Major -ge 21) {
         $validJava = $testResult
-        $majorVer = $validJava.Major
-        $jPath = $validJava.Path
-        Write-Host "      [OK] Compatible Java found in PATH: Java $majorVer ($jPath)" -ForegroundColor Green
+        Write-Host "      [OK] Compatible Java found in PATH: Java $($validJava.Major) ($($validJava.Path))" -ForegroundColor Green
     } elseif ($testResult) {
-        $oldVer = $testResult.Major
-        Write-Host "      [*] Java in PATH is version $oldVer (Burp Suite Pro requires Java 21+)." -ForegroundColor Yellow
+        Write-Host "      [*] Java in PATH is version $($testResult.Major) (Burp Suite Pro requires Java 21+)." -ForegroundColor Yellow
     }
 }
 
-# 2B. Check Registry and Program Files if not found in PATH
+# 2B. Check JAVA_HOME environment variables (Session, Machine, User)
 if (-not $validJava) {
-    Write-Host "      Scanning registry and disk for existing JDK 21+ installations..." -ForegroundColor DarkCyan
-    $searchPatterns = @(
-        "$env:ProgramFiles\Java\jdk-2*\bin\java.exe",
-        "$env:ProgramFiles\Eclipse Adoptium\jdk-2*\bin\java.exe",
-        "$env:ProgramFiles\Microsoft\jdk-2*\bin\java.exe",
-        "${env:ProgramFiles(x86)}\Java\jdk-2*\bin\java.exe",
-        "$env:LOCALAPPDATA\Programs\Eclipse Adoptium\jdk-2*\bin\java.exe"
-    )
+    $javaHomeCandidates = @(
+        $env:JAVA_HOME,
+        [System.Environment]::GetEnvironmentVariable("JAVA_HOME", "Machine"),
+        [System.Environment]::GetEnvironmentVariable("JAVA_HOME", "User")
+    ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
 
-    $candidates = Resolve-Path $searchPatterns -ErrorAction SilentlyContinue
-    foreach ($cand in $candidates) {
-        $testResult = Test-JavaVersion -ExecutablePath $cand.Path
+    foreach ($jh in $javaHomeCandidates) {
+        $exeCandidate = Join-Path $jh "bin\java.exe"
+        $testResult = Test-JavaVersion -ExecutablePath $exeCandidate
         if ($testResult -and $testResult.Major -ge 21) {
             $validJava = $testResult
-            $javaBin = Split-Path -Parent $validJava.Path
-            $env:Path = "$javaBin;" + $env:Path
-            $majorVer = $validJava.Major
-            $jPath = $validJava.Path
-            Write-Host "      [OK] Found installed JDK $majorVer at: $jPath" -ForegroundColor Green
+            Write-Host "      [OK] Found compatible Java in JAVA_HOME: Java $($validJava.Major) ($($validJava.Path))" -ForegroundColor Green
             break
         }
     }
 }
 
-# 2C. If Java 21+ is missing, install via high-speed direct MSI (avoids winget indexing lag)
+# 2C. Deep Scan of Windows Registry and Program Files directories
 if (-not $validJava) {
-    Write-Host "      [*] Java 21+ was not detected on this system." -ForegroundColor Yellow
+    Write-Host "      Scanning registry and disk for existing JDK 21+ installations..." -ForegroundColor DarkCyan
+
+    $candidateExeList = [System.Collections.Generic.List[string]]::new()
+
+    # Registry lookups
+    $regPaths = @(
+        "HKLM:\SOFTWARE\JavaSoft\JDK",
+        "HKLM:\SOFTWARE\JavaSoft\Java Development Kit",
+        "HKLM:\SOFTWARE\Microsoft\JDK",
+        "HKLM:\SOFTWARE\Eclipse Adoptium\JDK"
+    )
+    foreach ($rp in $regPaths) {
+        if (Test-Path $rp) {
+            Get-ChildItem -Path $rp -ErrorAction SilentlyContinue | ForEach-Object {
+                $subKey = $_.PSPath
+                $jHome = (Get-ItemProperty -Path $subKey -Name "JavaHome" -ErrorAction SilentlyContinue).JavaHome
+                if (-not $jHome) {
+                    $jHome = (Get-ItemProperty -Path $subKey -Name "Path" -ErrorAction SilentlyContinue).Path
+                }
+                if ($jHome) {
+                    $c = Join-Path $jHome "bin\java.exe"
+                    if (Test-Path $c) { $candidateExeList.Add($c) }
+                }
+            }
+        }
+    }
+
+    # Safe filesystem search (does NOT throw if directory is missing)
+    $searchRoots = @(
+        "$env:ProgramFiles\Java",
+        "$env:ProgramFiles\Microsoft",
+        "$env:ProgramFiles\Eclipse Adoptium",
+        "$env:ProgramFiles\Amazon Corretto",
+        "$env:ProgramFiles\BellSoft",
+        "$env:ProgramFiles\Zulu",
+        "$env:ProgramFiles\Semeru",
+        "${env:ProgramFiles(x86)}\Java",
+        "$env:LOCALAPPDATA\Programs\Eclipse Adoptium"
+    )
+
+    foreach ($root in $searchRoots) {
+        if (Test-Path $root) {
+            Get-ChildItem -Path $root -Filter "java.exe" -Recurse -Depth 3 -ErrorAction SilentlyContinue |
+                ForEach-Object { $candidateExeList.Add($_.FullName) }
+        }
+    }
+
+    # Test all found java.exe binaries
+    foreach ($exe in ($candidateExeList | Select-Object -Unique)) {
+        $testResult = Test-JavaVersion -ExecutablePath $exe
+        if ($testResult -and $testResult.Major -ge 21) {
+            $validJava = $testResult
+            $javaBin = Split-Path -Parent $validJava.Path
+            $env:Path = "$javaBin;" + $env:Path
+            $env:JAVA_HOME = Split-Path -Parent $javaBin
+            Write-Host "      [OK] Detected existing Java $($validJava.Major) at: $($validJava.Path)" -ForegroundColor Green
+            break
+        }
+    }
+}
+
+# 2D. ONLY if Java 21+ was NOT found anywhere, download and install OpenJDK 21
+if (-not $validJava) {
+    Write-Host "      [*] Java 21+ was not detected on this system. Starting automated installer..." -ForegroundColor Yellow
     $javaInstalledSuccess = $false
 
-    # Method 1: Fast direct MSI download from Microsoft / Adoptium CDN (takes ~20 seconds vs 5-10 minutes on winget)
+    # Method 1: Fast direct MSI download from Microsoft / Adoptium CDN
     Write-Host "      Downloading OpenJDK 21 MSI directly (high-speed CDN)..." -ForegroundColor Cyan
     $msiSources = @(
         "https://aka.ms/download-jdk/microsoft-jdk-21-windows-x64.msi",
@@ -239,7 +303,7 @@ if (-not $validJava) {
         }
     }
 
-    # Refresh PATH and verify
+    # Refresh PATH and verify after installation
     Refresh-EnvironmentPath
     $recheck = Get-Command java.exe -ErrorAction SilentlyContinue
     if ($recheck) {
@@ -247,22 +311,32 @@ if (-not $validJava) {
     }
 
     if (-not $validJava) {
-        $newPaths = Resolve-Path @(
-            "$env:ProgramFiles\Eclipse Adoptium\jdk-21*\bin\java.exe",
-            "$env:ProgramFiles\Microsoft\jdk-21*\bin\java.exe"
-        ) -ErrorAction SilentlyContinue | Select-Object -First 1
-
-        if ($newPaths) {
-            $validJava = Test-JavaVersion -ExecutablePath $newPaths.Path
-            $javaBin = Split-Path -Parent $newPaths.Path
-            $env:Path = "$javaBin;" + $env:Path
+        $searchRoots = @("$env:ProgramFiles\Microsoft", "$env:ProgramFiles\Eclipse Adoptium", "$env:ProgramFiles\Java")
+        foreach ($root in $searchRoots) {
+            if (Test-Path $root) {
+                $foundExe = Get-ChildItem -Path $root -Filter "java.exe" -Recurse -Depth 3 -ErrorAction SilentlyContinue | Select-Object -First 1
+                if ($foundExe) {
+                    $validJava = Test-JavaVersion -ExecutablePath $foundExe.FullName
+                    if ($validJava -and $validJava.Major -ge 21) {
+                        $javaBin = Split-Path -Parent $validJava.Path
+                        $env:Path = "$javaBin;" + $env:Path
+                        $env:JAVA_HOME = Split-Path -Parent $javaBin
+                        break
+                    }
+                }
+            }
         }
     }
 
     if (-not $validJava) {
-        Write-Error "ERROR: Could not verify Java 21+ installation. Please manually install JDK 21 from https://adoptium.net and rerun."
+        Write-Error "ERROR: Could not verify Java 21+ installation. Please manually install JDK 21 from https://aka.ms/download-jdk/microsoft-jdk-21-windows-x64.msi and rerun."
         exit 1
     } else {
+        Write-Host "      [OK] Java 21+ verified successfully: $($validJava.Raw)" -ForegroundColor Green
+    }
+} else {
+    Write-Host "      [OK] Java 21+ already satisfied. Skipping download/installation." -ForegroundColor Green
+}
         $jRaw = $validJava.Raw
         Write-Host "      [OK] Java 21+ verified successfully: $jRaw" -ForegroundColor Green
     }
