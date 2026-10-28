@@ -21,7 +21,7 @@ param (
 )
 
 $ErrorActionPreference = 'Stop'
-$ProgressPreference = 'SilentlyContinue'
+$ProgressPreference = 'Continue'
 
 # Enable modern TLS 1.2 and TLS 1.3
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor [Net.SecurityProtocolType]::Tls13
@@ -29,6 +29,69 @@ $ProgressPreference = 'SilentlyContinue'
 Write-Host "===============================================================" -ForegroundColor Cyan
 Write-Host "       Burp Suite Professional Installer for Windows           " -ForegroundColor Cyan
 Write-Host "===============================================================" -ForegroundColor Cyan
+
+# ------------------------------------------------------------------------------
+# High-Speed Throttled Stream Downloader (Shows Visual Progress & Speed without Slowdown)
+# ------------------------------------------------------------------------------
+function Download-FileWithProgress {
+    param (
+        [string]$Url,
+        [string]$OutputFile,
+        [string]$Description = "Downloading"
+    )
+
+    try {
+        $req = [System.Net.HttpWebRequest][System.Net.WebRequest]::Create($Url)
+        $req.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+        $req.Timeout = 180000
+        $req.AllowAutoRedirect = $true
+        $resp = $req.GetResponse()
+        $totalBytes = $resp.ContentLength
+        $stream = $resp.GetResponseStream()
+
+        $parentDir = Split-Path -Parent $OutputFile
+        if (-not (Test-Path $parentDir)) {
+            New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
+        }
+
+        $fileStream = [System.IO.File]::Create($OutputFile)
+        $buffer = New-Object byte[] 65536
+        $downloaded = 0
+        $lastUpdate = [DateTime]::MinValue
+        $sw = [System.Diagnostics.Stopwatch]::StartNew()
+
+        while (($read = $stream.Read($buffer, 0, $buffer.Length)) -gt 0) {
+            $fileStream.Write($buffer, 0, $read)
+            $downloaded += $read
+            $now = [DateTime]::UtcNow
+
+            # Throttle UI progress updates to every 250ms to maximize throughput
+            if (($now - $lastUpdate).TotalMilliseconds -ge 250 -or $downloaded -eq $totalBytes) {
+                $lastUpdate = $now
+                if ($totalBytes -gt 0) {
+                    $pct = [int][math]::Min(100, [math]::Max(0, ($downloaded * 100 / $totalBytes)))
+                    $mbDown = [math]::Round($downloaded / 1MB, 1)
+                    $mbTotal = [math]::Round($totalBytes / 1MB, 1)
+                    $sec = [math]::Max($sw.Elapsed.TotalSeconds, 0.001)
+                    $speed = [math]::Round(($downloaded / 1MB) / $sec, 1)
+                    Write-Progress -Activity $Description -Status "$mbDown MB / $mbTotal MB ($pct%) at $speed MB/s" -PercentComplete $pct
+                } else {
+                    $mbDown = [math]::Round($downloaded / 1MB, 1)
+                    Write-Progress -Activity $Description -Status "$mbDown MB downloaded"
+                }
+            }
+        }
+        $fileStream.Dispose()
+        $stream.Dispose()
+        $resp.Dispose()
+        Write-Progress -Activity $Description -Completed
+    } catch {
+        Write-Warning "Stream download encountered an issue: $($_.Exception.Message). Falling back to WebClient..."
+        $client = New-Object System.Net.WebClient
+        $client.DownloadFile($Url, $OutputFile)
+        Write-Progress -Activity $Description -Completed
+    }
+}
 
 # ------------------------------------------------------------------------------
 # 1. Directory Initialization
@@ -132,7 +195,7 @@ if (-not $validJava) {
     $msiFile = Join-Path $env:TEMP "temurin21_installer.msi"
 
     try {
-        Invoke-WebRequest -Uri $msiUrl -OutFile $msiFile
+        Download-FileWithProgress -Url $msiUrl -OutputFile $msiFile -Description "Downloading Adoptium OpenJDK 21 MSI"
         if ((Test-Path $msiFile) -and ((Get-Item $msiFile).Length -gt 50000000)) {
             Write-Host "      Installing OpenJDK 21 silently via msiexec (takes ~10 seconds)..." -ForegroundColor Yellow
             $installArgs = "/i `"$msiFile`" /quiet /qn /norestart ADDLOCAL=FeatureMain,FeatureJavaHome,FeatureJarFileRunWith,FeatureNavigator"
@@ -243,7 +306,7 @@ $loaderDownloaded = $false
 foreach ($url in $loaderSources) {
     try {
         Write-Host "      Fetching from $url ..." -ForegroundColor DarkGray
-        Invoke-WebRequest -Uri $url -OutFile $TargetLoader
+        Download-FileWithProgress -Url $url -OutputFile $TargetLoader -Description "Downloading Key Loader"
         if ((Test-Path $TargetLoader) -and ((Get-Item $TargetLoader).Length -gt 10240)) {
             $lBytes = (Get-Item $TargetLoader).Length
             Write-Host "      [OK] Loader verified ($lBytes bytes)." -ForegroundColor Green
@@ -275,8 +338,8 @@ Get-ChildItem -Path $InstallDir -Filter "burpsuite_pro_v*.jar" -File -ErrorActio
 
 $TargetJar = Join-Path $InstallDir $JarName
 if ($ForceDownload -or (-not (Test-Path $TargetJar)) -or ((Get-Item $TargetJar).Length -lt 104857600)) {
-    Write-Host "      Downloading $JarName (~700MB, fast silent mode)..." -ForegroundColor Yellow
-    Invoke-WebRequest -Uri $DownloadUrl -OutFile $TargetJar
+    Write-Host "      Downloading $JarName (~700MB)..." -ForegroundColor Yellow
+    Download-FileWithProgress -Url $DownloadUrl -OutputFile $TargetJar -Description "Downloading Burp Suite Professional $BURP_VERSION"
     Write-Host "      [OK] Download completed." -ForegroundColor Green
 } else {
     Write-Host "      [OK] $JarName is already up-to-date in $InstallDir." -ForegroundColor Green
