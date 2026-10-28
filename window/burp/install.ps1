@@ -189,24 +189,31 @@ if (-not $validJava) {
     Write-Host "      [*] Java 21+ was not detected on this system." -ForegroundColor Yellow
     $javaInstalledSuccess = $false
 
-    # Method 1: Fast direct MSI download from Adoptium (takes ~20 seconds vs 5-10 minutes on winget)
-    Write-Host "      Downloading OpenJDK 21 MSI directly from Adoptium (fast download)..." -ForegroundColor Cyan
-    $msiUrl = "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.6%2B7/OpenJDK21U-jdk_x64_windows_hotspot_21.0.6_7.msi"
-    $msiFile = Join-Path $env:TEMP "temurin21_installer.msi"
+    # Method 1: Fast direct MSI download from Microsoft / Adoptium CDN (takes ~20 seconds vs 5-10 minutes on winget)
+    Write-Host "      Downloading OpenJDK 21 MSI directly (high-speed CDN)..." -ForegroundColor Cyan
+    $msiSources = @(
+        "https://aka.ms/download-jdk/microsoft-jdk-21-windows-x64.msi",
+        "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.6%2B7/OpenJDK21U-jdk_x64_windows_hotspot_21.0.6_7.msi"
+    )
+    $msiFile = Join-Path $env:TEMP "openjdk21_installer.msi"
 
-    try {
-        Download-FileWithProgress -Url $msiUrl -OutputFile $msiFile -Description "Downloading Adoptium OpenJDK 21 MSI"
-        if ((Test-Path $msiFile) -and ((Get-Item $msiFile).Length -gt 50000000)) {
-            Write-Host "      Installing OpenJDK 21 silently via msiexec (takes ~10 seconds)..." -ForegroundColor Yellow
-            $installArgs = "/i `"$msiFile`" /quiet /qn /norestart ADDLOCAL=FeatureMain,FeatureJavaHome,FeatureJarFileRunWith,FeatureNavigator"
-            $msiProcess = Start-Process -FilePath "msiexec.exe" -ArgumentList $installArgs -Wait -PassThru
+    foreach ($msiUrl in $msiSources) {
+        try {
+            Write-Host "      Connecting to $msiUrl ..." -ForegroundColor DarkGray
+            Download-FileWithProgress -Url $msiUrl -OutputFile $msiFile -Description "Downloading OpenJDK 21 MSI (~170MB)"
+            if ((Test-Path $msiFile) -and ((Get-Item $msiFile).Length -gt 50000000)) {
+                Write-Host "      Installing OpenJDK 21 silently via msiexec (takes ~10 seconds)..." -ForegroundColor Yellow
+                $installArgs = "/i `"$msiFile`" /quiet /qn /norestart"
+                $msiProcess = Start-Process -FilePath "msiexec.exe" -ArgumentList $installArgs -Wait -PassThru
 
-            if (Test-Path $msiFile) { Remove-Item -Path $msiFile -Force -ErrorAction SilentlyContinue }
-            $javaInstalledSuccess = $true
-            Write-Host "      [OK] OpenJDK 21 installation completed." -ForegroundColor Green
+                if (Test-Path $msiFile) { Remove-Item -Path $msiFile -Force -ErrorAction SilentlyContinue }
+                $javaInstalledSuccess = $true
+                Write-Host "      [OK] OpenJDK 21 installation completed." -ForegroundColor Green
+                break
+            }
+        } catch {
+            Write-Warning "MSI download from $msiUrl failed: $($_.Exception.Message)"
         }
-    } catch {
-        Write-Warning "Direct MSI download failed ($($_.Exception.Message)). Falling back to winget..."
     }
 
     # Method 2: Fallback to winget if direct MSI failed
