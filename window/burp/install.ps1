@@ -337,10 +337,6 @@ if (-not $validJava) {
 } else {
     Write-Host "      [OK] Java 21+ already satisfied. Skipping download/installation." -ForegroundColor Green
 }
-        $jRaw = $validJava.Raw
-        Write-Host "      [OK] Java 21+ verified successfully: $jRaw" -ForegroundColor Green
-    }
-}
 
 # ------------------------------------------------------------------------------
 # 3. Dynamic Release Version Fetch from PortSwigger
