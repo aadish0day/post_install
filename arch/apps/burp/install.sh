@@ -61,7 +61,7 @@ fi
 # 4. Copy local config files if present
 echo "Copying local assets..."
 cp "$SCRIPT_DIR/.config.ini" "$REPO_DIR/" 2>/dev/null || true
-cp "$SCRIPT_DIR/images.png" "$REPO_DIR/" 2>/dev/null || true
+cp "$SCRIPT_DIR/burp_suite_pro_icon.svg" "$REPO_DIR/" 2>/dev/null || true
 
 # 5. Create launcher binary script
 mkdir -p "$HOME/.local/bin"
@@ -94,7 +94,7 @@ cat <<EOF >"$DESKTOP_FILE"
 Name=Burp Suite Professional
 Comment=Burp Suite Professional - Web Application Security Testing
 Exec=$LAUNCHER_PATH
-Icon=$REPO_DIR/images.png
+Icon=$REPO_DIR/burp_suite_pro_icon.svg
 Terminal=false
 Type=Application
 Categories=Network;Security;

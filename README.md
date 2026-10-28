@@ -8,6 +8,8 @@
 ![Fedora](https://img.shields.io/badge/Fedora-294172?style=for-the-badge&logo=fedora&logoColor=white)
 ![Kali](https://img.shields.io/badge/Kali_Linux-557C94?style=for-the-badge&logo=kali-linux&logoColor=white)
 ![Termux](https://img.shields.io/badge/Termux-000000?style=for-the-badge&logo=terminal&logoColor=white)
+![Windows](https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)
+![PowerShell](https://img.shields.io/badge/PowerShell-5391FE?style=for-the-badge&logo=powershell&logoColor=white)
 
 Modular, production-grade post-installation orchestration suite built in **100% pure Bash**. Features an **`archinstall`-style interactive TUI**, hardware auto-detection, data-driven menu catalogs, sourceable configuration profiles, guaranteed zero-modification dry-runs, and modular recipes for **Arch Linux**, **Debian / Ubuntu**, **Fedora**, **Kali Linux**, and **Termux**.
 
@@ -24,6 +26,7 @@ Modular, production-grade post-installation orchestration suite built in **100% 
   - [3. Headless / CLI Execution](#3-headless--cli-execution)
   - [4. Strict Abort Mode](#4-strict-abort-mode)
   - [5. Distro & Desktop Flags](#5-distro--desktop-flags)
+  - [6. Windows (PowerShell)](#6-windows-powershell)
 - [Repository Architecture](#repository-architecture)
 - [The `--dry-run` Safety Guarantee](#the---dry-run-safety-guarantee)
 - [Strict Execution Mode (`--strict`)](#strict-execution-mode---strict)
@@ -131,6 +134,19 @@ Supported flags:
 - `--desktop <de>`: Target desktop (`kde`, `i3`, `bspwm`, `both`, `none`).
 - `-h`, `--help`: Display usage information.
 
+### 6. Windows (PowerShell)
+
+For Windows installation (such as Burp Suite Professional, JDK 21 detection, and Windows shortcuts):
+
+Open PowerShell as Administrator (or standard user) and run:
+
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
+.\install.ps1
+```
+
+*(Or from the repository root: `.\window\burp\install.ps1`)*
+
 ---
 
 ## Repository Architecture
@@ -173,6 +189,7 @@ post_install/
 ├── fedora/                     # Fedora modular sub-scripts, config, & fedora/lib/common.sh
 ├── kali/                       # Kali Linux modular sub-scripts (apps, hardware)
 ├── termux/                     # Termux scripts & font installer
+├── window/                     # Windows PowerShell scripts & assets (burp/install.ps1, .ico, config)
 └── theme_and_font.sh           # Standalone font and theme installer
 ```
 
@@ -257,6 +274,10 @@ Hardware auto-detection overrides profile defaults dynamically (e.g. `CFG_AMD_GP
 ### 5. Android Termux
 - **Core Environment**: Package updates and terminal productivity suite (`git`, `tmux`, `zsh`, `neovim`, `starship`, `zoxide`, `lsd`).
 - **Nerd Fonts**: Installs JetBrains Mono Nerd Font directly from GitHub release archives, updates Termux font settings, and reloads styles.
+
+### 6. Windows (PowerShell)
+- **PowerShell Automation**: Standalone PowerShell installers (`window/burp/install.ps1`) optimized with silent progress preferences for fast downloads.
+- **Burp Suite Professional**: Automatic PortSwigger latest release API query, JDK 21 detection & auto-installation, `.ico` desktop & start menu shortcuts, and silent background launcher integration (`Burp-Suite-Pro.vbs`).
 
 ---
 
