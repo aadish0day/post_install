@@ -46,14 +46,46 @@ mkdir -p "$REPO_DIR"
 echo "Downloading loader.jar..."
 curl -fL --progress-bar -o "$REPO_DIR/loader.jar" "$LOADER_URL"
 
+# Helper function to compare version strings: returns 0 (true) if $1 >= $2
+version_ge() {
+    [ "$(printf '%s\n%s' "$1" "$2" | sort -V | tail -n1)" = "$1" ]
+}
+
 cd "$REPO_DIR"
 
-# Remove old Burp JARs before downloading the latest
-find "$REPO_DIR" -maxdepth 1 -name 'burpsuite_pro_v*.jar' ! -name "$JAR_NAME" -delete 2>/dev/null || true
+# 3. Check existing Burp Suite Pro JAR version
+SKIP_DOWNLOAD=false
+if compgen -G "$REPO_DIR/burpsuite_pro_v*.jar" >/dev/null; then
+    EXISTING_JAR="$(ls -1 "$REPO_DIR"/burpsuite_pro_v*.jar 2>/dev/null | sort -V | tail -n1 || true)"
+    if [ -n "$EXISTING_JAR" ] && [ -f "$EXISTING_JAR" ]; then
+        EXISTING_VERSION="$(basename "$EXISTING_JAR" | sed -E 's/^burpsuite_pro_v(.*)\.jar$/\1/')"
+        EXISTING_SIZE="$(stat -c%s "$EXISTING_JAR" 2>/dev/null || stat -f%z "$EXISTING_JAR" 2>/dev/null || echo 0)"
+        if [ "$EXISTING_SIZE" -gt 10485760 ]; then
+            if [ "$EXISTING_VERSION" = "$BURP_VERSION" ]; then
+                echo "Burp Suite Professional $BURP_VERSION is already downloaded and up-to-date. Skipping download."
+                SKIP_DOWNLOAD=true
+                JAR_NAME="$(basename "$EXISTING_JAR")"
+            elif version_ge "$EXISTING_VERSION" "$BURP_VERSION"; then
+                echo "Installed version ($EXISTING_VERSION) is newer than PortSwigger release ($BURP_VERSION). Skipping download."
+                SKIP_DOWNLOAD=true
+                JAR_NAME="$(basename "$EXISTING_JAR")"
+            else
+                echo "Found older version ($EXISTING_VERSION). Upgrading to latest ($BURP_VERSION)..."
+            fi
+        else
+            echo "Existing JAR file ($EXISTING_JAR) is incomplete or corrupted ($EXISTING_SIZE bytes). Re-downloading..."
+        fi
+    fi
+fi
 
-# 3. Download the latest Burp Suite Pro JAR
-echo "Downloading Burp Suite Professional $BURP_VERSION ($JAR_NAME)..."
-wget -O "$JAR_NAME" --quiet --show-progress "$DOWNLOAD_URL"
+if [ "$SKIP_DOWNLOAD" = false ]; then
+    echo "Downloading Burp Suite Professional $BURP_VERSION ($JAR_NAME)..."
+    wget -O "$JAR_NAME.tmp" --quiet --show-progress "$DOWNLOAD_URL"
+    mv "$JAR_NAME.tmp" "$JAR_NAME"
+
+    # Remove older Burp JARs now that download succeeded
+    find "$REPO_DIR" -maxdepth 1 -name 'burpsuite_pro_v*.jar' ! -name "$JAR_NAME" -delete 2>/dev/null || true
+fi
 
 # Calculate and display checksums
 if [ -f "$JAR_NAME" ]; then
