@@ -45,8 +45,8 @@ irm "https://raw.githubusercontent.com/aadish0day/post_install/main/window/burp/
   - If missing or outdated, automatically downloads and silently installs the official **Microsoft OpenJDK 21 MSI** (with Adoptium and `winget` fallbacks).
 - **Dynamic Latest Release Lookup**:
   - Queries PortSwigger's live release API (`https://portswigger.net/burp/releases/data?pageSize=10`) to automatically download the latest official Pro JAR.
-- **High-Speed Visual Progress**:
-  - Built-in throttled stream reader displaying real-time download percentage, transferred size (MB), and transfer speed (MB/s) without throttling network throughput.
+- **High-Speed `curl.exe` Acceleration & Auto-Resume**:
+  - Automatically leverages native Windows `curl.exe` (`C:\Windows\System32\curl.exe`) with HTTP/2 and auto-resume (`-C -`), delivering maximum download speeds for the ~750MB JAR. Falls back smoothly to an optimized 1MB buffered .NET stream reader if needed.
 - **Failover Mirror Redundancy**:
   - Primary download from Codeberg with automatic failover to GitHub mirrors for `loader.jar`.
 - **Silent Launchers (Zero Black Console Windows)**:

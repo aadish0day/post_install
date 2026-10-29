@@ -37,7 +37,7 @@ Write-Host "       Burp Suite Professional Installer for Windows           " -Fo
 Write-Host "===============================================================" -ForegroundColor Cyan
 
 # ------------------------------------------------------------------------------
-# High-Speed Throttled Stream Downloader (Shows Visual Progress & Speed without Slowdown)
+# High-Speed Downloader (Prioritizes native Windows curl.exe with Auto-Resume)
 # ------------------------------------------------------------------------------
 function Download-FileWithProgress {
     param (
@@ -46,6 +46,42 @@ function Download-FileWithProgress {
         [string]$Description = "Downloading"
     )
 
+    $parentDir = Split-Path -Parent $OutputFile
+    if (-not (Test-Path $parentDir)) {
+        New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
+    }
+
+    # Method 1: Use native Windows curl.exe (High-speed C binary, HTTP/2, auto-resume)
+    $curlExe = $null
+    $curlCmd = Get-Command curl.exe -ErrorAction SilentlyContinue
+    if ($curlCmd -and (Test-Path $curlCmd.Source)) {
+        $curlExe = $curlCmd.Source
+    } elseif (Test-Path "$env:SystemRoot\System32\curl.exe") {
+        $curlExe = "$env:SystemRoot\System32\curl.exe"
+    }
+
+    if ($curlExe) {
+        Write-Host "      Using native curl.exe for high-speed download (with auto-resume)..." -ForegroundColor Cyan
+        try {
+            $prevEap = $ErrorActionPreference
+            $ErrorActionPreference = 'Continue'
+
+            $curlArgs = @("-fL", "--retry", "3", "--retry-delay", "2", "-C", "-", "--progress-bar", "-o", $OutputFile, $Url)
+            $p = Start-Process -FilePath $curlExe -ArgumentList $curlArgs -NoNewWindow -Wait -PassThru
+
+            $ErrorActionPreference = $prevEap
+
+            if ($p.ExitCode -eq 0 -and (Test-Path $OutputFile) -and ((Get-Item $OutputFile).Length -gt 0)) {
+                return
+            } else {
+                Write-Warning "curl.exe returned exit code $($p.ExitCode). Falling back to .NET stream downloader..."
+            }
+        } catch {
+            Write-Warning "curl.exe encountered an issue: $($_.Exception.Message). Falling back to stream downloader..."
+        }
+    }
+
+    # Method 2: High-Speed .NET Stream Downloader (1MB buffer)
     try {
         $req = [System.Net.HttpWebRequest][System.Net.WebRequest]::Create($Url)
         $req.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
@@ -55,13 +91,8 @@ function Download-FileWithProgress {
         $totalBytes = $resp.ContentLength
         $stream = $resp.GetResponseStream()
 
-        $parentDir = Split-Path -Parent $OutputFile
-        if (-not (Test-Path $parentDir)) {
-            New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
-        }
-
         $fileStream = [System.IO.File]::Create($OutputFile)
-        $buffer = New-Object byte[] 65536
+        $buffer = New-Object byte[] 1048576
         $downloaded = 0
         $lastUpdate = [DateTime]::MinValue
         $sw = [System.Diagnostics.Stopwatch]::StartNew()
