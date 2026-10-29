@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ============================================================================
-# ARCH LINUX PARU AUR HELPER INSTALLER
+# ARCH LINUX PARU-BIN AUR HELPER INSTALLER (PRE-COMPILED BINARY)
 # ============================================================================
 
 log() {
@@ -17,20 +17,18 @@ fi
 log "Installing prerequisites (base-devel, git)..."
 sudo pacman -S --needed --noconfirm base-devel git
 
-BUILD_DIR="/tmp/paru_build_$$"
+BUILD_DIR="/tmp/paru_bin_build_$$"
 rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR"
 
-log "Cloning paru-bin from AUR..."
-if git clone https://aur.archlinux.org/paru-bin.git "$BUILD_DIR"; then
-    log "Building and installing paru-bin..."
-    (cd "$BUILD_DIR" && makepkg -si --noconfirm)
-else
-    log "Falling back to compiling paru from source..."
-    rm -rf "$BUILD_DIR"
-    git clone https://aur.archlinux.org/paru.git "$BUILD_DIR"
-    (cd "$BUILD_DIR" && makepkg -si --noconfirm)
+log "Fetching paru-bin (pre-compiled binary) from AUR..."
+if ! git clone https://aur.archlinux.org/paru-bin.git "$BUILD_DIR" 2>/dev/null; then
+    log "git clone failed, downloading paru-bin snapshot tarball from AUR..."
+    curl -fsSL https://aur.archlinux.org/cgit/aur.git/snapshot/paru-bin.tar.gz | tar -xz -C "$BUILD_DIR" --strip-components=1
 fi
 
+log "Building and installing paru-bin package..."
+(cd "$BUILD_DIR" && makepkg -si --noconfirm)
+
 rm -rf "$BUILD_DIR"
-log "Paru AUR helper installation complete!"
+log "Paru AUR helper (paru-bin) installation complete!"

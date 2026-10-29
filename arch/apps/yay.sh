@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ============================================================================
-# ARCH LINUX YAY AUR HELPER INSTALLER
+# ARCH LINUX YAY-BIN AUR HELPER INSTALLER (PRE-COMPILED BINARY)
 # ============================================================================
 
 log() {
@@ -17,21 +17,18 @@ fi
 log "Installing prerequisites (base-devel, git)..."
 sudo pacman -S --needed --noconfirm base-devel git
 
-BUILD_DIR="/tmp/yay_build_$$"
+BUILD_DIR="/tmp/yay_bin_build_$$"
 rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR"
 
-log "Cloning yay-bin from AUR..."
-if git clone https://aur.archlinux.org/yay-bin.git "$BUILD_DIR" 2>/dev/null; then
-    log "Building and installing yay-bin..."
-    (cd "$BUILD_DIR" && makepkg -si --noconfirm)
-else
-    log "yay-bin clone failed, falling back to compiling yay from source..."
-    rm -rf "$BUILD_DIR"
-    sudo pacman -S --needed --noconfirm go
-    git clone https://aur.archlinux.org/yay.git "$BUILD_DIR"
-    (cd "$BUILD_DIR" && makepkg -si --noconfirm)
+log "Fetching yay-bin (pre-compiled binary) from AUR..."
+if ! git clone https://aur.archlinux.org/yay-bin.git "$BUILD_DIR" 2>/dev/null; then
+    log "git clone failed, downloading yay-bin snapshot tarball from AUR..."
+    curl -fsSL https://aur.archlinux.org/cgit/aur.git/snapshot/yay-bin.tar.gz | tar -xz -C "$BUILD_DIR" --strip-components=1
 fi
 
+log "Building and installing yay-bin package..."
+(cd "$BUILD_DIR" && makepkg -si --noconfirm)
+
 rm -rf "$BUILD_DIR"
-log "Yay AUR helper installation complete!"
+log "Yay AUR helper (yay-bin) installation complete!"
