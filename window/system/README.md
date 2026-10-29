@@ -7,9 +7,7 @@
 
 Automated, production-grade PowerShell installer and interactive **Text-based User Interface (TUI)** utility for **Microsoft WinGet (Windows Package Manager)** on Windows 10 and Windows 11.
 
-It features a **Dual-Engine Architecture**:
-1. **Engine 1 (WinUtil Logic)**: Leverages official `Microsoft.WinGet.Client` from PowerShell Gallery with `Repair-WinGetPackageManager`.
-2. **Engine 2 (Direct Standalone Fallback)**: Direct download of signed official MSIX bundles and dependencies (VCLibs & UI.Xaml 2.8+) from GitHub/Microsoft CDNs.
+It implements the official **WinUtil / `Microsoft.WinGet.Client`** engine: automatically bootstrapping the NuGet package provider, installing the official Microsoft client module from PowerShell Gallery, deploying/repairing WinGet via `Repair-WinGetPackageManager`, configuring execution aliases and PATH, and performing comprehensive health maintenance.
 
 ---
 
@@ -49,14 +47,14 @@ When launched without command-line parameters, `winget_install.ps1` presents an 
    Use [↑ / ↓] to Navigate | [Enter] Select | [1/2/3] Quick Select | [Q] Quit
 
   ► [1] Install / Update WinGet
-       • Full clean installation or update to the latest release
-       • Auto-fetches VCLibs, UI.Xaml 2.8+ and latest AppInstaller
+       • Full clean installation or update to latest official release
+       • Official Microsoft.WinGet.Client engine (WinUtil logic)
        • Registers User PATH and synchronizes official sources
 
     [2] Repair WinGet Environment
        • Resets AppX package state and re-registers AppXManifest
-       • Restores broken WindowsApps PATH and App Execution Aliases
-       • Cleans corrupted SQLite cache and resets repository sources
+       • Runs Repair-WinGetPackageManager for deep system repair
+       • Restores broken WindowsApps PATH, aliases & purges SQLite cache
 
     [3] Exit
        • Cancel and return to terminal
@@ -78,30 +76,20 @@ When launched without command-line parameters, `winget_install.ps1` presents an 
 - Supports **Windows 10 Build 17763 (v1809+)** through **Windows 11**.
 - Dynamically detects and pairs dependencies for **`x64`**, **`arm64`**, and **`x86`** architectures.
 
-### 2. Dual-Engine Installation Architecture
-- **Engine 1: Official `Microsoft.WinGet.Client` (WinUtil Logic)**
-  - Bootstraps the `NuGet` package provider.
-  - Automatically configures PowerShell Gallery as a trusted repository.
-  - Installs and imports `Microsoft.WinGet.Client` with user/machine scope awareness.
-  - Executes `Repair-WinGetPackageManager` (`-AllUsers` when elevated or `-Scope CurrentUser` for standard accounts).
-- **Engine 2: Direct Standalone Fallback**
-  - If PSGallery, NuGet, or network firewalls block package installation, the installer immediately switches to the direct engine.
-  - Downloads and registers **Microsoft.VCLibs.140.00.UWPDesktop** (`aka.ms`).
-  - Downloads and registers **Microsoft.UI.Xaml 2.8+** (official GitHub package release).
-  - Downloads and registers the latest **`Microsoft.DesktopAppInstaller`** bundle (`.msixbundle`) directly from GitHub (`microsoft/winget-cli`).
+### 2. Official `Microsoft.WinGet.Client` Engine (WinUtil Logic)
+- **NuGet Provider Bootstrap**: Automatically detects and installs the NuGet package provider.
+- **PowerShell Gallery Trust**: Ensures `PSGallery` is trusted to eliminate interactive confirmation prompts.
+- **Scope Awareness**: Installs `Microsoft.WinGet.Client` with `AllUsers` scope when running with Administrator privileges, or `CurrentUser` scope on standard accounts.
+- **Deep Package Deployment**: Calls `Repair-WinGetPackageManager` (`-AllUsers -Latest -Force` when elevated, or user scope) to automatically acquire signed official dependencies and register the App Installer package.
 
-### 3. Resilient High-Speed Downloads
-- Uses native `curl.exe` with automatic retries and failover for maximum download speeds.
-- Built-in fallback to `System.Net.WebClient` and `Invoke-WebRequest` with forced TLS 1.2 and TLS 1.3.
-
-### 4. Comprehensive Repair Suite (`Repair` Mode)
+### 3. Comprehensive Repair Suite (`Repair` Mode)
 If WinGet stops responding, crashes, or cannot locate packages, the repair mode runs:
 1. **AppX Package Reset**: Executes `Reset-AppxPackage` on modern Windows 10/11 to reset app state without data loss.
 2. **Manifest Re-registration**: Re-registers `AppXManifest.xml` from WindowsApps.
-3. **App Execution Aliases & PATH**: Restores `%LOCALAPPDATA%\Microsoft\WindowsApps` in the persistent User `PATH`.
-4. **Cache Cleaner**: Clears locked or corrupted local SQLite source databases in `AppData\Local\Packages\Microsoft.DesktopAppInstaller_*\LocalState`.
-5. **Source Reset**: Resets catalog sources to factory default (`winget source reset --force`) and triggers a fresh sync.
-6. **Self-Healing Reinstall**: If the package files are completely missing or broken, automatically fetches and reinstalls a fresh build.
+3. **Deep Repair**: Runs `Repair-WinGetPackageManager` to restore any damaged or missing core binaries.
+4. **App Execution Aliases & PATH**: Restores `%LOCALAPPDATA%\Microsoft\WindowsApps` in the persistent User `PATH`.
+5. **Cache Cleaner**: Clears locked or corrupted local SQLite source databases in `AppData\Local\Packages\Microsoft.DesktopAppInstaller_*\LocalState`.
+6. **Source Reset**: Resets catalog sources to factory default (`winget source reset --force`) and triggers a fresh sync.
 
 ---
 
