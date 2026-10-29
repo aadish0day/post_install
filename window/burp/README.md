@@ -67,6 +67,9 @@ irm "https://raw.githubusercontent.com/aadish0day/post_install/main/window/burp/
 window/burp/
 ├── README.md              # Documentation and usage guide
 ├── install.ps1            # Main automated PowerShell installation script
+├── install.bat            # One-click batch launcher for install.ps1
+├── remove.ps1             # Full uninstaller script
+├── remove.bat             # One-click batch launcher for remove.ps1
 ├── burp_suite_pro.ico     # Multi-resolution official Burp Suite Pro icon (16px to 256px)
 └── .config.ini            # Key loader configuration template
 ```
@@ -121,4 +124,30 @@ If you prefer to pre-install Java manually before running the script:
 To reinstall or update the JAR without launching the application at the end:
 ```powershell
 .\install.ps1 -SkipLaunch
+```
+
+---
+
+## 🗑️ Complete Uninstallation
+
+To completely remove Burp Suite Professional, its launchers, shortcuts, CLI command, and user preferences:
+
+### Method 1: One-Click Batch
+```cmd
+.\remove.bat
+```
+
+### Method 2: PowerShell
+```powershell
+.\remove.ps1
+```
+
+To run silently without confirmation prompts:
+```powershell
+.\remove.ps1 -Force
+```
+
+To remove the software and shortcuts while keeping your saved projects and BApp extensions:
+```powershell
+.\remove.ps1 -KeepData
 ```
