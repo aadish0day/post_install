@@ -4,15 +4,18 @@
 .DESCRIPTION
     Interactive Text-based User Interface (TUI) and automation tool for Microsoft WinGet (DesktopAppInstaller):
     
+    [Dual-Engine Architecture]
+    - Primary Engine (WinUtil logic): Leverages official Microsoft.WinGet.Client module and
+      Repair-WinGetPackageManager via PowerShell Gallery (PSGallery) and NuGet provider.
+    - Fallback Engine (Direct Standalone): Direct high-speed download of signed official MSIX bundles
+      and framework dependencies (Microsoft.VCLibs & Microsoft.UI.Xaml 2.8+) from GitHub/Microsoft CDNs.
+
     [Option 1: Install / Update]
     - Detects OS version and verifies compatibility (Windows 10 1809+ / Build 17763+).
     - Detects system architecture (x64, ARM64, x86).
     - Checks for existing WinGet installation and version.
-    - Downloads required dependencies:
-        * Microsoft.VCLibs (UWP Desktop)
-        * Microsoft.UI.Xaml 2.8+
-        * Latest Microsoft.DesktopAppInstaller msixbundle & License from GitHub.
-    - Installs AppX package with full dependency resolution.
+    - Attempts official Microsoft.WinGet.Client package repair/deployment.
+    - Seamlessly falls back to direct MSIX bundle download if PSGallery or NuGet is unreachable.
     - Supports per-user installation and optional system-wide provisioning (-ProvisionAllUsers).
     - Configures WindowsApps PATH and refreshes environment variables.
     - Initializes and updates official WinGet sources.
@@ -20,8 +23,9 @@
     [Option 2: Repair]
     - Resets DesktopAppInstaller AppX package state (Reset-AppxPackage).
     - Re-registers AppXManifest for App Installer if corrupted.
+    - Invokes Repair-WinGetPackageManager (WinUtil engine) for deep package repair.
     - Fixes broken App Execution Aliases and restores WindowsApps PATH.
-    - Cleans locked/corrupted local SQLite source cache.
+    - Cleans locked/corrupted local SQLite source cache (LocalState/*.db*).
     - Resets WinGet repository sources (winget source reset --force).
     - Re-downloads and performs a clean reinstall if the package is missing/irreparable.
     - Updates official source catalogs (winget & msstore).
@@ -217,7 +221,7 @@ if (-not $Action) {
             Action = "Install"
             Description = @(
                 "• Full clean installation or update to the latest release",
-                "• Auto-fetches VCLibs, UI.Xaml 2.8+ and latest AppInstaller",
+                "• Dual engine: WinUtil Microsoft.WinGet.Client + Direct MSIX fallback",
                 "• Registers User PATH and synchronizes official sources"
             )
         },
@@ -225,9 +229,9 @@ if (-not $Action) {
             Title = "Repair WinGet Environment"
             Action = "Repair"
             Description = @(
-                "• Resets AppX package state and re-registers AppXManifest",
-                "• Restores broken WindowsApps PATH and App Execution Aliases",
-                "• Cleans corrupted SQLite cache and resets repository sources"
+                "• Resets AppX package state & re-registers AppXManifest",
+                "• Runs Repair-WinGetPackageManager for deep system repair",
+                "• Restores broken WindowsApps PATH, aliases & purges SQLite cache"
             )
         },
         @{
@@ -383,21 +387,83 @@ function Update-WindowsAppsPath {
 }
 
 # ------------------------------------------------------------------------------
-# Core Function: Install-WinGetPackages
+# Engine 1: WinUtil Logic (Microsoft.WinGet.Client + Repair-WinGetPackageManager)
 # ------------------------------------------------------------------------------
-function Install-WinGetPackages {
+function Invoke-WinUtilModuleInstall {
+    param (
+        [bool]$AsAdmin,
+        [bool]$DoProvision
+    )
+
+    Write-Host "`n[*] [Engine 1: WinUtil] Attempting setup via Microsoft.WinGet.Client..." -ForegroundColor Yellow
+
+    # Step 1: Ensure NuGet PackageProvider is present
+    try {
+        Write-Host "    -> Checking NuGet package provider..." -ForegroundColor Gray
+        $nuget = Get-PackageProvider -Name NuGet -ListAvailable -ErrorAction SilentlyContinue
+        if (-not $nuget) {
+            Write-Host "    -> Bootstrapping NuGet provider..." -ForegroundColor Cyan
+            Install-PackageProvider -Name NuGet -Force -Confirm:$false -ErrorAction Stop | Out-Null
+        }
+    } catch {
+        Write-Host "    [!] NuGet provider bootstrap error: $($_.Exception.Message)" -ForegroundColor DarkGray
+    }
+
+    # Step 2: Install Microsoft.WinGet.Client module from PSGallery
+    try {
+        Set-PSRepository -Name PSGallery -InstallationPolicy Trusted -ErrorAction SilentlyContinue
+        $scope = if ($AsAdmin) { "AllUsers" } else { "CurrentUser" }
+        Write-Host "    -> Installing Microsoft.WinGet.Client module ($scope scope)..." -ForegroundColor Cyan
+        Install-Module -Name Microsoft.WinGet.Client -Repository PSGallery -Scope $scope -Force -AllowClobber -SkipPublisherCheck -Confirm:$false -ErrorAction Stop | Out-Null
+        Import-Module -Name Microsoft.WinGet.Client -Force -ErrorAction Stop | Out-Null
+    } catch {
+        Write-Host "    [!] PSGallery / Microsoft.WinGet.Client install failed: $($_.Exception.Message)" -ForegroundColor DarkGray
+        return $false
+    }
+
+    # Step 3: Execute Repair-WinGetPackageManager (Official Microsoft Repair Cmdlet)
+    try {
+        Write-Host "    -> Running Repair-WinGetPackageManager..." -ForegroundColor Cyan
+        if ($AsAdmin -and $DoProvision) {
+            Repair-WinGetPackageManager -AllUsers -Latest -Force -ErrorAction Stop
+        } else {
+            Repair-WinGetPackageManager -Latest -Force -ErrorAction Stop
+        }
+
+        Update-WindowsAppsPath
+        Start-Sleep -Seconds 2
+
+        $installedExe = Get-WinGetExecutable
+        if ($installedExe) {
+            $ver = & $installedExe --version 2>$null
+            if ($ver) {
+                Write-Host "[+] WinGet successfully configured via Microsoft.WinGet.Client (v$ver)!" -ForegroundColor Green
+                return $true
+            }
+        }
+    } catch {
+        Write-Host "    [!] Repair-WinGetPackageManager error: $($_.Exception.Message)" -ForegroundColor Yellow
+    }
+
+    return $false
+}
+
+# ------------------------------------------------------------------------------
+# Engine 2: Standalone Direct MSIX Bundle Fallback
+# ------------------------------------------------------------------------------
+function Install-WinGetPackagesDirect {
     param (
         [string]$TargetArch,
         [bool]$AsAdmin,
         [bool]$DoProvision
     )
 
+    Write-Host "`n[*] [Engine 2: Standalone] Resolving official packages directly from GitHub..." -ForegroundColor Yellow
+
     $tempDir = Join-Path $env:TEMP ("winget_install_" + [System.Guid]::NewGuid().ToString("N"))
     New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
 
     try {
-        Write-Host "`n[*] Resolving latest WinGet packages & dependencies..." -ForegroundColor Yellow
-
         $vclibsUrl = "https://aka.ms/Microsoft.VCLibs.$TargetArch.14.00.Desktop.appx"
         $vclibsFile = Join-Path $tempDir "Microsoft.VCLibs.$TargetArch.appx"
 
@@ -485,6 +551,27 @@ function Install-WinGetPackages {
     }
 }
 
+# ------------------------------------------------------------------------------
+# Hybrid Orchestrator: Try WinUtil Logic First, Fallback to Direct Standalone
+# ------------------------------------------------------------------------------
+function Install-Or-Repair-WinGet {
+    param (
+        [string]$TargetArch,
+        [bool]$AsAdmin,
+        [bool]$DoProvision
+    )
+
+    # Attempt Engine 1: WinUtil logic (Microsoft.WinGet.Client module)
+    $engine1Success = Invoke-WinUtilModuleInstall -AsAdmin $AsAdmin -DoProvision $DoProvision
+    if ($engine1Success) {
+        return $true
+    }
+
+    # Attempt Engine 2: Standalone direct MSIX bundle download & registration
+    Write-Host "`n[*] [Engine 1 failed or unavailable] Falling back to Engine 2 (Direct GitHub bundle)..." -ForegroundColor Yellow
+    return Install-WinGetPackagesDirect -TargetArch $TargetArch -AsAdmin $AsAdmin -DoProvision $DoProvision
+}
+
 # ==============================================================================
 # ACTION: INSTALL / UPDATE
 # ==============================================================================
@@ -507,7 +594,7 @@ if ($Action -eq 'Install') {
         Write-Host "[!] -Force specified: proceeding with reinstallation/upgrade..." -ForegroundColor Yellow
     }
 
-    Install-WinGetPackages -TargetArch $arch -AsAdmin $isAdmin -DoProvision $ProvisionAllUsers
+    Install-Or-Repair-WinGet -TargetArch $arch -AsAdmin $isAdmin -DoProvision $ProvisionAllUsers
 }
 
 # ==============================================================================
@@ -550,10 +637,10 @@ elseif ($Action -eq 'Repair') {
         $reinstallNeeded = $true
     }
 
-    # If AppX registration was corrupted or missing, perform clean package reinstall
+    # If AppX registration was corrupted or missing, invoke the hybrid engine
     if ($reinstallNeeded) {
-        Write-Host "`n[*] Package missing or corrupted. Performing clean package reinstallation..." -ForegroundColor Yellow
-        Install-WinGetPackages -TargetArch $arch -AsAdmin $isAdmin -DoProvision $ProvisionAllUsers
+        Write-Host "`n[*] Package missing or corrupted. Launching hybrid installer engine..." -ForegroundColor Yellow
+        Install-Or-Repair-WinGet -TargetArch $arch -AsAdmin $isAdmin -DoProvision $ProvisionAllUsers
     }
 
     # Step 2: Fix and verify PATH & Execution Aliases

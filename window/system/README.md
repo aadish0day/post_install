@@ -7,7 +7,9 @@
 
 Automated, production-grade PowerShell installer and interactive **Text-based User Interface (TUI)** utility for **Microsoft WinGet (Windows Package Manager)** on Windows 10 and Windows 11.
 
-It automates downloading official runtime dependencies, installing the latest package bundles directly from GitHub releases, configuring user and system environments, and performing automated repairs for broken WinGet environments.
+It features a **Dual-Engine Architecture**:
+1. **Engine 1 (WinUtil Logic)**: Leverages official `Microsoft.WinGet.Client` from PowerShell Gallery with `Repair-WinGetPackageManager`.
+2. **Engine 2 (Direct Standalone Fallback)**: Direct download of signed official MSIX bundles and dependencies (VCLibs & UI.Xaml 2.8+) from GitHub/Microsoft CDNs.
 
 ---
 
@@ -76,11 +78,17 @@ When launched without command-line parameters, `winget_install.ps1` presents an 
 - Supports **Windows 10 Build 17763 (v1809+)** through **Windows 11**.
 - Dynamically detects and pairs dependencies for **`x64`**, **`arm64`**, and **`x86`** architectures.
 
-### 2. Full Dependency Resolution
-WinGet requires specific Microsoft app runtimes to operate. The installer automatically downloads and registers:
-- **Microsoft.VCLibs.140.00.UWPDesktop** (via `aka.ms`).
-- **Microsoft.UI.Xaml 2.8+** (official GitHub package release).
-- Latest **`Microsoft.DesktopAppInstaller`** bundle (`.msixbundle`) and license XML from GitHub (`microsoft/winget-cli`).
+### 2. Dual-Engine Installation Architecture
+- **Engine 1: Official `Microsoft.WinGet.Client` (WinUtil Logic)**
+  - Bootstraps the `NuGet` package provider.
+  - Automatically configures PowerShell Gallery as a trusted repository.
+  - Installs and imports `Microsoft.WinGet.Client` with user/machine scope awareness.
+  - Executes `Repair-WinGetPackageManager` (`-AllUsers` when elevated or `-Scope CurrentUser` for standard accounts).
+- **Engine 2: Direct Standalone Fallback**
+  - If PSGallery, NuGet, or network firewalls block package installation, the installer immediately switches to the direct engine.
+  - Downloads and registers **Microsoft.VCLibs.140.00.UWPDesktop** (`aka.ms`).
+  - Downloads and registers **Microsoft.UI.Xaml 2.8+** (official GitHub package release).
+  - Downloads and registers the latest **`Microsoft.DesktopAppInstaller`** bundle (`.msixbundle`) directly from GitHub (`microsoft/winget-cli`).
 
 ### 3. Resilient High-Speed Downloads
 - Uses native `curl.exe` with automatic retries and failover for maximum download speeds.
