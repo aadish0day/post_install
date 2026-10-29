@@ -16,6 +16,7 @@
 [CmdletBinding()]
 param (
     [string]$InstallPath = "$env:USERPROFILE\Documents\Crack\Burpsuite-Professional",
+    [string]$Version,
     [switch]$SkipLaunch,
     [switch]$ForceDownload,
     [switch]$Update
@@ -37,7 +38,7 @@ Write-Host "       Burp Suite Professional Installer for Windows           " -Fo
 Write-Host "===============================================================" -ForegroundColor Cyan
 
 # ------------------------------------------------------------------------------
-# High-Speed Downloader (Prioritizes native Windows curl.exe with Auto-Resume)
+# High-Speed Downloader (aria2c multi-stream / native Windows curl.exe auto-resume)
 # ------------------------------------------------------------------------------
 function Download-FileWithProgress {
     param (
@@ -51,7 +52,37 @@ function Download-FileWithProgress {
         New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
     }
 
-    # Method 1: Use native Windows curl.exe (High-speed C binary, HTTP/2, auto-resume)
+    # Method 1: Check for aria2c (16 parallel chunk streams - fastest accelerator)
+    $aria2Cmd = Get-Command aria2c.exe -ErrorAction SilentlyContinue
+    if ($aria2Cmd -and (Test-Path $aria2Cmd.Source)) {
+        Write-Host "      Using aria2c accelerator (16 parallel streams)..." -ForegroundColor Magenta
+        try {
+            $prevEap = $ErrorActionPreference
+            $ErrorActionPreference = 'Continue'
+            $outDir = Split-Path -Parent $OutputFile
+            $outFile = Split-Path -Leaf $OutputFile
+            $ariaArgs = @(
+                "-x", "16",
+                "-s", "16",
+                "-j", "16",
+                "-k", "1M",
+                "--file-allocation=none",
+                "--summary-interval=1",
+                "--continue=true",
+                "-d", $outDir,
+                "-o", $outFile,
+                $Url
+            )
+            $p = Start-Process -FilePath $aria2Cmd.Source -ArgumentList $ariaArgs -NoNewWindow -Wait -PassThru
+            $ErrorActionPreference = $prevEap
+
+            if ($p.ExitCode -eq 0 -and (Test-Path $OutputFile) -and ((Get-Item $OutputFile).Length -gt 0)) {
+                return
+            }
+        } catch {}
+    }
+
+    # Method 2: Use native Windows curl.exe (High-speed C binary, HTTP/2, auto-resume)
     $curlExe = $null
     $curlCmd = Get-Command curl.exe -ErrorAction SilentlyContinue
     if ($curlCmd -and (Test-Path $curlCmd.Source)) {
@@ -66,7 +97,7 @@ function Download-FileWithProgress {
             $prevEap = $ErrorActionPreference
             $ErrorActionPreference = 'Continue'
 
-            $curlArgs = @("-fL", "--retry", "3", "--retry-delay", "2", "-C", "-", "--progress-bar", "-o", $OutputFile, $Url)
+            $curlArgs = @("-fL", "--retry", "3", "--retry-delay", "1", "-C", "-", "--progress-bar", "-o", $OutputFile, $Url)
             $p = Start-Process -FilePath $curlExe -ArgumentList $curlArgs -NoNewWindow -Wait -PassThru
 
             $ErrorActionPreference = $prevEap
@@ -81,7 +112,7 @@ function Download-FileWithProgress {
         }
     }
 
-    # Method 2: High-Speed .NET Stream Downloader (1MB buffer)
+    # Method 3: High-Speed .NET Stream Downloader (1MB buffer)
     try {
         $req = [System.Net.HttpWebRequest][System.Net.WebRequest]::Create($Url)
         $req.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
@@ -393,34 +424,48 @@ if (-not $validJava) {
 }
 
 # ------------------------------------------------------------------------------
-# 3. Dynamic Release Version Fetch from PortSwigger
+# 3. Dynamic Release Version Fetch from PortSwigger (Auto-Latest + -Version Override)
 # ------------------------------------------------------------------------------
-Write-Host "`n(3/8) Fetching latest Burp Suite Professional version from PortSwigger..." -ForegroundColor Cyan
+Write-Host "`n(3/8) Resolving Burp Suite Professional version..." -ForegroundColor Cyan
 $BURP_VERSION = $null
+$isCustomVersion = $false
 
-try {
-    $releases = Invoke-RestMethod -Uri "https://portswigger.net/burp/releases/data?pageSize=10" -Method Get -TimeoutSec 10
-    if ($releases -and $releases.ResultSet -and $releases.ResultSet.Results) {
-        foreach ($r in $releases.ResultSet.Results) {
-            $hasJar = $r.builds | Where-Object { $_.BuildCategoryPlatform -eq "Jar" }
-            if ($hasJar) {
-                $BURP_VERSION = $r.version
-                break
+if (-not [string]::IsNullOrWhiteSpace($Version)) {
+    $BURP_VERSION = $Version.Trim()
+    $isCustomVersion = $true
+    Write-Host "      Using user-specified version: $BURP_VERSION" -ForegroundColor Green
+} elseif (-not [string]::IsNullOrWhiteSpace($env:BURP_VERSION)) {
+    $BURP_VERSION = $env:BURP_VERSION.Trim()
+    $isCustomVersion = $true
+    Write-Host "      Using environment variable BURP_VERSION: $BURP_VERSION" -ForegroundColor Green
+} else {
+    Write-Host "      Checking PortSwigger release API for latest version..." -ForegroundColor DarkGray
+    try {
+        $releases = Invoke-RestMethod -Uri "https://portswigger.net/burp/releases/data?pageSize=10" -Method Get -TimeoutSec 10
+        if ($releases -and $releases.ResultSet -and $releases.ResultSet.Results) {
+            foreach ($r in $releases.ResultSet.Results) {
+                $hasJar = $r.builds | Where-Object { $_.BuildCategoryPlatform -eq "Jar" }
+                if ($hasJar) {
+                    $BURP_VERSION = $r.version
+                    break
+                }
             }
         }
+    } catch {
+        Write-Warning "Could not query PortSwigger API: $($_.Exception.Message)"
     }
-} catch {
-    Write-Warning "Could not query PortSwigger API: $($_.Exception.Message)"
-}
 
-if ([string]::IsNullOrWhiteSpace($BURP_VERSION)) {
-    $BURP_VERSION = "2026.10.1"
-    Write-Host "      Using fallback release version: $BURP_VERSION" -ForegroundColor Yellow
+    if ([string]::IsNullOrWhiteSpace($BURP_VERSION)) {
+        $BURP_VERSION = "2026.10.1"
+        Write-Host "      Using fallback release version: $BURP_VERSION" -ForegroundColor Yellow
+    } else {
+        Write-Host "      Latest official release detected: $BURP_VERSION" -ForegroundColor Green
+    }
 }
 
 $JarName = "burpsuite_pro_v$BURP_VERSION.jar"
 $DownloadUrl = "https://portswigger.net/burp/releases/download?product=desktop&version=$BURP_VERSION&type=Jar"
-Write-Host "      Latest Pro Version: $BURP_VERSION" -ForegroundColor Green
+Write-Host "      Target Release:     $BURP_VERSION" -ForegroundColor Cyan
 Write-Host "      Target File:        $JarName" -ForegroundColor DarkGray
 
 # ------------------------------------------------------------------------------
@@ -496,32 +541,42 @@ $TargetJar = Join-Path $InstallDir $JarName
 $existingJars = Get-ChildItem -Path $InstallDir -Filter "burpsuite_pro_v*.jar" -File -ErrorAction SilentlyContinue
 
 if ($existingJars -and -not $ForceDownload) {
-    # Sort existing JARs by version to find the highest installed release
-    $sortedJars = $existingJars | Sort-Object {
-        $v = $_.BaseName -replace '^burpsuite_pro_v', ''
-        Parse-VersionSafe -VerString $v
-    }
-    $highestJar = $sortedJars | Select-Object -Last 1
-
-    if ($highestJar -and $highestJar.Length -gt 10485760) {
-        $existingVersion = $highestJar.BaseName -replace '^burpsuite_pro_v', ''
-        $cmp = Compare-VersionStrings -v1 $existingVersion -v2 $BURP_VERSION
-
-        if ($cmp -eq 0) {
-            Write-Host "      [OK] Burp Suite Professional $BURP_VERSION is already downloaded and up-to-date. Skipping download." -ForegroundColor Green
+    if ($isCustomVersion) {
+        # Exact version requested: check if that specific version is already present
+        $exactJar = $existingJars | Where-Object { $_.Name -eq $JarName -and $_.Length -gt 10485760 } | Select-Object -First 1
+        if ($exactJar) {
+            Write-Host "      [OK] Requested version $BURP_VERSION is already downloaded. Skipping download." -ForegroundColor Green
             $skipDownload = $true
-            $JarName = $highestJar.Name
-            $TargetJar = $highestJar.FullName
-        } elseif ($cmp -gt 0) {
-            Write-Host "      [OK] Installed version ($existingVersion) is newer than PortSwigger release ($BURP_VERSION). Skipping download." -ForegroundColor Green
-            $skipDownload = $true
-            $JarName = $highestJar.Name
-            $TargetJar = $highestJar.FullName
-        } else {
-            Write-Host "      [*] Found older version ($existingVersion). Upgrading to latest ($BURP_VERSION)..." -ForegroundColor Yellow
+            $TargetJar = $exactJar.FullName
         }
     } else {
-        Write-Host "      [*] Existing JAR is incomplete or corrupted. Re-downloading..." -ForegroundColor Yellow
+        # Auto-latest mode: Sort existing JARs by version to find highest installed release
+        $sortedJars = $existingJars | Sort-Object {
+            $v = $_.BaseName -replace '^burpsuite_pro_v', ''
+            Parse-VersionSafe -VerString $v
+        }
+        $highestJar = $sortedJars | Select-Object -Last 1
+
+        if ($highestJar -and $highestJar.Length -gt 10485760) {
+            $existingVersion = $highestJar.BaseName -replace '^burpsuite_pro_v', ''
+            $cmp = Compare-VersionStrings -v1 $existingVersion -v2 $BURP_VERSION
+
+            if ($cmp -eq 0) {
+                Write-Host "      [OK] Burp Suite Professional $BURP_VERSION is already downloaded and up-to-date. Skipping download." -ForegroundColor Green
+                $skipDownload = $true
+                $JarName = $highestJar.Name
+                $TargetJar = $highestJar.FullName
+            } elseif ($cmp -gt 0) {
+                Write-Host "      [OK] Installed version ($existingVersion) is newer than PortSwigger release ($BURP_VERSION). Skipping download." -ForegroundColor Green
+                $skipDownload = $true
+                $JarName = $highestJar.Name
+                $TargetJar = $highestJar.FullName
+            } else {
+                Write-Host "      [*] Found older version ($existingVersion). Upgrading to latest ($BURP_VERSION)..." -ForegroundColor Yellow
+            }
+        } else {
+            Write-Host "      [*] Existing JAR is incomplete or corrupted. Re-downloading..." -ForegroundColor Yellow
+        }
     }
 }
 

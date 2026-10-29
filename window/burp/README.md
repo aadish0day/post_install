@@ -126,6 +126,12 @@ To reinstall or update the JAR without launching the application at the end:
 .\install.ps1 -SkipLaunch
 ```
 
+### Specifying an Exact Version
+By default, the installer automatically detects and downloads the latest official release (`2026.10.1`). To install or pin a specific version:
+```powershell
+.\install.ps1 -Version "2026.10.1"
+```
+
 ---
 
 ## 🗑️ Complete Uninstallation
