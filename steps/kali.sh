@@ -7,7 +7,7 @@ step_kali_core() {
     sudo apt install -y nala
     sudo nala update
     sudo nala upgrade --download-only -y
-    sudo apt upgrade -y
+    sudo apt full-upgrade -y
     sudo nala install -y git git-lfs stow zsh tmux curl wget vim fzf zoxide lsd trash-cli htop open-vm-tools starship
     mkdir -p ~/cybersec
     if [ ! -d ~/dotfile ]; then
@@ -17,8 +17,9 @@ step_kali_core() {
 }
 
 step_kali_meta() {
-    local meta="$1"
+    local meta="${1:-}"
     if [ "${DRY_RUN_MODE:-false}" = true ]; then return 0; fi
+    [ -n "$meta" ] || return 0
     sudo nala install -y "kali-linux-${meta}"
 }
 
@@ -33,24 +34,29 @@ build_plan_kali() {
     local distro_dir="${SCRIPT_DIR}/kali"
 
     plan_managed_app "docker"
+    plan_managed_app "lazydocker"
     plan_managed_app "burp"
     plan_managed_app "advcpmv"
 
     plan_add "Kali Linux Core Setup (kali/kali.sh)" step_kali_core
 
-    if [ -n "$CFG_KALI_META" ]; then
-        plan_add "Install Kali Metapackage (kali-linux-${CFG_KALI_META})" step_kali_meta "$CFG_KALI_META"
+    if [ -n "${CFG_KALI_META:-}" ]; then
+        plan_add "Install Kali Metapackage (kali-linux-${CFG_KALI_META})" step_kali_meta "${CFG_KALI_META}"
     fi
 
-    if [ "$CFG_KALI_WIFI" = true ] && [ -f "$distro_dir/hardware/wifi.sh" ]; then
+    if [ "${CFG_KALI_WIFI:-false}" = true ] && [ -f "$distro_dir/hardware/wifi.sh" ]; then
         plan_add "Install Realtek WiFi Driver (kali/hardware/wifi.sh)" run_module "kali/hardware/wifi.sh"
     fi
 
-    if [ "$CFG_DOCKER" = true ] && [ -f "$distro_dir/apps/docker.sh" ]; then
+    if [ "${CFG_DOCKER:-false}" = true ] && [ -f "$distro_dir/apps/docker.sh" ]; then
         plan_add "Install Docker CE on Kali (kali/apps/docker.sh)" run_module "kali/apps/docker.sh"
+
+        if [ -f "$distro_dir/apps/lazydocker.sh" ]; then
+            plan_add "Install lazydocker TUI (kali/apps/lazydocker.sh)" run_module "kali/apps/lazydocker.sh"
+        fi
     fi
 
-    if [ "$CFG_SECURITY_BURP" = true ] && [ -f "$distro_dir/apps/burp/install.sh" ]; then
+    if [ "${CFG_SECURITY_BURP:-false}" = true ] && [ -f "$distro_dir/apps/burp/install.sh" ]; then
         plan_add "Setup Burp Suite Professional (kali/apps/burp/install.sh)" run_module "kali/apps/burp/install.sh"
     fi
 
@@ -58,7 +64,7 @@ build_plan_kali() {
         plan_add "Install Advanced Copy with Progress Bar (kali/apps/advcpmv.sh)" run_module "kali/apps/advcpmv.sh"
     fi
 
-    if [ "$CFG_KALI_SEARCHSPLOIT" = true ]; then
+    if [ "${CFG_KALI_SEARCHSPLOIT:-false}" = true ]; then
         plan_add "Update SearchSploit Exploit Database" step_kali_searchsploit
     fi
 

@@ -20,14 +20,32 @@ case "$(uname -r 2>/dev/null)" in
 esac
 sudo pacman -S --needed --noconfirm "$kheaders" base-devel dkms fuse2 gtkmm3 pcsclite libcanberra
 
-# 2. Check/Install paru if missing
-if ! command -v paru &>/dev/null; then
-    log "paru not found. Installing paru..."
+# 2. Check/Install AUR helper (paru or yay)
+aur_helper=""
+if command -v paru &>/dev/null; then
+    aur_helper="paru"
+elif command -v yay &>/dev/null; then
+    aur_helper="yay"
+else
+    log "Neither paru nor yay found. Installing paru..."
     sudo pacman -S --needed --noconfirm base-devel git
     rm -rf /tmp/paru
-    git clone https://aur.archlinux.org/paru.git /tmp/paru
-    (cd /tmp/paru && makepkg -si --noconfirm)
+    if git clone https://aur.archlinux.org/paru.git /tmp/paru && (cd /tmp/paru && makepkg -si --noconfirm); then
+        aur_helper="paru"
+    else
+        log "Failed to install paru, trying yay fallback..."
+        rm -rf /tmp/yay
+        if git clone https://aur.archlinux.org/yay.git /tmp/yay && (cd /tmp/yay && makepkg -si --noconfirm); then
+            aur_helper="yay"
+        fi
+        rm -rf /tmp/yay
+    fi
     rm -rf /tmp/paru
+fi
+
+if [ -z "$aur_helper" ]; then
+    log "ERROR: No AUR helper available to install VMware packages."
+    exit 1
 fi
 
 # 3. Install VMware Workstation and related packages from AUR
@@ -38,8 +56,8 @@ virt_packages=(
     "bridge-utils"
 )
 
-log "Installing VMware Workstation AUR packages..."
-paru -S --needed --noconfirm "${virt_packages[@]}"
+log "Installing VMware Workstation AUR packages via $aur_helper..."
+"$aur_helper" -S --needed --noconfirm "${virt_packages[@]}"
 
 # 4. Enable and start VMware systemd services
 log "Enabling and starting VMware services..."

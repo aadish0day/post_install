@@ -12,6 +12,15 @@ arch_kernel_headers() {
     esac
 }
 
+arch_ensure_multilib() {
+    if [ "${DRY_RUN_MODE:-false}" = true ]; then return 0; fi
+    if [ -f /etc/pacman.conf ] && ! grep -q "^\[multilib\]" /etc/pacman.conf; then
+        log "Enabling multilib repository in /etc/pacman.conf..."
+        sudo sed -i '/\[multilib\]/,/Include/s/^[#;]//' /etc/pacman.conf
+        sudo pacman -Sy
+    fi
+}
+
 step_arch_aur_helper() {
     local choice="${1:-paru}"
     if [ "${DRY_RUN_MODE:-false}" = true ]; then return 0; fi
@@ -40,6 +49,7 @@ step_arch_aur_helper() {
 
 step_arch_mirrors() {
     if [ "${DRY_RUN_MODE:-false}" = true ]; then return 0; fi
+    arch_ensure_multilib
     sudo pacman -Syu --noconfirm
     sudo pacman -S --needed reflector --noconfirm
     timeout 30s sudo reflector --latest 10 --fastest 5 --protocol https \
@@ -51,7 +61,8 @@ step_arch_mirrors() {
 
 step_arch_base_pkgs() {
     if [ "${DRY_RUN_MODE:-false}" = true ]; then return 0; fi
-    local base_file="$SCRIPT_DIR/arch/packages.txt"
+    arch_ensure_multilib
+    local base_file="${SCRIPT_DIR:-.}/arch/packages.txt"
     local pkgs=()
     local kheaders
     kheaders="$(arch_kernel_headers)"
@@ -80,8 +91,12 @@ step_arch_coding() {
     local pacman_pkgs=()
     local pkgs=()
     local run_flutter=false
+    local -a coding_tools=()
+    if [ -n "${CFG_CODING_TOOLS+x}" ]; then
+        coding_tools=("${CFG_CODING_TOOLS[@]}")
+    fi
     local t
-    for t in "${CFG_CODING_TOOLS[@]}"; do
+    for t in "${coding_tools[@]}"; do
         case "$t" in
             neovim) pacman_pkgs+=("neovim") ;;
             vscode) pkgs+=("visual-studio-code-bin") ;;
@@ -110,7 +125,7 @@ step_arch_coding() {
         "$aur" -S --needed --noconfirm "${pkgs[@]}"
     fi
 
-    if [ "$run_flutter" = true ] && [ -f "$SCRIPT_DIR/arch/apps/flutter.sh" ]; then
+    if [ "$run_flutter" = true ] && [ -f "${SCRIPT_DIR:-.}/arch/apps/flutter.sh" ]; then
         run_module "arch/apps/flutter.sh"
     fi
 }
@@ -133,8 +148,12 @@ step_arch_prod_apps() {
     fi
     local prod_pkgs=()
     local need_thorium=false
+    local -a prod_apps=()
+    if [ -n "${CFG_PROD_APPS+x}" ]; then
+        prod_apps=("${CFG_PROD_APPS[@]}")
+    fi
     local p
-    for p in "${CFG_PROD_APPS[@]}"; do
+    for p in "${prod_apps[@]}"; do
         case "$p" in
             thorium) need_thorium=true ;;
             zen) prod_pkgs+=("zen-browser-bin") ;;
@@ -170,13 +189,13 @@ step_arch_services_shell() {
     local zsh_bin
     zsh_bin="$(command -v zsh 2>/dev/null || echo '')"
     if [ -n "$zsh_bin" ] && [ "${SHELL:-}" != "$zsh_bin" ]; then
-        chsh -s "$zsh_bin" "$USER" 2>/dev/null || true
+        chsh -s "$zsh_bin" "${USER:-$(id -un)}" 2>/dev/null || true
     fi
 }
 
 arch_needs_aur() {
     # If any coding tools requiring AUR are selected
-    if [ "${CFG_CODING:-false}" = true ] && [ ${#CFG_CODING_TOOLS[@]} -gt 0 ]; then
+    if [ "${CFG_CODING:-false}" = true ] && [ -n "${CFG_CODING_TOOLS+x}" ] && [ ${#CFG_CODING_TOOLS[@]} -gt 0 ]; then
         local tool
         for tool in "${CFG_CODING_TOOLS[@]}"; do
             case "$tool" in
@@ -186,7 +205,7 @@ arch_needs_aur() {
     fi
 
     # If any productivity apps are selected (all are AUR in Arch)
-    if [ "${CFG_PRODUCTIVITY:-false}" = true ] && [ ${#CFG_PROD_APPS[@]} -gt 0 ]; then
+    if [ "${CFG_PRODUCTIVITY:-false}" = true ] && [ -n "${CFG_PROD_APPS+x}" ] && [ ${#CFG_PROD_APPS[@]} -gt 0 ]; then
         return 0
     fi
 
@@ -197,7 +216,7 @@ arch_needs_aur() {
 }
 
 build_plan_arch() {
-    local distro_dir="${SCRIPT_DIR}/arch"
+    local distro_dir="${SCRIPT_DIR:-.}/arch"
 
     # Register managed apps for append_extra_scripts
     plan_managed_app "docker"
@@ -208,13 +227,13 @@ build_plan_arch() {
     plan_managed_app "burp"
     plan_managed_app "xdm"
 
-    if [ "$CFG_MIRRORS" = true ]; then
+    if [ "${CFG_MIRRORS:-false}" = true ]; then
         plan_add "Optimize Mirrorlist (Reflector India)" step_arch_mirrors
     fi
 
     plan_add "Install Arch Base Packages & Utilities" step_arch_base_pkgs
 
-    local effective_aur="$CFG_AUR"
+    local effective_aur="${CFG_AUR:-none}"
     if [ "$effective_aur" = "none" ] && arch_needs_aur; then
         effective_aur="paru"
     fi
@@ -232,79 +251,87 @@ build_plan_arch() {
         plan_add "Install Yay AUR Helper (arch/apps/yay.sh)" step_arch_aur_helper "yay"
     fi
 
-    if [ "$CFG_AMD_GPU" = true ] && [ -f "$distro_dir/hardware/gpu/amd.sh" ]; then
-        if [ "$CFG_AMD_PRO" = true ]; then
+    if [ "${CFG_AMD_GPU:-false}" = true ] && [ -f "$distro_dir/hardware/gpu/amd.sh" ]; then
+        if [ "${CFG_AMD_PRO:-false}" = true ]; then
             plan_add "AMD CPU/GPU Drivers & P-State Optimization (arch/hardware/gpu/amd.sh)" run_module "arch/hardware/gpu/amd.sh" "--pro"
         else
             plan_add "AMD CPU/GPU Drivers & P-State Optimization (arch/hardware/gpu/amd.sh)" run_module "arch/hardware/gpu/amd.sh"
         fi
     fi
 
-    if [ "$CFG_INTEL_GPU" = true ] && [ -f "$distro_dir/hardware/gpu/intel.sh" ]; then
+    if [ "${CFG_INTEL_GPU:-false}" = true ] && [ -f "$distro_dir/hardware/gpu/intel.sh" ]; then
         plan_add "Intel CPU/GPU Drivers (arch/hardware/gpu/intel.sh)" run_module "arch/hardware/gpu/intel.sh"
     fi
 
-    if [ "$CFG_NVIDIA_GPU" = true ] && [ -f "$distro_dir/hardware/gpu/nvidia.sh" ]; then
+    if [ "${CFG_NVIDIA_GPU:-false}" = true ] && [ -f "$distro_dir/hardware/gpu/nvidia.sh" ]; then
         plan_add "NVIDIA GPU Drivers (arch/hardware/gpu/nvidia.sh)" run_module "arch/hardware/gpu/nvidia.sh"
     fi
 
-    if [ "$CFG_ASUS" = true ] && [ -f "$distro_dir/hardware/asus.sh" ]; then
-        plan_add "Configure ASUS ROG & Power Tooling (arch/hardware/asus.sh)" run_module "arch/hardware/asus.sh" "${CFG_ASUS_LIMIT}"
+    if [ "${CFG_ASUS:-false}" = true ] && [ -f "$distro_dir/hardware/asus.sh" ]; then
+        plan_add "Configure ASUS ROG & Power Tooling (arch/hardware/asus.sh)" run_module "arch/hardware/asus.sh" "${CFG_ASUS_LIMIT:-80}"
     fi
 
-    if [ "$CFG_DESKTOP" = "kde" ] && [ -f "$distro_dir/desktop/kde.sh" ]; then
+    if [ "${CFG_DESKTOP:-none}" = "kde" ] && [ -f "$distro_dir/desktop/kde.sh" ]; then
         plan_add "Install KDE Plasma Desktop (arch/desktop/kde.sh)" run_module "arch/desktop/kde.sh"
-    elif [ "$CFG_DESKTOP" = "i3" ] && [ -f "$distro_dir/desktop/tiling.sh" ]; then
+    elif [ "${CFG_DESKTOP:-none}" = "i3" ] && [ -f "$distro_dir/desktop/tiling.sh" ]; then
         plan_add "Install i3 Tiling Window Manager (arch/desktop/tiling.sh i3)" run_module "arch/desktop/tiling.sh" "i3"
-    elif [ "$CFG_DESKTOP" = "bspwm" ] && [ -f "$distro_dir/desktop/tiling.sh" ]; then
+    elif [ "${CFG_DESKTOP:-none}" = "bspwm" ] && [ -f "$distro_dir/desktop/tiling.sh" ]; then
         plan_add "Install BSPWM Tiling Window Manager (arch/desktop/tiling.sh bspwm)" run_module "arch/desktop/tiling.sh" "bspwm"
-    elif [ "$CFG_DESKTOP" = "tiling" ] || [ "$CFG_DESKTOP" = "both" ]; then
+    elif [ "${CFG_DESKTOP:-none}" = "tiling" ] || [ "${CFG_DESKTOP:-none}" = "both" ]; then
         if [ -f "$distro_dir/desktop/tiling.sh" ]; then
             plan_add "Install X11 Tiling Window Managers (arch/desktop/tiling.sh both)" run_module "arch/desktop/tiling.sh" "both"
         fi
     fi
 
-    if [ "$CFG_KVM" = true ] && [ -f "$distro_dir/virt/kvm-qemu.sh" ]; then
+    if [ "${CFG_KVM:-false}" = true ] && [ -f "$distro_dir/virt/kvm-qemu.sh" ]; then
         plan_add "Setup KVM, QEMU & virt-manager (arch/virt/kvm-qemu.sh)" run_module "arch/virt/kvm-qemu.sh"
     fi
 
-    if [ "$CFG_VMWARE" = true ] && [ -f "$distro_dir/virt/vmware-workstation.sh" ]; then
+    if [ "${CFG_VMWARE:-false}" = true ] && [ -f "$distro_dir/virt/vmware-workstation.sh" ]; then
         plan_add "Install VMware Workstation (arch/virt/vmware-workstation.sh)" run_module "arch/virt/vmware-workstation.sh"
     fi
 
-    if [ "$CFG_DOCKER" = true ] && [ -f "$distro_dir/apps/docker.sh" ]; then
+    if [ "${CFG_DOCKER:-false}" = true ] && [ -f "$distro_dir/apps/docker.sh" ]; then
         plan_add "Install Docker Engine & Buildx (arch/apps/docker.sh)" run_module "arch/apps/docker.sh"
     fi
 
-    if [ "$CFG_CODING" = true ] && [ ${#CFG_CODING_TOOLS[@]} -gt 0 ]; then
-        plan_add "Install Developer & Coding Suite (${#CFG_CODING_TOOLS[@]} tools)" step_arch_coding
+    local -a coding_tools=()
+    if [ -n "${CFG_CODING_TOOLS+x}" ]; then
+        coding_tools=("${CFG_CODING_TOOLS[@]}")
+    fi
+    if [ "${CFG_CODING:-false}" = true ] && [ ${#coding_tools[@]} -gt 0 ]; then
+        plan_add "Install Developer & Coding Suite (${#coding_tools[@]} tools)" step_arch_coding
     fi
 
-    if [ "$CFG_SECURITY_BURP" = true ] && [ -f "$distro_dir/apps/burp/install.sh" ]; then
+    if [ "${CFG_SECURITY_BURP:-false}" = true ] && [ -f "$distro_dir/apps/burp/install.sh" ]; then
         plan_add "Setup Burp Suite Professional (arch/apps/burp/install.sh)" run_module "arch/apps/burp/install.sh"
     fi
 
-    if [ "$CFG_GAMING" = true ] && [ -f "$distro_dir/apps/gaming.sh" ]; then
+    if [ "${CFG_GAMING:-false}" = true ] && [ -f "$distro_dir/apps/gaming.sh" ]; then
         plan_add "Setup Gaming Stack (arch/apps/gaming.sh)" run_module "arch/apps/gaming.sh"
     fi
 
-    if [ "$CFG_AIML" = true ]; then
+    if [ "${CFG_AIML:-false}" = true ]; then
         plan_add "Install ROCm & AI/ML Acceleration Suite" step_arch_aiml
     fi
 
-    if [ "$CFG_PRODUCTIVITY" = true ] && [ ${#CFG_PROD_APPS[@]} -gt 0 ]; then
-        plan_add "Install Essential AUR Productivity Tools (${#CFG_PROD_APPS[@]} apps)" step_arch_prod_apps
+    local -a prod_apps=()
+    if [ -n "${CFG_PROD_APPS+x}" ]; then
+        prod_apps=("${CFG_PROD_APPS[@]}")
+    fi
+    if [ "${CFG_PRODUCTIVITY:-false}" = true ] && [ ${#prod_apps[@]} -gt 0 ]; then
+        plan_add "Install Essential AUR Productivity Tools (${#prod_apps[@]} apps)" step_arch_prod_apps
 
-            local has_xdm=false p
-            for p in "${CFG_PROD_APPS[@]}"; do
-                if [ "$p" = "xdm" ]; then
-                    has_xdm=true
-                    break
-                fi
-            done
-            if [ "$has_xdm" = true ] && [ -f "$distro_dir/apps/xdm.sh" ]; then
-                plan_add "Install XDM Download Manager (arch/apps/xdm.sh)" run_module "arch/apps/xdm.sh"
+        local has_xdm=false p
+        for p in "${prod_apps[@]}"; do
+            if [ "$p" = "xdm" ]; then
+                has_xdm=true
+                break
             fi
+        done
+        if [ "$has_xdm" = true ] && [ -f "$distro_dir/apps/xdm.sh" ]; then
+            plan_add "Install XDM Download Manager (arch/apps/xdm.sh)" run_module "arch/apps/xdm.sh"
+        fi
     fi
 
     append_extra_scripts "$distro_dir" "arch"

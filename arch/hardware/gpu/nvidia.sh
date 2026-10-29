@@ -88,7 +88,7 @@ enable_services() {
         fi
     done
     if [ -f /usr/lib/systemd/system/nvidia-powerd.service ]; then
-        systemctl enable --now nvidia-powerd.service
+        systemctl enable --now nvidia-powerd.service 2>/dev/null || true
     fi
 }
 

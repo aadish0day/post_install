@@ -11,9 +11,9 @@ sudo curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyring
 sudo chmod a+r /etc/apt/keyrings/docker.asc
 
 # Add the repository to Apt sources:
-KALI_CODENAME=$(. /etc/os-release && echo "$VERSION_CODENAME")
+KALI_CODENAME="$(. /etc/os-release 2>/dev/null && echo "${VERSION_CODENAME:-}" || true)"
 case "$KALI_CODENAME" in
-    kali-rolling) DEBIAN_CODENAME="bookworm" ;;
+    kali-rolling|kali-*|"") DEBIAN_CODENAME="bookworm" ;;
     *) DEBIAN_CODENAME="$KALI_CODENAME" ;;
 esac
 

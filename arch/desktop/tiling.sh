@@ -30,7 +30,7 @@ esac
 x11_tiling_packages=(
     "${wm_packages[@]}"
     xorg-server xorg-xinit xorg-xbacklight xorg-xdpyinfo
-    polybar picom dunst rofi dmenu clipmenu nitrogen feh flameshot gammastep scrot xss-lock
+    polybar picom dunst rofi dmenu clipmenu feh flameshot gammastep scrot xss-lock
     xclip xbindkeys arandr dex nwg-look wmname
     kitty thunar thunar-archive-plugin thunar-volman tumbler xarchiver
     zathura zathura-cb zathura-djvu zathura-pdf-poppler zathura-ps
@@ -49,6 +49,7 @@ x11_tiling_packages=(
 
 # List of X11-specific AUR packages
 x11_aur_packages=(
+    "nitrogen"
     "i3lock-color"
     "dracula-gtk-theme"
 )
@@ -64,10 +65,10 @@ if pacman -Qq "i3lock" &>/dev/null; then
 fi
 
 if command -v paru &>/dev/null; then
-    echo "Installing X11-specific AUR packages (i3lock-color, dracula-gtk-theme)..."
+    echo "Installing X11-specific AUR packages (nitrogen, i3lock-color, dracula-gtk-theme)..."
     paru -S --needed --noconfirm "${x11_aur_packages[@]}" || true
 elif command -v yay &>/dev/null; then
-    echo "Installing X11-specific AUR packages (i3lock-color, dracula-gtk-theme)..."
+    echo "Installing X11-specific AUR packages (nitrogen, i3lock-color, dracula-gtk-theme)..."
     yay -S --needed --noconfirm "${x11_aur_packages[@]}" || true
 fi
 

@@ -22,6 +22,7 @@ fi
 has_nvidia_gpu || warn "No NVIDIA GPU detected; resolving packages anyway (SIMULATE=1)."
 
 rpmfusion_enable
+rpmfusion_tainted_enable
 log "Installing NVIDIA drivers (akmod-nvidia)..."
 dnf_install kernel-devel kernel-headers akmod-nvidia xorg-x11-drv-nvidia-cuda \
     xorg-x11-drv-nvidia-power nvidia-settings vulkan-loader vulkan-loader.i686 \

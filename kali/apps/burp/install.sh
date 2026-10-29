@@ -3,25 +3,84 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$HOME/Documents/Crack/Burpsuite-Professional"
-LOADER_URL="https://codeberg.org/code07/test01/raw/branch/main/loader.jar"
 
-# Fetch the latest version that has a JAR download from PortSwigger's release API
-echo "Fetching latest Burp Suite version..."
-BURP_VERSION="${BURP_VERSION:-$(curl -s 'https://portswigger.net/burp/releases/data?pageSize=10' |
-    python3 -c "
+# Parse CLI options
+SKIP_LAUNCH=false
+FORCE_DOWNLOAD=false
+CUSTOM_VERSION=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -v|--version)
+            CUSTOM_VERSION="$2"
+            shift 2
+            ;;
+        --skip-launch)
+            SKIP_LAUNCH=true
+            shift
+            ;;
+        -f|--force)
+            FORCE_DOWNLOAD=true
+            shift
+            ;;
+        *)
+            if [[ -z "$CUSTOM_VERSION" && "$1" =~ ^[0-9]+(\.[0-9]+)*$ ]]; then
+                CUSTOM_VERSION="$1"
+            fi
+            shift
+            ;;
+    esac
+done
+
+# Resolve version (CLI override -> Environment -> PortSwigger API -> GitHub API -> Fallback)
+if [[ -n "$CUSTOM_VERSION" ]]; then
+    BURP_VERSION="$CUSTOM_VERSION"
+    echo "Using specified Burp Suite version: $BURP_VERSION"
+elif [[ -z "${BURP_VERSION:-}" ]]; then
+    echo "Fetching latest Burp Suite version from PortSwigger..."
+    BURP_VERSION="$(curl -sSL --connect-timeout 10 --max-time 15 'https://portswigger.net/burp/releases/data?pageSize=10' 2>/dev/null | python3 -c "
 import json, sys
-data = json.load(sys.stdin)
-for r in data['ResultSet']['Results']:
-    if any(b['BuildCategoryPlatform'] == 'Jar' for b in r.get('builds', [])):
-        print(r['version']); break
-" 2>/dev/null)}"
-if [ -z "$BURP_VERSION" ]; then
-    echo "ERROR: Could not determine latest Burp Suite version. Check your internet connection."
-    exit 1
+try:
+    data = json.load(sys.stdin)
+    if isinstance(data, dict):
+        for r in data.get('ResultSet', {}).get('Results', []):
+            if any(b.get('BuildCategoryPlatform') == 'Jar' for b in r.get('builds', [])):
+                v = r.get('version')
+                if v:
+                    print(v)
+                    sys.exit(0)
+except Exception:
+    pass
+" 2>/dev/null || true)"
+
+    if [[ -z "$BURP_VERSION" ]]; then
+        echo "PortSwigger API unavailable or rate-limited, checking GitHub release..."
+        BURP_VERSION="$(curl -sSL --connect-timeout 10 --max-time 15 'https://api.github.com/repos/xiv3r/Burpsuite-Professional/releases/latest' 2>/dev/null | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    if isinstance(data, dict):
+        tag = data.get('tag_name')
+        if tag:
+            print(tag.lstrip('v'))
+            sys.exit(0)
+except Exception:
+    pass
+" 2>/dev/null || true)"
+    fi
+
+    if [[ -z "$BURP_VERSION" ]]; then
+        BURP_VERSION="2026.10.1"
+        echo "Using fallback release version: $BURP_VERSION"
+    else
+        echo "Latest version detected: $BURP_VERSION"
+    fi
+else
+    echo "Using environment BURP_VERSION: $BURP_VERSION"
 fi
+
 JAR_NAME="burpsuite_pro_v${BURP_VERSION}.jar"
 DOWNLOAD_URL="https://portswigger.net/burp/releases/download?product=desktop&version=$BURP_VERSION&type=Jar"
-echo "Latest version: $BURP_VERSION"
 
 echo "=== Installing Burp Suite Professional ==="
 
@@ -43,8 +102,38 @@ fi
 # 2. Install directory preparation
 mkdir -p "$REPO_DIR"
 
-echo "Downloading loader.jar..."
-curl -fL --progress-bar -o "$REPO_DIR/loader.jar" "$LOADER_URL"
+LOADER_URLS=(
+    "https://codeberg.org/code07/test01/raw/branch/main/loader.jar"
+    "https://github.com/xiv3r/Burpsuite-Professional/raw/refs/heads/main/loader.jar"
+    "https://raw.githubusercontent.com/xiv3r/Burpsuite-Professional/main/loader.jar"
+)
+
+LOADER_FILE="$REPO_DIR/loader.jar"
+if [[ -f "$LOADER_FILE" && $(stat -c%s "$LOADER_FILE" 2>/dev/null || echo 0) -gt 10240 && "$FORCE_DOWNLOAD" == false ]]; then
+    echo "Existing loader.jar verified. Skipping download."
+else
+    echo "Downloading loader.jar..."
+    LOADER_DOWNLOADED=false
+    for url in "${LOADER_URLS[@]}"; do
+        echo "Attempting loader download from: $url"
+        if curl -fL --connect-timeout 10 --max-time 60 --progress-bar -o "$LOADER_FILE" "$url" 2>/dev/null; then
+            if [[ $(stat -c%s "$LOADER_FILE" 2>/dev/null || echo 0) -gt 10240 ]]; then
+                echo "Successfully downloaded loader.jar"
+                LOADER_DOWNLOADED=true
+                break
+            else
+                echo "Downloaded loader.jar from $url is invalid or too small, trying next mirror..."
+                rm -f "$LOADER_FILE"
+            fi
+        else
+            echo "Failed to download from $url, trying fallback mirror..."
+        fi
+    done
+    if [[ "$LOADER_DOWNLOADED" == false ]]; then
+        echo "ERROR: Failed to download loader.jar from all mirrors. Check your internet connection."
+        exit 1
+    fi
+fi
 
 # Helper function to compare version strings: returns 0 (true) if $1 >= $2
 version_ge() {
@@ -140,20 +229,24 @@ StartupWMClass=burp-StartBurp
 EOF
 
 # 7. Start Key Loader & Burp Suite Pro
-if [ -z "${DISPLAY:-}" ]; then
-    if [ -n "${WAYLAND_DISPLAY:-}" ] || [ -e /tmp/.X11-unix/X0 ]; then
-        export DISPLAY=:0
+if [ "$SKIP_LAUNCH" = true ]; then
+    echo "Skipping Burp Suite Pro launch (--skip-launch specified)."
+else
+    if [ -z "${DISPLAY:-}" ]; then
+        if [ -n "${WAYLAND_DISPLAY:-}" ] || [ -e /tmp/.X11-unix/X0 ]; then
+            export DISPLAY=:0
+        fi
     fi
-fi
 
-if [ -f "$REPO_DIR/loader.jar" ]; then
-    echo "Starting Key loader.jar in background..."
-    nohup java -jar "$REPO_DIR/loader.jar" >/dev/null 2>&1 &
+    if [ -f "$REPO_DIR/loader.jar" ]; then
+        echo "Starting Key loader.jar in background..."
+        nohup java -jar "$REPO_DIR/loader.jar" >/dev/null 2>&1 &
+        disown 2>/dev/null || true
+    fi
+
+    echo "Starting Burp Suite Professional..."
+    nohup "$LAUNCHER_PATH" >/dev/null 2>&1 &
     disown 2>/dev/null || true
 fi
-
-echo "Starting Burp Suite Professional..."
-nohup "$LAUNCHER_PATH" >/dev/null 2>&1 &
-disown 2>/dev/null || true
 
 echo "=== Burp Suite Professional installation completed successfully! ==="

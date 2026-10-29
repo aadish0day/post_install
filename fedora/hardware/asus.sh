@@ -43,16 +43,30 @@ if ! has_asus_hardware; then
     exit 0
 fi
 
-# 1. Terra repository, restricted to asusctl packages
-terra_enable
-if ! grep -q '^includepkgs=' "$TERRA_REPO"; then
-    $SUDO sed -i '/^\[terra\]/a includepkgs=asusctl* supergfxctl* terra-release*' "$TERRA_REPO"
-    log "Limited Terra to ASUS packages"
+# 1. Terra repository, restricted to asusctl packages (with COPR fallback)
+repo_configured=false
+if terra_enable 2>/dev/null && [ -f "$TERRA_REPO" ]; then
+    if ! grep -q '^includepkgs=' "$TERRA_REPO" 2>/dev/null; then
+        $SUDO sed -i '/^\[terra\]/a includepkgs=asusctl* supergfxctl* terra-release*' "$TERRA_REPO" 2>/dev/null || true
+        log "Limited Terra to ASUS packages"
+    fi
+    $SUDO dnf makecache -y --repo terra >/dev/null 2>&1 || warn "Could not refresh Terra repository cache"
+    repo_configured=true
+else
+    warn "Terra repository unavailable or failed to enable; trying COPR fallback..."
+    if copr_enable lukenukem/asus-linux 2>/dev/null; then
+        repo_configured=true
+    else
+        warn "Could not enable lukenukem/asus-linux COPR repository."
+    fi
 fi
 
 # 2. Packages
-$SUDO dnf makecache -y --repo terra >/dev/null
-dnf_install --strict asusctl asusctl-rog-gui
+if [ "$repo_configured" = true ] || [ -f "$TERRA_REPO" ]; then
+    dnf_install asusctl asusctl-rog-gui || warn "Could not install ASUS packages (asusctl/asusctl-rog-gui)"
+else
+    warn "No valid repository for asusctl found; skipping package installation."
+fi
 
 # 3. Power profiles
 # asusd manages platform profiles and CPU EPP itself, and a second daemon

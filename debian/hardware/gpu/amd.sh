@@ -53,7 +53,7 @@ fi
 
 if has_amd_gpu; then
     log "AMD GPU detected - installing Mesa/Vulkan/VA-API support..."
-    if ! dpkg --print-foreign-architectures | grep -qx i386; then
+    if [ "$(dpkg --print-architecture 2>/dev/null)" = "amd64" ] && ! dpkg --print-foreign-architectures | grep -qx i386; then
         $SUDO dpkg --add-architecture i386
         apt_force_update
     fi

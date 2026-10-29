@@ -13,7 +13,7 @@ pkg install -y git python vim tmux zsh curl wget fzf lsd bat zoxide starship ani
 
 # Install gallery-dl via pip
 echo "Installing gallery-dl..."
-pip install -U gallery-dl
+pip install -U --break-system-packages gallery-dl
 
 # Initialize Git LFS for the current user (Termux)
 if command -v git &>/dev/null && command -v git-lfs &>/dev/null; then
@@ -23,8 +23,10 @@ fi
 
 # Install Starship if not already installed
 # Setup Termux storage
-echo "Setting up Termux storage..."
-termux-setup-storage
+if [ ! -d "$HOME/storage" ]; then
+    echo "Setting up Termux storage..."
+    termux-setup-storage || true
+fi
 
 # Clone dotfiles only if it doesn't already exist
 if [ ! -d ~/dotfile ]; then
@@ -44,7 +46,10 @@ fi
 
 # Change default shell to zsh
 if command -v zsh &>/dev/null; then
-    chsh -s "$(command -v zsh)"
+    if [ "${SHELL:-}" != "$(command -v zsh)" ] && [ "$(basename "${SHELL:-}")" != "zsh" ]; then
+        echo "Changing default shell to zsh..."
+        chsh -s "$(command -v zsh)" || true
+    fi
 fi
 
 echo "Termux setup completed successfully!"

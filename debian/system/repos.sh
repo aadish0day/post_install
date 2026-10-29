@@ -63,7 +63,7 @@ rm -f "$tmp_sources"
     fi
 fi
 
-if ! dpkg --print-foreign-architectures | grep -qx i386; then
+if [ "$(dpkg --print-architecture 2>/dev/null)" = "amd64" ] && ! dpkg --print-foreign-architectures | grep -qx i386; then
     log "Adding i386 architecture (32-bit libraries for Wine/Steam)..."
     $SUDO dpkg --add-architecture i386
 fi

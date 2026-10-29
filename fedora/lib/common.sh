@@ -201,6 +201,26 @@ rpmfusion_enable() {
         "https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${rel}.noarch.rpm"
 }
 
+rpmfusion_tainted_enable() {
+    rpmfusion_enable
+    if is_simulate; then
+        log "[simulate] would enable RPM Fusion nonfree-tainted"
+        return 0
+    fi
+    if rpm -q rpmfusion-nonfree-release-tainted &>/dev/null; then
+        log "RPM Fusion nonfree-tainted already enabled"
+        return 0
+    fi
+    log "Enabling RPM Fusion nonfree-tainted..."
+    if ! dnf_install rpmfusion-nonfree-release-tainted 2>/dev/null; then
+        if command -v dnf5 &>/dev/null; then
+            $SUDO dnf config-manager setopt rpmfusion-nonfree-tainted.enabled=1 2>/dev/null || true
+        else
+            $SUDO dnf config-manager --enable rpmfusion-nonfree-tainted 2>/dev/null || true
+        fi
+    fi
+}
+
 # swap_ffmpeg  Replace Fedora's codec-limited ffmpeg-free with RPM Fusion ffmpeg
 swap_ffmpeg() {
     rpmfusion_enable
@@ -223,9 +243,12 @@ terra_enable() {
         log "Terra repo already enabled"
         return 0
     fi
-    add_repo_file "https://raw.githubusercontent.com/terrapkg/subatomic-repos/main/terra.repo" terra.repo
+    if ! add_repo_file "https://raw.githubusercontent.com/terrapkg/subatomic-repos/main/terra.repo" terra.repo; then
+        warn "Could not add Terra repository"
+        return 1
+    fi
     # Import the signing key now so later (and --assumeno) transactions can read the repo
-    $SUDO rpm --import "https://repos.fyralabs.com/terra$(fedora_release)/key.asc"
+    $SUDO rpm --import "https://repos.fyralabs.com/terra$(fedora_release)/key.asc" 2>/dev/null || warn "Could not import Terra GPG key"
 }
 
 # ----------------------------------------------------------------------------

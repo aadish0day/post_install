@@ -25,6 +25,17 @@ try {
     Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force -ErrorAction SilentlyContinue
 } catch {}
 
+# Safe TLS configuration
+[Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+try {
+    [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor 12288
+} catch {}
+
+# Safe ScriptDir resolution for remote execution via irm | iex
+$ScriptDir = if (![string]::IsNullOrEmpty($PSScriptRoot)) { $PSScriptRoot }
+             elseif ($MyInvocation.MyCommand.Path) { Split-Path -Parent $MyInvocation.MyCommand.Path }
+             else { $PWD.Path }
+
 Write-Host "===============================================================" -ForegroundColor Yellow
 Write-Host "     Burp Suite Professional Full Uninstaller (Windows)        " -ForegroundColor Yellow
 Write-Host "===============================================================" -ForegroundColor Yellow
@@ -54,19 +65,45 @@ Write-Host "`n(1/6) Stopping running Burp Suite processes..." -ForegroundColor C
 
 $terminatedAny = $false
 try {
-    $processes = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
-        ($_.Name -match '^(java|javaw|wscript)\.exe$') -and (
-            $_.CommandLine -match 'burpsuite' -or 
-            $_.CommandLine -match 'loader\.jar' -or 
-            $_.CommandLine -match 'Burp-Suite-Pro\.vbs' -or
-            $_.CommandLine -match 'Burp\.bat'
-        )
+    $processes = @()
+    try {
+        $processes = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
+            ($_.Name -match '^(java|javaw|wscript)\.exe$') -and (
+                $_.CommandLine -match 'burpsuite' -or 
+                $_.CommandLine -match 'loader\.jar' -or 
+                $_.CommandLine -match 'Burp-Suite-Pro\.vbs' -or
+                $_.CommandLine -match 'Burp\.bat' -or
+                ($InstallDir -and $_.CommandLine -like "*$InstallDir*")
+            )
+        }
+    } catch {
+        $processes = Get-WmiObject Win32_Process -ErrorAction SilentlyContinue | Where-Object {
+            ($_.Name -match '^(java|javaw|wscript)\.exe$') -and (
+                $_.CommandLine -match 'burpsuite' -or 
+                $_.CommandLine -match 'loader\.jar' -or 
+                $_.CommandLine -match 'Burp-Suite-Pro\.vbs' -or
+                $_.CommandLine -match 'Burp\.bat' -or
+                ($InstallDir -and $_.CommandLine -like "*$InstallDir*")
+            )
+        }
     }
 
-    foreach ($p in $processes) {
-        Write-Host "      Terminating process: ID $($p.ProcessId) ($($p.Name))" -ForegroundColor Yellow
-        Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue
-        $terminatedAny = $true
+    if ($processes) {
+        foreach ($p in $processes) {
+            Write-Host "      Terminating process: ID $($p.ProcessId) ($($p.Name))" -ForegroundColor Yellow
+            Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue
+            $terminatedAny = $true
+        }
+
+        # Wait for processes to exit so file locks are released
+        foreach ($p in $processes) {
+            try {
+                $procObj = Get-Process -Id $p.ProcessId -ErrorAction SilentlyContinue
+                if ($procObj) {
+                    $procObj.WaitForExit(3000)
+                }
+            } catch {}
+        }
     }
 } catch {
     Write-Warning "Could not query Win32_Process: $($_.Exception.Message)"
@@ -136,11 +173,32 @@ try {
 Write-Host "`n(4/6) Removing installation folder: $InstallDir" -ForegroundColor Cyan
 
 if (Test-Path $InstallDir) {
+    # Terminate any lingering Burp or javaw processes before deletion to prevent Access Denied
+    try {
+        $lingering = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
+            ($_.Name -match '^(java|javaw|wscript)\.exe$') -and (
+                $_.CommandLine -match 'burpsuite' -or 
+                $_.CommandLine -match 'loader\.jar' -or 
+                ($InstallDir -and $_.CommandLine -like "*$InstallDir*")
+            )
+        }
+        foreach ($lp in $lingering) {
+            Stop-Process -Id $lp.ProcessId -Force -ErrorAction SilentlyContinue
+        }
+    } catch {}
+
     try {
         Remove-Item -Path $InstallDir -Recurse -Force
         Write-Host "      [OK] Deleted $InstallDir" -ForegroundColor Green
     } catch {
-        Write-Warning "Could not delete $InstallDir: $($_.Exception.Message)"
+        # Retry once after a brief pause to allow OS file handles to clear
+        Start-Sleep -Seconds 1
+        try {
+            Remove-Item -Path $InstallDir -Recurse -Force
+            Write-Host "      [OK] Deleted $InstallDir" -ForegroundColor Green
+        } catch {
+            Write-Warning "Could not delete $InstallDir: $($_.Exception.Message)"
+        }
     }
 } else {
     Write-Host "      [OK] Installation directory does not exist." -ForegroundColor Green

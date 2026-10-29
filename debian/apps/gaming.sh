@@ -12,7 +12,7 @@ source "$SCRIPT_DIR/../lib/common.sh"
 
 log "Starting gaming stack installation..."
 
-if ! dpkg --print-foreign-architectures | grep -qx i386; then
+if [ "$(dpkg --print-architecture 2>/dev/null)" = "amd64" ] && ! dpkg --print-foreign-architectures | grep -qx i386; then
     log "Enabling i386 architecture for 32-bit game libraries..."
     $SUDO dpkg --add-architecture i386
     apt_force_update
@@ -42,8 +42,11 @@ apt_install "${gaming_packages[@]}"
 # Steam: Debian's steam-installer (contrib), falling back to Pacstall steam-deb
 log "Installing Steam..."
 if ! is_simulate; then
-    echo "steam steam/question select I AGREE" | $SUDO debconf-set-selections
-    echo "steam steam/license note ''" | $SUDO debconf-set-selections
+    command -v debconf-set-selections >/dev/null 2>&1 || apt_install debconf-utils
+    if command -v debconf-set-selections >/dev/null 2>&1; then
+        echo "steam steam/question select I AGREE" | $SUDO debconf-set-selections
+        echo "steam steam/license note ''" | $SUDO debconf-set-selections
+    fi
 fi
 if apt_available steam-installer | grep -qx steam-installer; then
     apt_install steam-installer

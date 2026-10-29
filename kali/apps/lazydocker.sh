@@ -122,7 +122,16 @@ ln -sf "$INSTALL_DIR/lazydocker" "$HOME/.local/bin/lazydocker"
 
 # 6. Configure Shell Aliases
 log "Setting up shell alias (lzd -> lazydocker)..."
-for rcfile in "$HOME/.zshrc" "$HOME/.bashrc"; do
+TARGET_USER="${SUDO_USER:-${USER:-$(whoami)}}"
+TARGET_HOME=$(getent passwd "$TARGET_USER" | cut -d: -f6 2>/dev/null || echo "$HOME")
+TARGET_HOME="${TARGET_HOME:-$HOME}"
+
+RC_FILES=("$TARGET_HOME/.zshrc" "$TARGET_HOME/.bashrc")
+if [ -n "${SUDO_USER:-}" ] && [ "$TARGET_HOME" != "$HOME" ]; then
+    RC_FILES+=("$HOME/.zshrc" "$HOME/.bashrc")
+fi
+
+for rcfile in "${RC_FILES[@]}"; do
     if [ -f "$rcfile" ]; then
         if ! grep -q "alias lzd=" "$rcfile"; then
             echo "" >> "$rcfile"
@@ -138,26 +147,26 @@ echo ""
 if ! command -v docker &>/dev/null; then
     warn "Docker is not installed on this system!"
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    if [ -f "$SCRIPT_DIR/docker.sh" ]; then
-        read -rp "Would you like to install Docker now using kali/apps/docker.sh? (y/n): " install_docker_choice
+    if [ -t 0 ] && [ -f "$SCRIPT_DIR/docker.sh" ]; then
+        read -rp "Would you like to install Docker now using kali/apps/docker.sh? (y/n): " install_docker_choice || install_docker_choice="n"
         if [[ $install_docker_choice =~ ^[Yy]$ ]]; then
             bash "$SCRIPT_DIR/docker.sh"
         fi
     else
-        warn "Please install Docker to use lazydocker: sudo apt install docker.io"
+        warn "Please install Docker to use lazydocker: sudo apt install docker.io or run kali/apps/docker.sh"
     fi
 else
     # Check if docker daemon is running
-    if ! systemctl is-active --quiet docker; then
+    if ! systemctl is-active --quiet docker 2>/dev/null; then
         warn "Docker service is not running. Starting Docker service..."
         sudo systemctl enable --now docker || true
     fi
 
     # Check docker group membership
-    if ! groups "$USER" | grep -q '\bdocker\b'; then
-        log "Adding user $USER to docker group..."
-        sudo usermod -aG docker "$USER"
-        warn "You were added to the docker group. Please log out and back in (or run 'newgrp docker') for permissions to take effect."
+    if ! groups "$TARGET_USER" 2>/dev/null | grep -q '\bdocker\b'; then
+        log "Adding user $TARGET_USER to docker group..."
+        sudo usermod -aG docker "$TARGET_USER"
+        warn "User $TARGET_USER was added to the docker group. Please log out and back in (or run 'newgrp docker') for permissions to take effect."
     fi
 fi
 

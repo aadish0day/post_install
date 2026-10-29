@@ -54,8 +54,9 @@ Section "InputClass"
 EndSection
 EOL
 
-# Restart X to apply changes
-echo "Restarting X session to apply changes..."
-systemctl restart display-manager
+# Reload udev rules to apply changes for new input events without terminating the active session
+echo "Reloading udev rules to apply touchpad settings..."
+udevadm control --reload-rules 2>/dev/null || true
+udevadm trigger --subsystem-match=input 2>/dev/null || true
 
-echo "Touchpad configuration complete. Please test the settings."
+echo "Touchpad configuration complete. Changes will take full effect on your next session."

@@ -9,15 +9,15 @@ set -euo pipefail
 # shellcheck source=../lib/common.sh
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/common.sh"
 
-if command -v xdman >/dev/null 2>&1 || [ -d /opt/xdman ]; then
+if command -v xdman >/dev/null 2>&1 || command -v xdm-app >/dev/null 2>&1 || [ -d /opt/xdman ]; then
     log "XDM is already installed."
     exit 0
 fi
 
 log "Installing dependencies..."
-apt_install curl tar xz-utils default-jre
+apt_install curl
 
-url="$(github_asset_url subhra74/xdm 'xdm-setup-.*\.tar\.xz$')" || true
+url="$(github_asset_url subhra74/xdm 'xdm-app_.*_amd64\.deb$')" || true
 [ -n "${url:-}" ] || die "Could not resolve the latest XDM release."
 
 if is_simulate; then
@@ -29,9 +29,8 @@ BUILD_DIR="$(mktemp -d /tmp/xdm_install_XXXXXX)"
 trap 'rm -rf "$BUILD_DIR"' EXIT
 
 log "Downloading $url..."
-download "$url" "$BUILD_DIR/xdm-setup.tar.xz"
-tar -xf "$BUILD_DIR/xdm-setup.tar.xz" -C "$BUILD_DIR"
-chmod +x "$BUILD_DIR/install.sh"
-$SUDO "$BUILD_DIR/install.sh"
+download "$url" "$BUILD_DIR/xdm-app.deb"
+$SUDO dpkg -i "$BUILD_DIR/xdm-app.deb" || true
+$SUDO apt-get install -f -y
 
-log "XDM installation complete. Launch it with 'xdman'."
+log "XDM installation complete."

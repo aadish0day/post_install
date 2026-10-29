@@ -29,7 +29,7 @@ if ! has_nvidia_gpu; then
     exit 0
 fi
 
-if ! dpkg --print-foreign-architectures | grep -qx i386; then
+if [ "$(dpkg --print-architecture 2>/dev/null)" = "amd64" ] && ! dpkg --print-foreign-architectures | grep -qx i386; then
     log "Enabling i386 architecture for 32-bit graphics/Vulkan libraries..."
     $SUDO dpkg --add-architecture i386
     apt_force_update
@@ -52,16 +52,16 @@ if is_ubuntu; then
 else
     kernel_headers="linux-headers-$(dpkg --print-architecture)"
     # nvidia-open-kernel-dkms supports Turing (GTX 16xx / RTX 20xx) and newer
-    kernel_module_pkg="nvidia-driver"
+    kernel_module_pkgs=()
     if is_turing_or_newer; then
         log "NVIDIA Turing or newer architecture detected: selecting open-source kernel module."
-        kernel_module_pkg="nvidia-open-kernel-dkms"
+        kernel_module_pkgs=("nvidia-open-kernel-dkms" "nvidia-driver" "libgl1-nvidia-glvnd-glx")
     else
         log "Legacy or unidentified NVIDIA GPU detected: falling back to standard proprietary driver."
-        kernel_module_pkg="nvidia-driver"
+        kernel_module_pkgs=("nvidia-driver")
     fi
-    apt_install "$kernel_headers" dkms "$kernel_module_pkg" firmware-misc-nonfree \
-        nvidia-settings nvidia-vulkan-icd nvidia-vulkan-icd:i386 nvidia-driver-libs:i386 libvulkan1 libvulkan1:i386 \
+    apt_install "$kernel_headers" dkms "${kernel_module_pkgs[@]}" firmware-misc-nonfree \
+        nvidia-settings nvidia-driver-libs nvidia-vulkan-icd nvidia-vulkan-icd:i386 nvidia-driver-libs:i386 libvulkan1 libvulkan1:i386 \
         nvidia-suspend-common libnvidia-encode1 vulkan-tools
 fi
 

@@ -8,7 +8,7 @@ build_plan_termux() {
         plan_add "Setup Termux Environment (termux/termux.sh)" run_module "termux/termux.sh"
     fi
 
-    if [ "$CFG_FONTS" = true ] && [ -f "$distro_dir/system/font.sh" ]; then
+    if [ "${CFG_FONTS:-false}" = true ] && [ -f "$distro_dir/system/font.sh" ]; then
         plan_add "Install JetBrains Mono Font (termux/system/font.sh)" run_module "termux/system/font.sh"
     fi
 

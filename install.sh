@@ -75,7 +75,9 @@ ensure_script() {
     fi
 
     echo "Installing 'script' (required for session mirroring)..."
-    if command -v pacman &>/dev/null; then
+    if [ -d "/data/data/com.termux" ] || [ -n "${TERMUX_VERSION:-}" ] || command -v pkg &>/dev/null; then
+        pkg install -y util-linux
+    elif command -v pacman &>/dev/null; then
         $SUDO pacman -S --needed --noconfirm util-linux
     elif command -v apt-get &>/dev/null; then
         $SUDO apt-get install -y bsdutils util-linux
@@ -83,8 +85,6 @@ ensure_script() {
         $SUDO dnf install -y util-linux-script
     elif command -v zypper &>/dev/null; then
         $SUDO zypper --non-interactive install util-linux
-    elif [ -d "/data/data/com.termux" ] || [ -n "${TERMUX_VERSION:-}" ]; then
-        pkg install -y util-linux
     fi
     command -v script &>/dev/null
 }

@@ -12,14 +12,14 @@ fedora_needs_flatpak() {
 
     if [ "${CFG_CODING:-false}" = true ]; then
         local tool
-        for tool in "${CFG_CODING_TOOLS[@]}"; do
+        for tool in ${CFG_CODING_TOOLS[@]+"${CFG_CODING_TOOLS[@]}"}; do
             [ "$tool" = "android_studio" ] && return 0
         done
     fi
 
     if [ "${CFG_PRODUCTIVITY:-false}" = true ]; then
         local app
-        for app in "${CFG_PROD_APPS[@]}"; do
+        for app in ${CFG_PROD_APPS[@]+"${CFG_PROD_APPS[@]}"}; do
             case "$app" in
                 zen | obsidian | localsend) return 0 ;;
             esac
@@ -58,43 +58,43 @@ build_plan_fedora() {
         plan_add "Install Base Packages (fedora/system/base.sh)" run_module "fedora/system/base.sh"
     fi
 
-    if [ "$CFG_AMD_GPU" = true ] && [ -f "$distro_dir/hardware/gpu/amd.sh" ]; then
+    if [ "${CFG_AMD_GPU:-false}" = true ] && [ -f "$distro_dir/hardware/gpu/amd.sh" ]; then
         plan_add "Configure AMD Graphics Drivers (fedora/hardware/gpu/amd.sh)" run_module "fedora/hardware/gpu/amd.sh"
     fi
 
-    if [ "$CFG_INTEL_GPU" = true ] && [ -f "$distro_dir/hardware/gpu/intel.sh" ]; then
+    if [ "${CFG_INTEL_GPU:-false}" = true ] && [ -f "$distro_dir/hardware/gpu/intel.sh" ]; then
         plan_add "Configure Intel Graphics Drivers (fedora/hardware/gpu/intel.sh)" run_module "fedora/hardware/gpu/intel.sh"
     fi
 
-    if [ "$CFG_NVIDIA_GPU" = true ] && [ -f "$distro_dir/hardware/gpu/nvidia.sh" ]; then
+    if [ "${CFG_NVIDIA_GPU:-false}" = true ] && [ -f "$distro_dir/hardware/gpu/nvidia.sh" ]; then
         plan_add "Configure NVIDIA Graphics Drivers (fedora/hardware/gpu/nvidia.sh)" run_module "fedora/hardware/gpu/nvidia.sh"
     fi
 
-    if [ "$CFG_ASUS" = true ] && [ -f "$distro_dir/hardware/asus.sh" ]; then
-        plan_add "Configure ASUS ROG Tools (fedora/hardware/asus.sh)" run_module "fedora/hardware/asus.sh" "${CFG_ASUS_LIMIT}"
+    if [ "${CFG_ASUS:-false}" = true ] && [ -f "$distro_dir/hardware/asus.sh" ]; then
+        plan_add "Configure ASUS ROG Tools (fedora/hardware/asus.sh)" run_module "fedora/hardware/asus.sh" "${CFG_ASUS_LIMIT:-85}"
     fi
 
-    if [ "$CFG_DESKTOP" = "kde" ] && [ -f "$distro_dir/desktop/kde.sh" ]; then
+    if [ "${CFG_DESKTOP:-none}" = "kde" ] && [ -f "$distro_dir/desktop/kde.sh" ]; then
         plan_add "Install KDE Plasma Desktop (fedora/desktop/kde.sh)" run_module "fedora/desktop/kde.sh"
-    elif [ "$CFG_DESKTOP" = "i3" ] && [ -f "$distro_dir/desktop/tiling.sh" ]; then
+    elif [ "${CFG_DESKTOP:-none}" = "i3" ] && [ -f "$distro_dir/desktop/tiling.sh" ]; then
         plan_add "Install i3 Tiling Window Manager (fedora/desktop/tiling.sh i3)" run_module "fedora/desktop/tiling.sh" "i3"
-    elif [ "$CFG_DESKTOP" = "bspwm" ] && [ -f "$distro_dir/desktop/tiling.sh" ]; then
+    elif [ "${CFG_DESKTOP:-none}" = "bspwm" ] && [ -f "$distro_dir/desktop/tiling.sh" ]; then
         plan_add "Install BSPWM Tiling Window Manager (fedora/desktop/tiling.sh bspwm)" run_module "fedora/desktop/tiling.sh" "bspwm"
-    elif [ "$CFG_DESKTOP" = "tiling" ] || [ "$CFG_DESKTOP" = "both" ]; then
+    elif [ "${CFG_DESKTOP:-none}" = "tiling" ] || [ "${CFG_DESKTOP:-none}" = "both" ]; then
         if [ -f "$distro_dir/desktop/tiling.sh" ]; then
             plan_add "Install X11 Tiling Window Managers (fedora/desktop/tiling.sh both)" run_module "fedora/desktop/tiling.sh" "both"
         fi
     fi
 
-    if [ "$CFG_KVM" = true ] && [ -f "$distro_dir/virt/kvm-qemu.sh" ]; then
+    if [ "${CFG_KVM:-false}" = true ] && [ -f "$distro_dir/virt/kvm-qemu.sh" ]; then
         plan_add "Setup KVM, QEMU & virt-manager (fedora/virt/kvm-qemu.sh)" run_module "fedora/virt/kvm-qemu.sh"
     fi
 
-    if [ "$CFG_VMWARE" = true ] && [ -f "$distro_dir/virt/vmware-workstation.sh" ]; then
+    if [ "${CFG_VMWARE:-false}" = true ] && [ -f "$distro_dir/virt/vmware-workstation.sh" ]; then
         plan_add "Install VMware Workstation (fedora/virt/vmware-workstation.sh)" run_module "fedora/virt/vmware-workstation.sh"
     fi
 
-    if [ "$CFG_DOCKER" = true ] && [ -f "$distro_dir/apps/docker.sh" ]; then
+    if [ "${CFG_DOCKER:-false}" = true ] && [ -f "$distro_dir/apps/docker.sh" ]; then
         plan_add "Install Docker Engine (fedora/apps/docker.sh)" run_module "fedora/apps/docker.sh"
 
         if [ -f "$distro_dir/apps/lazydocker.sh" ]; then
@@ -102,19 +102,19 @@ build_plan_fedora() {
         fi
     fi
 
-    if [ "$CFG_CODING" = true ] && [ ${#CFG_CODING_TOOLS[@]} -gt 0 ] && [ -f "$distro_dir/apps/coding.sh" ]; then
+    if [ "${CFG_CODING:-false}" = true ] && [ "${CFG_CODING_TOOLS+set}" = "set" ] && [ ${#CFG_CODING_TOOLS[@]} -gt 0 ] && [ -f "$distro_dir/apps/coding.sh" ]; then
         plan_add "Install Developer Suite (fedora/apps/coding.sh)" run_module "fedora/apps/coding.sh" "${CFG_CODING_TOOLS[@]}"
     fi
 
-    if [ "$CFG_GAMING" = true ] && [ -f "$distro_dir/apps/gaming.sh" ]; then
+    if [ "${CFG_GAMING:-false}" = true ] && [ -f "$distro_dir/apps/gaming.sh" ]; then
         plan_add "Setup Gaming Stack (fedora/apps/gaming.sh)" run_module "fedora/apps/gaming.sh"
     fi
 
-    if [ "$CFG_AIML" = true ] && [ -f "$distro_dir/apps/aiml.sh" ]; then
+    if [ "${CFG_AIML:-false}" = true ] && [ -f "$distro_dir/apps/aiml.sh" ]; then
         plan_add "Install ROCm & AI/ML Acceleration Suite (fedora/apps/aiml.sh)" run_module "fedora/apps/aiml.sh"
     fi
 
-    if [ "$CFG_PRODUCTIVITY" = true ] && [ -f "$distro_dir/apps/productivity.sh" ] && [ ${#CFG_PROD_APPS[@]} -gt 0 ]; then
+    if [ "${CFG_PRODUCTIVITY:-false}" = true ] && [ -f "$distro_dir/apps/productivity.sh" ] && [ "${CFG_PROD_APPS+set}" = "set" ] && [ ${#CFG_PROD_APPS[@]} -gt 0 ]; then
         plan_add "Install Productivity Applications (fedora/apps/productivity.sh - ${#CFG_PROD_APPS[@]} apps)" \
             step_fedora_productivity "${CFG_PROD_APPS[*]}"
 

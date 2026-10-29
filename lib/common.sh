@@ -107,7 +107,7 @@ append_line_once() {
 }
 
 add_user_group() {
-    local target_user="${SUDO_USER:-$USER}"
+    local target_user="${SUDO_USER:-${USER:-$(id -un)}}"
     local grp
     for grp in "$@"; do
         if is_simulate; then

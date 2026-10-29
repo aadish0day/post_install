@@ -30,8 +30,11 @@ try {
     Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force -ErrorAction SilentlyContinue
 } catch {}
 
-# Enable modern TLS 1.2 and TLS 1.3
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor [Net.SecurityProtocolType]::Tls13
+# Enable modern TLS 1.2 and optionally TLS 1.3
+[Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+try {
+    [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor 12288
+} catch {}
 
 Write-Host "===============================================================" -ForegroundColor Cyan
 Write-Host "       Burp Suite Professional Installer for Windows           " -ForegroundColor Cyan
@@ -113,6 +116,9 @@ function Download-FileWithProgress {
     }
 
     # Method 3: High-Speed .NET Stream Downloader (1MB buffer)
+    $resp = $null
+    $stream = $null
+    $fileStream = $null
     try {
         $req = [System.Net.HttpWebRequest][System.Net.WebRequest]::Create($Url)
         $req.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
@@ -123,37 +129,46 @@ function Download-FileWithProgress {
         $stream = $resp.GetResponseStream()
 
         $fileStream = [System.IO.File]::Create($OutputFile)
-        $buffer = New-Object byte[] 1048576
-        $downloaded = 0
-        $lastUpdate = [DateTime]::MinValue
-        $sw = [System.Diagnostics.Stopwatch]::StartNew()
+        try {
+            $buffer = New-Object byte[] 1048576
+            $downloaded = 0
+            $lastUpdate = [DateTime]::MinValue
+            $sw = [System.Diagnostics.Stopwatch]::StartNew()
 
-        while (($read = $stream.Read($buffer, 0, $buffer.Length)) -gt 0) {
-            $fileStream.Write($buffer, 0, $read)
-            $downloaded += $read
-            $now = [DateTime]::UtcNow
+            while (($read = $stream.Read($buffer, 0, $buffer.Length)) -gt 0) {
+                $fileStream.Write($buffer, 0, $read)
+                $downloaded += $read
+                $now = [DateTime]::UtcNow
 
-            # Throttle UI progress updates to every 250ms to maximize throughput
-            if (($now - $lastUpdate).TotalMilliseconds -ge 250 -or $downloaded -eq $totalBytes) {
-                $lastUpdate = $now
-                if ($totalBytes -gt 0) {
-                    $pct = [int][math]::Min(100, [math]::Max(0, ($downloaded * 100 / $totalBytes)))
-                    $mbDown = [math]::Round($downloaded / 1MB, 1)
-                    $mbTotal = [math]::Round($totalBytes / 1MB, 1)
-                    $sec = [math]::Max($sw.Elapsed.TotalSeconds, 0.001)
-                    $speed = [math]::Round(($downloaded / 1MB) / $sec, 1)
-                    Write-Progress -Activity $Description -Status "$mbDown MB / $mbTotal MB ($pct%) at $speed MB/s" -PercentComplete $pct
-                } else {
-                    $mbDown = [math]::Round($downloaded / 1MB, 1)
-                    Write-Progress -Activity $Description -Status "$mbDown MB downloaded"
+                # Throttle UI progress updates to every 250ms to maximize throughput
+                if (($now - $lastUpdate).TotalMilliseconds -ge 250 -or $downloaded -eq $totalBytes) {
+                    $lastUpdate = $now
+                    if ($totalBytes -gt 0) {
+                        $pct = [int][math]::Min(100, [math]::Max(0, ($downloaded * 100 / $totalBytes)))
+                        $mbDown = [math]::Round($downloaded / 1MB, 1)
+                        $mbTotal = [math]::Round($totalBytes / 1MB, 1)
+                        $sec = [math]::Max($sw.Elapsed.TotalSeconds, 0.001)
+                        $speed = [math]::Round(($downloaded / 1MB) / $sec, 1)
+                        Write-Progress -Activity $Description -Status "$mbDown MB / $mbTotal MB ($pct%) at $speed MB/s" -PercentComplete $pct
+                    } else {
+                        $mbDown = [math]::Round($downloaded / 1MB, 1)
+                        Write-Progress -Activity $Description -Status "$mbDown MB downloaded"
+                    }
                 }
             }
+        } finally {
+            if ($fileStream) {
+                $fileStream.Dispose()
+                $fileStream = $null
+            }
         }
-        $fileStream.Dispose()
-        $stream.Dispose()
-        $resp.Dispose()
+        if ($stream) { $stream.Dispose(); $stream = $null }
+        if ($resp) { $resp.Dispose(); $resp = $null }
         Write-Progress -Activity $Description -Completed
     } catch {
+        if ($fileStream) { $fileStream.Dispose(); $fileStream = $null }
+        if ($stream) { $stream.Dispose(); $stream = $null }
+        if ($resp) { $resp.Dispose(); $resp = $null }
         Write-Warning "Stream download encountered an issue: $($_.Exception.Message). Falling back to WebClient..."
         $client = New-Object System.Net.WebClient
         $client.DownloadFile($Url, $OutputFile)
@@ -162,15 +177,55 @@ function Download-FileWithProgress {
 }
 
 # ------------------------------------------------------------------------------
-# 1. Directory Initialization
+# 1. Directory Initialization & Process Check
 # ------------------------------------------------------------------------------
-$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
-if ([string]::IsNullOrWhiteSpace($ScriptDir)) {
-    $ScriptDir = (Get-Location).Path
-}
+$ScriptDir = if (![string]::IsNullOrEmpty($PSScriptRoot)) { $PSScriptRoot }
+             elseif ($MyInvocation.MyCommand.Path) { Split-Path -Parent $MyInvocation.MyCommand.Path }
+             else { $PWD.Path }
 
 $InstallDir = [System.IO.Path]::GetFullPath($InstallPath)
 Write-Host "`n(1/8) Setting up installation target: $InstallDir" -ForegroundColor Cyan
+
+# Check for running Burp Suite instances to prevent file locking
+Write-Host "      Checking for active Burp Suite processes..." -ForegroundColor DarkGray
+try {
+    $runningBurp = @()
+    try {
+        $runningBurp = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
+            ($_.Name -match '^(java|javaw|wscript)\.exe$') -and (
+                $_.CommandLine -match 'burpsuite' -or 
+                $_.CommandLine -match 'loader\.jar' -or 
+                $_.CommandLine -match 'Burp-Suite-Pro\.vbs' -or
+                $_.CommandLine -match 'Burp\.bat' -or
+                ($InstallDir -and $_.CommandLine -like "*$InstallDir*")
+            )
+        }
+    } catch {
+        $runningBurp = Get-WmiObject Win32_Process -ErrorAction SilentlyContinue | Where-Object {
+            ($_.Name -match '^(java|javaw|wscript)\.exe$') -and (
+                $_.CommandLine -match 'burpsuite' -or 
+                $_.CommandLine -match 'loader\.jar' -or 
+                $_.CommandLine -match 'Burp-Suite-Pro\.vbs' -or
+                $_.CommandLine -match 'Burp\.bat' -or
+                ($InstallDir -and $_.CommandLine -like "*$InstallDir*")
+            )
+        }
+    }
+
+    if ($runningBurp) {
+        Write-Host "      [*] Detected active Burp Suite processes. Stopping to prevent file locks..." -ForegroundColor Yellow
+        foreach ($p in $runningBurp) {
+            Write-Host "      Terminating process: ID $($p.ProcessId) ($($p.Name))" -ForegroundColor Yellow
+            Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue
+        }
+        Start-Sleep -Milliseconds 800
+        Write-Host "      [OK] Running processes cleanly terminated." -ForegroundColor Green
+    } else {
+        Write-Host "      [OK] No conflicting processes running." -ForegroundColor Green
+    }
+} catch {
+    Write-Warning "Could not verify running processes: $($_.Exception.Message). Please ensure Burp Suite is closed."
+}
 
 if (-not (Test-Path $InstallDir)) {
     New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
@@ -378,9 +433,13 @@ if (-not $validJava) {
                     $msiProcess = Start-Process -FilePath "msiexec.exe" -ArgumentList $installArgs -Wait -PassThru
 
                     if (Test-Path $msiFile) { Remove-Item -Path $msiFile -Force -ErrorAction SilentlyContinue }
-                    $javaInstalledSuccess = $true
-                    Write-Host "      [OK] OpenJDK 21 installation completed." -ForegroundColor Green
-                    break
+                    if ($msiProcess.ExitCode -eq 0) {
+                        $javaInstalledSuccess = $true
+                        Write-Host "      [OK] OpenJDK 21 installation completed." -ForegroundColor Green
+                        break
+                    } else {
+                        Write-Warning "msiexec returned exit code $($msiProcess.ExitCode). Trying next source..."
+                    }
                 }
             } catch {
                 Write-Warning "MSI download from $msiUrl failed: $($_.Exception.Message)"
@@ -584,8 +643,18 @@ if (-not $skipDownload) {
     $tempTarget = "$TargetJar.tmp"
     Write-Host "      Downloading $JarName (~700MB)..." -ForegroundColor Yellow
     Download-FileWithProgress -Url $DownloadUrl -OutputFile $tempTarget -Description "Downloading Burp Suite Professional $BURP_VERSION"
-    Move-Item -Path $tempTarget -Destination $TargetJar -Force
-    Write-Host "      [OK] Download completed." -ForegroundColor Green
+
+    # Validate downloaded JAR integrity (> 100MB) before overwriting target
+    if ((Test-Path $tempTarget) -and ((Get-Item $tempTarget).Length -gt 100MB)) {
+        Move-Item -Path $tempTarget -Destination $TargetJar -Force
+        Write-Host "      [OK] Download completed and verified ($([math]::Round((Get-Item $TargetJar).Length / 1MB, 1)) MB)." -ForegroundColor Green
+    } else {
+        if (Test-Path $tempTarget) {
+            Remove-Item -Path $tempTarget -Force -ErrorAction SilentlyContinue
+        }
+        Write-Error "ERROR: Downloaded JAR file is invalid or smaller than 100MB. Download may have failed or been corrupted."
+        exit 1
+    }
 
     # Clean up older versions only after download succeeds
     Get-ChildItem -Path $InstallDir -Filter "burpsuite_pro_v*.jar" -File -ErrorAction SilentlyContinue |

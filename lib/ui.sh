@@ -28,6 +28,20 @@ ui_ensure_dialog() {
 
     printf '\033[0;34m[INFO]\033[0m "dialog" not found. Installing "dialog" for TUI...\n'
 
+    if [ -n "${TERMUX_VERSION:-}" ] || [ -d "/data/data/com.termux" ]; then
+        pkg install -y dialog || true
+        ui_detect
+        if [ "$UI_TOOL" = "dialog" ]; then
+            printf '\033[0;32m[OK]\033[0m Successfully installed dialog.\n'
+            return 0
+        fi
+        if [ "$UI_TOOL" = "whiptail" ]; then
+            printf '\033[1;33m[WARN]\033[0m Could not install dialog. Whiptail will be used as fallback.\n' >&2
+            return 0
+        fi
+        return 1
+    fi
+
     local sudo_cmd=""
     if [ "$(id -u)" -ne 0 ]; then
         if command -v sudo >/dev/null 2>&1; then
@@ -99,7 +113,9 @@ ui_ensure_dialog() {
             pkg install -y dialog || true
             ;;
         *)
-            if command -v pacman >/dev/null 2>&1; then
+            if [ -n "${TERMUX_VERSION:-}" ] || [ -d "/data/data/com.termux" ] || command -v pkg >/dev/null 2>&1; then
+                pkg install -y dialog || true
+            elif command -v pacman >/dev/null 2>&1; then
                 $sudo_cmd pacman -S --needed --noconfirm dialog 2>/dev/null ||
                     $sudo_cmd pacman -Sy --needed --noconfirm dialog || true
             elif command -v dnf5 >/dev/null 2>&1; then
@@ -113,8 +129,6 @@ ui_ensure_dialog() {
                 $sudo_cmd zypper --non-interactive install dialog || true
             elif command -v apk >/dev/null 2>&1; then
                 $sudo_cmd apk add dialog || true
-            elif command -v pkg >/dev/null 2>&1; then
-                pkg install -y dialog || true
             fi
             ;;
     esac

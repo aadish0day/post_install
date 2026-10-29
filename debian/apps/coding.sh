@@ -31,7 +31,10 @@ install_vscode() {
     warn "Pacstall vscode-deb failed, using the Microsoft apt repository."
     add_apt_repo vscode https://packages.microsoft.com/keys/microsoft.asc \
         "deb [arch=amd64,arm64,armhf signed-by={keyring}] https://packages.microsoft.com/repos/code stable main"
-    echo "code code/add-microsoft-repo boolean false" | $SUDO debconf-set-selections
+    command -v debconf-set-selections >/dev/null 2>&1 || apt_install debconf-utils
+    if command -v debconf-set-selections >/dev/null 2>&1; then
+        echo "code code/add-microsoft-repo boolean false" | $SUDO debconf-set-selections
+    fi
     apt_install code
 }
 

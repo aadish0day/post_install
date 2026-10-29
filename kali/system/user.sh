@@ -15,11 +15,19 @@ echo "============================="
 echo
 
 # Get new username
-read -p "Enter the new username: " NEW_USER
+NEW_USER="${1:-}"
+if [[ -z "$NEW_USER" ]]; then
+    read -p "Enter the new username: " NEW_USER
+fi
 
 # Validate username
 if [[ -z "$NEW_USER" ]]; then
     echo "Error: Username cannot be empty"
+    exit 1
+fi
+
+if [[ "$NEW_USER" == "kali" ]]; then
+    echo "Error: New username cannot be 'kali'"
     exit 1
 fi
 
@@ -75,16 +83,24 @@ su - "$NEW_USER" -c "mkdir -p ~/Documents ~/Downloads ~/Tools ~/Scripts"
 
 # Handle default kali user removal
 if [[ "$KALI_EXISTS" == true ]]; then
-    echo
-    read -p "Remove the default 'kali' user? (yes/no): " REMOVE_KALI
+    CURRENT_SESSION_USER="${SUDO_USER:-$(logname 2>/dev/null || echo "${USER:-}")}"
+    if [[ "$CURRENT_SESSION_USER" == "kali" ]]; then
+        echo
+        echo "Notice: Current active session belongs to 'kali'."
+        echo "Skipping removal, renaming, usermod, or locking of the active 'kali' user account to prevent session self-termination."
+        echo "Please log out, log in as '$NEW_USER', and remove or modify 'kali' from that session if desired."
+    else
+        echo
+        read -p "Remove the default 'kali' user? (yes/no): " REMOVE_KALI
 
-    if [[ "$REMOVE_KALI" == "yes" || "$REMOVE_KALI" == "y" ]]; then
-        echo "Removing kali user..."
-        pkill -u kali 2>/dev/null
-        sleep 2
-        userdel -r kali 2>/dev/null
-        rm -f /etc/sudoers.d/kali 2>/dev/null
-        echo "Kali user removed"
+        if [[ "$REMOVE_KALI" == "yes" || "$REMOVE_KALI" == "y" ]]; then
+            echo "Removing kali user..."
+            pkill -u kali 2>/dev/null
+            sleep 2
+            userdel -r kali 2>/dev/null
+            rm -f /etc/sudoers.d/kali 2>/dev/null
+            echo "Kali user removed"
+        fi
     fi
 fi
 
