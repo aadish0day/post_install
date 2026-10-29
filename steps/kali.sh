@@ -19,7 +19,7 @@ step_kali_core() {
 step_kali_meta() {
     local meta="${1:-}"
     if [ "${DRY_RUN_MODE:-false}" = true ]; then return 0; fi
-    [ -n "$meta" ] || return 0
+    [ -n "$meta" ] && [ "$meta" != "none" ] || return 0
     sudo nala install -y "kali-linux-${meta}"
 }
 
@@ -40,7 +40,7 @@ build_plan_kali() {
 
     plan_add "Kali Linux Core Setup (kali/kali.sh)" step_kali_core
 
-    if [ -n "${CFG_KALI_META:-}" ]; then
+    if [ -n "${CFG_KALI_META:-}" ] && [ "${CFG_KALI_META:-}" != "none" ]; then
         plan_add "Install Kali Metapackage (kali-linux-${CFG_KALI_META})" step_kali_meta "${CFG_KALI_META}"
     fi
 
