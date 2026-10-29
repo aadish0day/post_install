@@ -136,22 +136,21 @@ Supported flags:
 
 ### 6. Windows (PowerShell & Batch)
 
-For Windows installation (such as Burp Suite Professional, JDK 21 detection, and Windows shortcuts):
+#### WinGet (Windows Package Manager) Installer & Repair Tool (TUI)
+Interactive keyboard-navigated TUI installer and repair tool for Windows 10 & 11:
 
-**Method A: One-Click / Batch**
-Simply run or double-click `install.bat` inside `window\burp\`:
+```cmd
+.\window\system\winget_install.bat
+```
+*(Or via PowerShell: `.\window\system\winget_install.ps1`)*
+
+#### Burp Suite Professional
+Automated PortSwigger latest release API query, JDK 21 detection & auto-installation, `.ico` desktop & start menu shortcuts, and silent background launcher integration (`Burp-Suite-Pro.vbs`):
 
 ```cmd
 .\window\burp\install.bat
 ```
-
-**Method B: PowerShell**
-Open `PowerShell` as administrator and execute:
-
-```powershell
-Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
-.\window\burp\install.ps1
-```
+*(Or via PowerShell: `.\window\burp\install.ps1`)*
 
 ---
 
@@ -195,7 +194,7 @@ post_install/
 ├── fedora/                     # Fedora modular sub-scripts, config, & fedora/lib/common.sh
 ├── kali/                       # Kali Linux modular sub-scripts (apps, hardware)
 ├── termux/                     # Termux scripts & font installer
-├── window/                     # Windows PowerShell scripts & assets (burp/install.ps1, .ico, config)
+├── window/                     # Windows PowerShell scripts & assets (burp/, system/winget_install.ps1)
 └── theme_and_font.sh           # Standalone font and theme installer
 ```
 
@@ -282,7 +281,8 @@ Hardware auto-detection overrides profile defaults dynamically (e.g. `CFG_AMD_GP
 - **Nerd Fonts**: Installs JetBrains Mono Nerd Font directly from GitHub release archives, updates Termux font settings, and reloads styles.
 
 ### 6. Windows (PowerShell)
-- **PowerShell Automation**: Standalone PowerShell installers (`window/burp/install.ps1`) optimized with silent progress preferences for fast downloads.
+- **PowerShell Automation**: Standalone PowerShell installers and TUI tools under `window/` optimized for Windows 10 & 11.
+- **WinGet Installer & Repair Tool**: Interactive keyboard-driven TUI installer with dependency resolution (VCLibs, UI.Xaml 2.8+), AppX package reset, SQLite cache cleaning, and repository source repair.
 - **Burp Suite Professional**: Automatic PortSwigger latest release API query, JDK 21 detection & auto-installation, `.ico` desktop & start menu shortcuts, and silent background launcher integration (`Burp-Suite-Pro.vbs`).
 
 ---
