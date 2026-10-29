@@ -5,42 +5,92 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$HOME/Documents/Crack/Burpsuite-Professional"
 LOADER_URL="https://codeberg.org/code07/test01/raw/branch/main/loader.jar"
 
-# Fetch the latest version that has a JAR download from PortSwigger's release API
-echo "Fetching latest Burp Suite version..."
-BURP_VERSION="${BURP_VERSION:-$(curl -s 'https://portswigger.net/burp/releases/data?pageSize=10' \
-    | python3 -c "
+# Parse CLI options
+SKIP_LAUNCH=false
+FORCE_DOWNLOAD=false
+CUSTOM_VERSION=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -v|--version)
+            CUSTOM_VERSION="$2"
+            shift 2
+            ;;
+        --skip-launch)
+            SKIP_LAUNCH=true
+            shift
+            ;;
+        -f|--force)
+            FORCE_DOWNLOAD=true
+            shift
+            ;;
+        *)
+            if [[ -z "$CUSTOM_VERSION" && "$1" =~ ^[0-9]+(\.[0-9]+)*$ ]]; then
+                CUSTOM_VERSION="$1"
+            fi
+            shift
+            ;;
+    esac
+done
+
+# Resolve version (User override -> Environment -> PortSwigger API)
+IS_CUSTOM=false
+if [[ -n "$CUSTOM_VERSION" ]]; then
+    BURP_VERSION="$CUSTOM_VERSION"
+    IS_CUSTOM=true
+    echo "Using specified Burp Suite version: $BURP_VERSION"
+elif [[ -n "${BURP_VERSION:-}" ]]; then
+    IS_CUSTOM=true
+    echo "Using environment BURP_VERSION: $BURP_VERSION"
+else
+    echo "Fetching latest Burp Suite version from PortSwigger..."
+    BURP_VERSION="$(curl -s 'https://portswigger.net/burp/releases/data?pageSize=10' \
+        | python3 -c "
 import json, sys
 data = json.load(sys.stdin)
 for r in data['ResultSet']['Results']:
-    if any(b['BuildCategoryPlatform'] == 'Jar' for b in r.get('builds', [])):
+    if any(b.get('BuildCategoryPlatform') == 'Jar' for b in r.get('builds', [])):
         print(r['version']); break
-" 2>/dev/null)}"
-if [ -z "$BURP_VERSION" ]; then
-    echo "ERROR: Could not determine latest Burp Suite version. Check your internet connection."
-    exit 1
+" 2>/dev/null || echo '')"
+
+    if [[ -z "$BURP_VERSION" ]]; then
+        BURP_VERSION="2026.10.1"
+        echo "Using fallback release version: $BURP_VERSION"
+    else
+        echo "Latest version detected: $BURP_VERSION"
+    fi
 fi
+
 JAR_NAME="burpsuite_pro_v${BURP_VERSION}.jar"
 DOWNLOAD_URL="https://portswigger.net/burp/releases/download?product=desktop&version=$BURP_VERSION&type=Jar"
-echo "Latest version: $BURP_VERSION"
 
 echo "=== Installing Burp Suite Professional (Arch Linux) ==="
 
 # 1. Dependency installation (Pacman handles idempotency via --needed)
 echo "Installing dependencies..."
-if ! command -v java &>/dev/null || ! command -v wget &>/dev/null || ! command -v curl &>/dev/null; then
-    sudo pacman -S --noconfirm --needed jdk21-openjdk wget curl
+if ! command -v java &>/dev/null || ! command -v curl &>/dev/null || ! command -v aria2c &>/dev/null; then
+    sudo pacman -S --noconfirm --needed jdk21-openjdk wget curl aria2
 
     echo "Setting Java 21 as default..."
     sudo archlinux-java set java-21-openjdk 2>/dev/null || sudo update-alternatives --set java /usr/lib/jvm/java-21-openjdk/bin/java 2>/dev/null || true
 else
-    echo "Dependencies already satisfied (java, wget, curl present)."
+    echo "Dependencies already satisfied (java, curl, aria2 present)."
 fi
 
 # 2. Install directory preparation
 mkdir -p "$REPO_DIR"
 
-echo "Downloading loader.jar..."
-curl -fL --progress-bar -o "$REPO_DIR/loader.jar" "$LOADER_URL"
+# Download loader.jar (cache if valid)
+LOADER_FILE="$REPO_DIR/loader.jar"
+if [[ -f "$LOADER_FILE" && $(stat -c%s "$LOADER_FILE" 2>/dev/null || echo 0) -gt 10240 && "$FORCE_DOWNLOAD" == false ]]; then
+    echo "Existing loader.jar verified. Skipping download."
+else
+    echo "Downloading loader.jar..."
+    curl -fL --progress-bar -o "$LOADER_FILE" "$LOADER_URL" || {
+        echo "Primary loader failed. Trying fallback mirror..."
+        curl -fL --progress-bar -o "$LOADER_FILE" "https://github.com/xiv3r/Burpsuite-Professional/raw/refs/heads/main/loader.jar"
+    }
+fi
 
 # Helper function to compare version strings: returns 0 (true) if $1 >= $2
 version_ge() {
@@ -51,43 +101,56 @@ cd "$REPO_DIR"
 
 # 3. Check existing Burp Suite Pro JAR version
 SKIP_DOWNLOAD=false
-if compgen -G "$REPO_DIR/burpsuite_pro_v*.jar" >/dev/null; then
-    EXISTING_JAR="$(ls -1 "$REPO_DIR"/burpsuite_pro_v*.jar 2>/dev/null | sort -V | tail -n1 || true)"
-    if [ -n "$EXISTING_JAR" ] && [ -f "$EXISTING_JAR" ]; then
-        EXISTING_VERSION="$(basename "$EXISTING_JAR" | sed -E 's/^burpsuite_pro_v(.*)\.jar$/\1/')"
-        EXISTING_SIZE="$(stat -c%s "$EXISTING_JAR" 2>/dev/null || stat -f%z "$EXISTING_JAR" 2>/dev/null || echo 0)"
-        if [ "$EXISTING_SIZE" -gt 10485760 ]; then
-            if [ "$EXISTING_VERSION" = "$BURP_VERSION" ]; then
-                echo "Burp Suite Professional $BURP_VERSION is already downloaded and up-to-date. Skipping download."
-                SKIP_DOWNLOAD=true
-                JAR_NAME="$(basename "$EXISTING_JAR")"
-            elif version_ge "$EXISTING_VERSION" "$BURP_VERSION"; then
-                echo "Installed version ($EXISTING_VERSION) is newer than PortSwigger release ($BURP_VERSION). Skipping download."
-                SKIP_DOWNLOAD=true
-                JAR_NAME="$(basename "$EXISTING_JAR")"
+if [[ "$FORCE_DOWNLOAD" == false ]] && compgen -G "$REPO_DIR/burpsuite_pro_v*.jar" >/dev/null; then
+    if [[ "$IS_CUSTOM" == true ]]; then
+        if [[ -f "$REPO_DIR/$JAR_NAME" && $(stat -c%s "$REPO_DIR/$JAR_NAME" 2>/dev/null || echo 0) -gt 10485760 ]]; then
+            echo "Requested version $BURP_VERSION is already downloaded. Skipping download."
+            SKIP_DOWNLOAD=true
+        fi
+    else
+        EXISTING_JAR="$(ls -1 "$REPO_DIR"/burpsuite_pro_v*.jar 2>/dev/null | sort -V | tail -n1 || true)"
+        if [[ -n "$EXISTING_JAR" && -f "$EXISTING_JAR" ]]; then
+            EXISTING_VERSION="$(basename "$EXISTING_JAR" | sed -E 's/^burpsuite_pro_v(.*)\.jar$/\1/')"
+            EXISTING_SIZE="$(stat -c%s "$EXISTING_JAR" 2>/dev/null || stat -f%z "$EXISTING_JAR" 2>/dev/null || echo 0)"
+            if [[ "$EXISTING_SIZE" -gt 10485760 ]]; then
+                if [[ "$EXISTING_VERSION" == "$BURP_VERSION" ]]; then
+                    echo "Burp Suite Professional $BURP_VERSION is already downloaded and up-to-date. Skipping download."
+                    SKIP_DOWNLOAD=true
+                    JAR_NAME="$(basename "$EXISTING_JAR")"
+                elif version_ge "$EXISTING_VERSION" "$BURP_VERSION"; then
+                    echo "Installed version ($EXISTING_VERSION) is newer than PortSwigger release ($BURP_VERSION). Skipping download."
+                    SKIP_DOWNLOAD=true
+                    JAR_NAME="$(basename "$EXISTING_JAR")"
+                else
+                    echo "Found older version ($EXISTING_VERSION). Upgrading to latest ($BURP_VERSION)..."
+                fi
             else
-                echo "Found older version ($EXISTING_VERSION). Upgrading to latest ($BURP_VERSION)..."
+                echo "Existing JAR file ($EXISTING_JAR) is incomplete or corrupted ($EXISTING_SIZE bytes). Re-downloading..."
             fi
-        else
-            echo "Existing JAR file ($EXISTING_JAR) is incomplete or corrupted ($EXISTING_SIZE bytes). Re-downloading..."
         fi
     fi
 fi
 
-if [ "$SKIP_DOWNLOAD" = false ]; then
+if [[ "$SKIP_DOWNLOAD" == false ]]; then
     echo "Downloading Burp Suite Professional $BURP_VERSION ($JAR_NAME)..."
-    wget -O "$JAR_NAME.tmp" --quiet --show-progress "$DOWNLOAD_URL"
+    if command -v aria2c &>/dev/null; then
+        echo "Using aria2c accelerator (16 parallel connections)..."
+        aria2c -x 16 -s 16 -j 16 -k 1M -c --file-allocation=none -d "$REPO_DIR" -o "$JAR_NAME.tmp" "$DOWNLOAD_URL"
+    else
+        echo "Using curl with auto-resume..."
+        curl -fLC - --retry 3 --retry-delay 2 --progress-bar -o "$JAR_NAME.tmp" "$DOWNLOAD_URL"
+    fi
     mv "$JAR_NAME.tmp" "$JAR_NAME"
 
     # Remove older Burp JARs now that download succeeded
     find "$REPO_DIR" -maxdepth 1 -name 'burpsuite_pro_v*.jar' ! -name "$JAR_NAME" -delete 2>/dev/null || true
-fi
 
-# Calculate and display checksums
-if [ -f "$JAR_NAME" ]; then
-    echo "--- File Checksums ---"
-    echo "SHA256: $(sha256sum "$JAR_NAME" | cut -d' ' -f1)"
-    echo "MD5:    $(md5sum "$JAR_NAME" | cut -d' ' -f1)"
+    # Calculate and display checksums
+    if [[ -f "$JAR_NAME" ]]; then
+        echo "--- File Checksums ---"
+        echo "SHA256: $(sha256sum "$JAR_NAME" | cut -d' ' -f1)"
+        echo "MD5:    $(md5sum "$JAR_NAME" | cut -d' ' -f1)"
+    fi
 fi
 
 # 4. Copy local config files if present
@@ -136,20 +199,24 @@ StartupWMClass=burp-StartBurp
 EOF
 
 # 7. Start Key Loader & Burp Suite Pro
-if [ -z "${DISPLAY:-}" ]; then
-    if [ -n "${WAYLAND_DISPLAY:-}" ] || [ -e /tmp/.X11-unix/X0 ]; then
-        export DISPLAY=:0
+if [[ "$SKIP_LAUNCH" == false ]]; then
+    if [ -z "${DISPLAY:-}" ]; then
+        if [ -n "${WAYLAND_DISPLAY:-}" ] || [ -e /tmp/.X11-unix/X0 ]; then
+            export DISPLAY=:0
+        fi
     fi
-fi
 
-if [ -f "$REPO_DIR/loader.jar" ]; then
-    echo "Starting Key loader.jar in background..."
-    nohup java -jar "$REPO_DIR/loader.jar" >/dev/null 2>&1 &
+    if [ -f "$REPO_DIR/loader.jar" ]; then
+        echo "Starting Key loader.jar in background..."
+        nohup java -jar "$REPO_DIR/loader.jar" >/dev/null 2>&1 &
+        disown 2>/dev/null || true
+    fi
+
+    echo "Starting Burp Suite Professional..."
+    nohup "$LAUNCHER_PATH" >/dev/null 2>&1 &
     disown 2>/dev/null || true
+else
+    echo "Skipping application launch (--skip-launch specified)."
 fi
-
-echo "Starting Burp Suite Professional..."
-nohup "$LAUNCHER_PATH" >/dev/null 2>&1 &
-disown 2>/dev/null || true
 
 echo "=== Burp Suite Professional (Arch Linux) installation completed successfully! ==="

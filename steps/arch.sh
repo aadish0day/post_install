@@ -281,7 +281,7 @@ build_plan_arch() {
     fi
 
     if [ "$CFG_SECURITY_BURP" = true ] && [ -f "$distro_dir/apps/burp/install.sh" ]; then
-        plan_add "Setup Burp Suite Community (arch/apps/burp/install.sh)" run_module "arch/apps/burp/install.sh"
+        plan_add "Setup Burp Suite Professional (arch/apps/burp/install.sh)" run_module "arch/apps/burp/install.sh"
     fi
 
     if [ "$CFG_GAMING" = true ] && [ -f "$distro_dir/apps/gaming.sh" ]; then
