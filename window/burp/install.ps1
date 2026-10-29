@@ -23,6 +23,11 @@ param (
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'Continue'
 
+# Automatically set execution policy to Bypass for current process
+try {
+    Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force -ErrorAction SilentlyContinue
+} catch {}
+
 # Enable modern TLS 1.2 and TLS 1.3
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor [Net.SecurityProtocolType]::Tls13
 
