@@ -11,19 +11,23 @@ Automated, production-grade PowerShell installer for **Burp Suite Professional**
 
 ## ⚡ Quick Start
 
-- Open `PowerShell` as administrator and execute the below command to set Script Execution Policy:
+### Option 1: One-Click / CMD Launcher (No Policy Setup Needed)
+Simply double-click `install.bat` or run in Command Prompt / PowerShell:
+
+```cmd
+.\install.bat
+```
+
+### Option 2: PowerShell Direct
+
+- Open `PowerShell` as administrator and execute:
 
 ```powershell
 Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
-```
-
-- Now execute `install.ps1` in PowerShell to complete installation:
-
-```powershell
 .\install.ps1
 ```
 
-### Direct Remote One-Liner
+### Option 3: Direct Remote One-Liner
 If you haven't cloned the repository, run directly from GitHub:
 
 ```powershell

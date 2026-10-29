@@ -17,7 +17,8 @@
 param (
     [string]$InstallPath = "$env:USERPROFILE\Documents\Crack\Burpsuite-Professional",
     [switch]$SkipLaunch,
-    [switch]$ForceDownload
+    [switch]$ForceDownload,
+    [switch]$Update
 )
 
 $ErrorActionPreference = 'Stop'
@@ -377,7 +378,7 @@ Write-Host "      Target File:        $JarName" -ForegroundColor DarkGray
 # ------------------------------------------------------------------------------
 # 4. Download Key Loader
 # ------------------------------------------------------------------------------
-Write-Host "`n(4/8) Downloading key loader..." -ForegroundColor Cyan
+Write-Host "`n(4/8) Checking key loader..." -ForegroundColor Cyan
 $TargetLoader = Join-Path $InstallDir "loader.jar"
 $loaderSources = @(
     "https://codeberg.org/code07/test01/raw/branch/main/loader.jar",
@@ -385,18 +386,24 @@ $loaderSources = @(
 )
 
 $loaderDownloaded = $false
-foreach ($url in $loaderSources) {
-    try {
-        Write-Host "      Fetching from $url ..." -ForegroundColor DarkGray
-        Download-FileWithProgress -Url $url -OutputFile $TargetLoader -Description "Downloading Key Loader"
-        if ((Test-Path $TargetLoader) -and ((Get-Item $TargetLoader).Length -gt 10240)) {
-            $lBytes = (Get-Item $TargetLoader).Length
-            Write-Host "      [OK] Loader verified ($lBytes bytes)." -ForegroundColor Green
-            $loaderDownloaded = $true
-            break
+if ((Test-Path $TargetLoader) -and ((Get-Item $TargetLoader).Length -gt 10240) -and -not $ForceDownload) {
+    $lBytes = (Get-Item $TargetLoader).Length
+    Write-Host "      [OK] Existing loader.jar verified ($lBytes bytes). Skipping download." -ForegroundColor Green
+    $loaderDownloaded = $true
+} else {
+    foreach ($url in $loaderSources) {
+        try {
+            Write-Host "      Fetching from $url ..." -ForegroundColor DarkGray
+            Download-FileWithProgress -Url $url -OutputFile $TargetLoader -Description "Downloading Key Loader"
+            if ((Test-Path $TargetLoader) -and ((Get-Item $TargetLoader).Length -gt 10240)) {
+                $lBytes = (Get-Item $TargetLoader).Length
+                Write-Host "      [OK] Loader verified ($lBytes bytes)." -ForegroundColor Green
+                $loaderDownloaded = $true
+                break
+            }
+        } catch {
+            Write-Warning "Download from $url failed."
         }
-    } catch {
-        Write-Warning "Download from $url failed."
     }
 }
 
@@ -410,28 +417,28 @@ if (-not $loaderDownloaded) {
 # ------------------------------------------------------------------------------
 Write-Host "`n(5/8) Managing Burp Suite Pro JAR releases..." -ForegroundColor Cyan
 
+function Parse-VersionSafe {
+    param ([string]$VerString)
+    try {
+        $clean = ($VerString -replace '[^\d\.]', '').Trim('.')
+        $parts = $clean.Split('.')
+        $nums = @(0, 0, 0, 0)
+        for ($i = 0; $i -lt 4; $i++) {
+            if ($i -lt $parts.Length -and $parts[$i] -match '^\d+$') {
+                $nums[$i] = [int]$parts[$i]
+            }
+        }
+        return [System.Version]::new($nums[0], $nums[1], $nums[2], $nums[3])
+    } catch {
+        return [System.Version]::new(0, 0, 0, 0)
+    }
+}
+
 function Compare-VersionStrings {
     param ([string]$v1, [string]$v2)
-    try {
-        $cleanV1 = ($v1 -replace '[^\d\.]', '')
-        $cleanV2 = ($v2 -replace '[^\d\.]', '')
-        if ($cleanV1 -notlike "*.*") { $cleanV1 += ".0" }
-        if ($cleanV2 -notlike "*.*") { $cleanV2 += ".0" }
-        $ver1 = [System.Version]$cleanV1
-        $ver2 = [System.Version]$cleanV2
-        return $ver1.CompareTo($ver2)
-    } catch {
-        $p1 = $v1.Split('.')
-        $p2 = $v2.Split('.')
-        $len = [math]::Max($p1.Length, $p2.Length)
-        for ($i = 0; $i -lt $len; $i++) {
-            $num1 = if ($i -lt $p1.Length -and $p1[$i] -match '^\d+$') { [int]$p1[$i] } else { 0 }
-            $num2 = if ($i -lt $p2.Length -and $p2[$i] -match '^\d+$') { [int]$p2[$i] } else { 0 }
-            if ($num1 -gt $num2) { return 1 }
-            if ($num1 -lt $num2) { return -1 }
-        }
-        return 0
-    }
+    $ver1 = Parse-VersionSafe -VerString $v1
+    $ver2 = Parse-VersionSafe -VerString $v2
+    return $ver1.CompareTo($ver2)
 }
 
 $skipDownload = $false
@@ -444,13 +451,7 @@ if ($existingJars -and -not $ForceDownload) {
     # Sort existing JARs by version to find the highest installed release
     $sortedJars = $existingJars | Sort-Object {
         $v = $_.BaseName -replace '^burpsuite_pro_v', ''
-        try {
-            $c = ($v -replace '[^\d\.]', '')
-            if ($c -notlike "*.*") { $c += ".0" }
-            [System.Version]$c
-        } catch {
-            [System.Version]"0.0"
-        }
+        Parse-VersionSafe -VerString $v
     }
     $highestJar = $sortedJars | Select-Object -Last 1
 
@@ -490,23 +491,32 @@ if (-not $skipDownload) {
             Write-Host "      Removing old version: $($_.Name)" -ForegroundColor DarkGray
             Remove-Item -Path $_.FullName -Force -ErrorAction SilentlyContinue
         }
+
+    Write-Host "      Calculating cryptographic checksums..." -ForegroundColor DarkGray
+    $sha256 = (Get-FileHash -Path $TargetJar -Algorithm SHA256).Hash
+    $md5 = (Get-FileHash -Path $TargetJar -Algorithm MD5).Hash
+    Write-Host "      SHA256: $sha256" -ForegroundColor DarkCyan
+    Write-Host "      MD5:    $md5" -ForegroundColor DarkCyan
 }
 
-Write-Host "      Calculating cryptographic checksums..." -ForegroundColor DarkGray
-$sha256 = (Get-FileHash -Path $TargetJar -Algorithm SHA256).Hash
-$md5 = (Get-FileHash -Path $TargetJar -Algorithm MD5).Hash
-Write-Host "      SHA256: $sha256" -ForegroundColor DarkCyan
-Write-Host "      MD5:    $md5" -ForegroundColor DarkCyan
-
 # ------------------------------------------------------------------------------
-# 6. Copy Local Assets (.config.ini & burp_suite_pro.ico)
+# 6. Deploy Assets (.config.ini & burp_suite_pro.ico)
 # ------------------------------------------------------------------------------
-Write-Host "`n(6/8) Deploying local assets & icons..." -ForegroundColor Cyan
+Write-Host "`n(6/8) Deploying assets & icons..." -ForegroundColor Cyan
 
 $LocalConfig = Join-Path $ScriptDir ".config.ini"
+$TargetConfig = Join-Path $InstallDir ".config.ini"
 if (Test-Path $LocalConfig) {
     Copy-Item -Path $LocalConfig -Destination $InstallDir -Force
     Write-Host "      [OK] Copied .config.ini to $InstallDir" -ForegroundColor Green
+} elseif (-not (Test-Path $TargetConfig)) {
+    try {
+        $cfgUrl = "https://raw.githubusercontent.com/aadish0day/post_install/main/window/burp/.config.ini"
+        (New-Object System.Net.WebClient).DownloadFile($cfgUrl, $TargetConfig)
+        Write-Host "      [OK] Downloaded default .config.ini to $InstallDir" -ForegroundColor Green
+    } catch {
+        Write-Warning "Could not fetch remote .config.ini"
+    }
 }
 
 $LocalIcon = Join-Path $ScriptDir "burp_suite_pro.ico"
@@ -514,8 +524,14 @@ $TargetIcon = Join-Path $InstallDir "burp_suite_pro.ico"
 if (Test-Path $LocalIcon) {
     Copy-Item -Path $LocalIcon -Destination $InstallDir -Force
     Write-Host "      [OK] Copied official burp_suite_pro.ico to $InstallDir" -ForegroundColor Green
-} else {
-    Write-Warning "Local burp_suite_pro.ico not found at $LocalIcon."
+} elseif (-not (Test-Path $TargetIcon)) {
+    try {
+        $icoUrl = "https://raw.githubusercontent.com/aadish0day/post_install/main/window/burp/burp_suite_pro.ico"
+        (New-Object System.Net.WebClient).DownloadFile($icoUrl, $TargetIcon)
+        Write-Host "      [OK] Downloaded official burp_suite_pro.ico to $InstallDir" -ForegroundColor Green
+    } catch {
+        Write-Warning "Local burp_suite_pro.ico not found at $LocalIcon."
+    }
 }
 
 # ------------------------------------------------------------------------------
@@ -525,7 +541,7 @@ Write-Host "`n(7/8) Creating launchers and Windows shortcuts..." -ForegroundColo
 
 # 7A. Burp.bat (Direct / CLI launcher with Java 21 module flags)
 $BatPath = Join-Path $InstallDir "Burp.bat"
-$BatContent = "@echo off`r`nsetlocal`r`ncd /d `"%~dp0`"`r`nstart `"`" javaw -XX:+UseG1GC --add-opens=java.desktop/javax.swing=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm.Opcodes=ALL-UNNAMED -javaagent:`"%~dp0loader.jar`" -noverify -jar `"%~dp0$JarName`" %*`r`nendlocal`r`n"
+$BatContent = "@echo off`r`nsetlocal`r`ncd /d `"%~dp0`"`r`nif exist `"%JAVA_HOME%\bin\javaw.exe`" (`r`n    set `"JAVA_BIN=%JAVA_HOME%\bin\javaw.exe`"`r`n) else (`r`n    set `"JAVA_BIN=javaw`"`r`n)`r`nstart `"`" `"%JAVA_BIN%`" -XX:+UseG1GC --add-opens=java.desktop/javax.swing=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm.Opcodes=ALL-UNNAMED -javaagent:`"%~dp0loader.jar`" -noverify -jar `"%~dp0$JarName`" %*`r`nendlocal`r`n"
 [System.IO.File]::WriteAllText($BatPath, $BatContent, [System.Text.Encoding]::ASCII)
 Write-Host "      [OK] Generated $BatPath" -ForegroundColor Green
 
@@ -551,12 +567,25 @@ Write-Host "      Configuring Windows Start Menu Search & Desktop shortcuts..." 
 try {
     $WshShell = New-Object -ComObject WScript.Shell
 
-    $javawCmd = Get-Command javaw.exe -ErrorAction SilentlyContinue
+    $javawPath = $null
+    if ($validJava -and (Test-Path $validJava.Path)) {
+        $candidateJavaw = Join-Path (Split-Path -Parent $validJava.Path) "javaw.exe"
+        if (Test-Path $candidateJavaw) {
+            $javawPath = $candidateJavaw
+        }
+    }
+    if (-not $javawPath) {
+        $javawCmd = Get-Command javaw.exe -ErrorAction SilentlyContinue
+        if ($javawCmd -and (Test-Path $javawCmd.Source)) {
+            $javawPath = $javawCmd.Source
+        }
+    }
+
     $shortcutTarget = "wscript.exe"
     $shortcutArgs = "`"$VbsPath`""
 
-    if ($javawCmd -and (Test-Path $javawCmd.Source)) {
-        $shortcutTarget = $javawCmd.Source
+    if ($javawPath) {
+        $shortcutTarget = $javawPath
         $shortcutArgs = "-XX:+UseG1GC --add-opens=java.desktop/javax.swing=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm.Opcodes=ALL-UNNAMED -javaagent:`"$TargetLoader`" -noverify -jar `"$TargetJar`""
     }
 
@@ -617,7 +646,8 @@ Write-Host "`n(8/8) Starting Burp Suite Professional suite..." -ForegroundColor 
 if (-not $SkipLaunch) {
     if (Test-Path $TargetLoader) {
         Write-Host "      Launching Key Loader in background..." -ForegroundColor Yellow
-        Start-Process -FilePath "java.exe" -ArgumentList "-jar `"$TargetLoader`""
+        $javaLaunchExe = if ($validJava -and (Test-Path $validJava.Path)) { $validJava.Path } else { "java.exe" }
+        Start-Process -FilePath $javaLaunchExe -ArgumentList "-jar `"$TargetLoader`""
     }
 
     Write-Host "      Launching Burp Suite Professional..." -ForegroundColor Yellow

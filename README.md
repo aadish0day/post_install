@@ -134,23 +134,24 @@ Supported flags:
 - `--desktop <de>`: Target desktop (`kde`, `i3`, `bspwm`, `both`, `none`).
 - `-h`, `--help`: Display usage information.
 
-### 6. Windows (PowerShell)
+### 6. Windows (PowerShell & Batch)
 
 For Windows installation (such as Burp Suite Professional, JDK 21 detection, and Windows shortcuts):
 
-- Open `PowerShell` as administrator and execute the command below to set Script Execution Policy:
+**Method A: One-Click / Batch**
+Simply run or double-click `install.bat` inside `window\burp\`:
+
+```cmd
+.\window\burp\install.bat
+```
+
+**Method B: PowerShell**
+Open `PowerShell` as administrator and execute:
 
 ```powershell
 Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
+.\window\burp\install.ps1
 ```
-
-- Now execute `install.ps1` in PowerShell to complete installation:
-
-```powershell
-.\install.ps1
-```
-
-*(Or from the repository root: `.\window\burp\install.ps1`)*
 
 ---
 
