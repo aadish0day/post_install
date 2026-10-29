@@ -259,52 +259,69 @@ if (-not $validJava) {
     Write-Host "      [*] Java 21+ was not detected on this system. Starting automated installer..." -ForegroundColor Yellow
     $javaInstalledSuccess = $false
 
-    # Method 1: Fast direct MSI download from Microsoft / Adoptium CDN
-    Write-Host "      Downloading OpenJDK 21 MSI directly (high-speed CDN)..." -ForegroundColor Cyan
-    $msiSources = @(
-        "https://aka.ms/download-jdk/microsoft-jdk-21-windows-x64.msi",
-        "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.6%2B7/OpenJDK21U-jdk_x64_windows_hotspot_21.0.6_7.msi"
-    )
-    $msiFile = Join-Path $env:TEMP "openjdk21_installer.msi"
+    # Method 1: Primary installation via winget
+    $wingetCmd = Get-Command winget.exe -ErrorAction SilentlyContinue
+    $wingetExe = if ($wingetCmd) { $wingetCmd.Source } else { $null }
 
-    foreach ($msiUrl in $msiSources) {
-        try {
-            Write-Host "      Connecting to $msiUrl ..." -ForegroundColor DarkGray
-            Download-FileWithProgress -Url $msiUrl -OutputFile $msiFile -Description "Downloading OpenJDK 21 MSI (~170MB)"
-            if ((Test-Path $msiFile) -and ((Get-Item $msiFile).Length -gt 50000000)) {
-                Write-Host "      Installing OpenJDK 21 silently via msiexec (takes ~10 seconds)..." -ForegroundColor Yellow
-                $installArgs = "/i `"$msiFile`" /quiet /qn /norestart"
-                $msiProcess = Start-Process -FilePath "msiexec.exe" -ArgumentList $installArgs -Wait -PassThru
-
-                if (Test-Path $msiFile) { Remove-Item -Path $msiFile -Force -ErrorAction SilentlyContinue }
-                $javaInstalledSuccess = $true
-                Write-Host "      [OK] OpenJDK 21 installation completed." -ForegroundColor Green
-                break
-            }
-        } catch {
-            Write-Warning "MSI download from $msiUrl failed: $($_.Exception.Message)"
+    if (-not $wingetExe) {
+        $potentialWinget = Join-Path $env:LOCALAPPDATA "Microsoft\WindowsApps\winget.exe"
+        if (Test-Path $potentialWinget) {
+            $wingetExe = $potentialWinget
+        }
+    }
+    if (-not $wingetExe) {
+        $programFilesWinget = Get-ChildItem -Path "$env:ProgramFiles\WindowsApps" -Filter "winget.exe" -Recurse -Depth 2 -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($programFilesWinget) {
+            $wingetExe = $programFilesWinget.FullName
         }
     }
 
-    # Method 2: Fallback to winget if direct MSI failed
-    if (-not $javaInstalledSuccess) {
-        $wingetCmd = Get-Command winget.exe -ErrorAction SilentlyContinue
-        if ($wingetCmd) {
-            Write-Host "      Attempting winget installation as fallback..." -ForegroundColor Cyan
-            $wingetPackages = @("Microsoft.OpenJDK.21", "EclipseAdoptium.Temurin.21.JDK", "Oracle.JDK.21")
+    if ($wingetExe) {
+        Write-Host "      Using winget to install Java 21..." -ForegroundColor Cyan
+        $wingetPackages = @("Microsoft.OpenJDK.21", "EclipseAdoptium.Temurin.21.JDK", "Oracle.JDK.21")
 
-            foreach ($pkg in $wingetPackages) {
-                Write-Host "      Installing $pkg via winget..." -ForegroundColor Yellow
-                try {
-                    $process = Start-Process -FilePath "winget.exe" -ArgumentList "install --id $pkg -e --silent --accept-source-agreements --accept-package-agreements" -NoNewWindow -Wait -PassThru
-                    if ($process.ExitCode -eq 0) {
-                        Write-Host "      [OK] Successfully installed $pkg via winget!" -ForegroundColor Green
-                        $javaInstalledSuccess = $true
-                        break
-                    }
-                } catch {
-                    Write-Host "      Winget install of $pkg failed, trying next..." -ForegroundColor DarkGray
+        foreach ($pkg in $wingetPackages) {
+            Write-Host "      Installing $pkg via winget..." -ForegroundColor Yellow
+            try {
+                $process = Start-Process -FilePath $wingetExe -ArgumentList "install --id $pkg -e --silent --accept-source-agreements --accept-package-agreements" -NoNewWindow -Wait -PassThru
+                if ($process.ExitCode -eq 0) {
+                    Write-Host "      [OK] Successfully installed $pkg via winget!" -ForegroundColor Green
+                    $javaInstalledSuccess = $true
+                    break
+                } else {
+                    Write-Host "      winget returned exit code $($process.ExitCode). Trying next package..." -ForegroundColor DarkGray
                 }
+            } catch {
+                Write-Host "      winget install failed: $($_.Exception.Message)" -ForegroundColor DarkGray
+            }
+        }
+    }
+
+    # Method 2: Fallback to direct high-speed MSI download if winget failed or unavailable
+    if (-not $javaInstalledSuccess) {
+        Write-Host "      Falling back to direct OpenJDK 21 MSI download (high-speed CDN)..." -ForegroundColor Cyan
+        $msiSources = @(
+            "https://aka.ms/download-jdk/microsoft-jdk-21-windows-x64.msi",
+            "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.6%2B7/OpenJDK21U-jdk_x64_windows_hotspot_21.0.6_7.msi"
+        )
+        $msiFile = Join-Path $env:TEMP "openjdk21_installer.msi"
+
+        foreach ($msiUrl in $msiSources) {
+            try {
+                Write-Host "      Connecting to $msiUrl ..." -ForegroundColor DarkGray
+                Download-FileWithProgress -Url $msiUrl -OutputFile $msiFile -Description "Downloading OpenJDK 21 MSI (~170MB)"
+                if ((Test-Path $msiFile) -and ((Get-Item $msiFile).Length -gt 50000000)) {
+                    Write-Host "      Installing OpenJDK 21 silently via msiexec (takes ~10 seconds)..." -ForegroundColor Yellow
+                    $installArgs = "/i `"$msiFile`" /quiet /qn /norestart"
+                    $msiProcess = Start-Process -FilePath "msiexec.exe" -ArgumentList $installArgs -Wait -PassThru
+
+                    if (Test-Path $msiFile) { Remove-Item -Path $msiFile -Force -ErrorAction SilentlyContinue }
+                    $javaInstalledSuccess = $true
+                    Write-Host "      [OK] OpenJDK 21 installation completed." -ForegroundColor Green
+                    break
+                }
+            } catch {
+                Write-Warning "MSI download from $msiUrl failed: $($_.Exception.Message)"
             }
         }
     }
