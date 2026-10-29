@@ -4,7 +4,7 @@
 .DESCRIPTION
     PowerShell installer for Burp Suite Professional:
     - Detects Java 21+ (PATH, Registry, Program Files).
-    - Auto-installs Java 21 via winget (with silent MSI fallback).
+    - Auto-installs Java 21 via winget (auto-installs winget via window/system/winget_install.ps1 if missing, with silent MSI fallback).
     - Dynamically queries PortSwigger release API for the latest Pro JAR.
     - Downloads key loader with failover mirrors.
     - Generates silent launchers (Burp.bat & Burp-Suite-Pro.vbs).
@@ -376,23 +376,66 @@ if (-not $validJava) {
     Write-Host "      [*] Java 21+ was not detected on this system. Starting automated installer..." -ForegroundColor Yellow
     $javaInstalledSuccess = $false
 
-    # Method 1: Primary installation via winget
-    $wingetCmd = Get-Command winget.exe -ErrorAction SilentlyContinue
-    $wingetExe = if ($wingetCmd) { $wingetCmd.Source } else { $null }
+    # Helper function to locate winget executable
+    function Find-WinGetExecutable {
+        $cmd = Get-Command winget.exe -ErrorAction SilentlyContinue
+        if ($cmd -and (Test-Path $cmd.Source)) { return $cmd.Source }
 
-    if (-not $wingetExe) {
-        $potentialWinget = Join-Path $env:LOCALAPPDATA "Microsoft\WindowsApps\winget.exe"
-        if (Test-Path $potentialWinget) {
-            $wingetExe = $potentialWinget
-        }
-    }
-    if (-not $wingetExe) {
+        $defaultAlias = Join-Path $env:LOCALAPPDATA "Microsoft\WindowsApps\winget.exe"
+        if (Test-Path $defaultAlias) { return $defaultAlias }
+
         $programFilesWinget = Get-ChildItem -Path "$env:ProgramFiles\WindowsApps" -Filter "winget.exe" -Recurse -Depth 2 -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($programFilesWinget) {
-            $wingetExe = $programFilesWinget.FullName
+        if ($programFilesWinget -and (Test-Path $programFilesWinget.FullName)) { return $programFilesWinget.FullName }
+
+        return $null
+    }
+
+    $wingetExe = Find-WinGetExecutable
+
+    # If winget is NOT installed, install it automatically via window/system/winget_install.ps1
+    if (-not $wingetExe) {
+        Write-Host "      [!] WinGet is not installed on this system. Installing WinGet first..." -ForegroundColor Yellow
+        $wingetInstallerPath = Join-Path (Split-Path -Parent $ScriptDir) "system\winget_install.ps1"
+        $wingetTempScript = $null
+
+        if (-not (Test-Path $wingetInstallerPath)) {
+            Write-Host "      Downloading winget_install.ps1 from repository..." -ForegroundColor Cyan
+            $wingetTempScript = Join-Path $env:TEMP "winget_install.ps1"
+            $wingetUrl = "https://raw.githubusercontent.com/aadish0day/post_install/main/window/system/winget_install.ps1"
+            try {
+                Download-FileWithProgress -Url $wingetUrl -OutputFile $wingetTempScript -Description "Downloading WinGet Installer"
+                if (Test-Path $wingetTempScript) {
+                    $wingetInstallerPath = $wingetTempScript
+                }
+            } catch {
+                Write-Host "      Could not download winget_install.ps1 ($($_.Exception.Message))." -ForegroundColor DarkGray
+            }
+        }
+
+        if ($wingetInstallerPath -and (Test-Path $wingetInstallerPath)) {
+            try {
+                Write-Host "      Executing $wingetInstallerPath -Action Install..." -ForegroundColor Cyan
+                & $wingetInstallerPath -Action Install
+
+                # Refresh environment PATH and aliases
+                Refresh-EnvironmentPath
+                Start-Sleep -Seconds 2
+
+                $wingetExe = Find-WinGetExecutable
+                if ($wingetExe) {
+                    Write-Host "      [OK] WinGet successfully installed and detected: $wingetExe" -ForegroundColor Green
+                }
+            } catch {
+                Write-Host "      WinGet installation encountered an error: $($_.Exception.Message)" -ForegroundColor DarkGray
+            } finally {
+                if ($wingetTempScript -and (Test-Path $wingetTempScript)) {
+                    Remove-Item -Path $wingetTempScript -Force -ErrorAction SilentlyContinue
+                }
+            }
         }
     }
 
+    # Method 1: Primary installation via winget
     if ($wingetExe) {
         Write-Host "      Using winget to install Java 21..." -ForegroundColor Cyan
         $wingetPackages = @("Microsoft.OpenJDK.21", "EclipseAdoptium.Temurin.21.JDK", "Oracle.JDK.21")
