@@ -116,11 +116,46 @@ For unattended scripts, sysprep, or CI/CD pipelines, specify the `-Action` param
 
 ---
 
+## 🍫 Chocolatey Package Manager Installer & Maintenance
+
+Alongside WinGet, this directory provides a dedicated, automated, keyboard-driven installer for **Chocolatey (`choco`)**:
+
+### Quick Start
+```cmd
+choco_install.bat
+```
+*(Or via PowerShell: `.\choco_install.ps1`)*
+
+### Remote One-Liner (No Clone Required)
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
+irm "https://raw.githubusercontent.com/aadish0day/post_install/main/window/system/choco_install.ps1" | iex
+```
+
+### CLI / Headless Automation
+```powershell
+# Unattended Installation
+.\choco_install.ps1 -Action Install
+
+# Force reinstall
+.\choco_install.ps1 -Action Install -Force
+
+# Upgrade all installed packages
+.\choco_install.ps1 -Action Upgrade
+
+# Repair PATH and environment
+.\choco_install.ps1 -Action Repair
+```
+
+---
+
 ## 📂 File Layout
 
 ```text
 window/system/
 ├── README.md              # Documentation and guide
-├── winget_install.ps1     # Core PowerShell TUI installer and repair tool
-└── winget_install.bat     # One-click batch launcher
+├── winget_install.ps1     # WinGet TUI installer and repair tool
+├── winget_install.bat     # One-click WinGet batch launcher
+├── choco_install.ps1      # Chocolatey TUI installer, updater & repair tool
+└── choco_install.bat      # One-click Chocolatey batch launcher
 ```

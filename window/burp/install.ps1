@@ -435,8 +435,34 @@ if (-not $validJava) {
         }
     }
 
-    # Method 1: Primary installation via winget
-    if ($wingetExe) {
+    # Method 1A: High-speed installation via Chocolatey (if installed)
+    $chocoCmd = Get-Command choco.exe -ErrorAction SilentlyContinue
+    $chocoExe = if ($chocoCmd -and (Test-Path $chocoCmd.Source)) { $chocoCmd.Source }
+                elseif (Test-Path "$env:SystemDrive\ProgramData\chocolatey\bin\choco.exe") { "$env:SystemDrive\ProgramData\chocolatey\bin\choco.exe" }
+                else { $null }
+
+    if ($chocoExe) {
+        Write-Host "      Detected Chocolatey! Using choco to install Java 21..." -ForegroundColor Cyan
+        $chocoPackages = @("openjdk21", "microsoft-openjdk21", "temurin21")
+        foreach ($cpkg in $chocoPackages) {
+            Write-Host "      Installing $cpkg via choco..." -ForegroundColor Yellow
+            try {
+                $cproc = Start-Process -FilePath $chocoExe -ArgumentList "install $cpkg -y --no-progress" -NoNewWindow -Wait -PassThru
+                if ($cproc.ExitCode -eq 0 -or $cproc.ExitCode -eq 3010) {
+                    Write-Host "      [OK] Successfully installed $cpkg via Chocolatey!" -ForegroundColor Green
+                    $javaInstalledSuccess = $true
+                    break
+                } else {
+                    Write-Host "      choco returned exit code $($cproc.ExitCode). Trying next package..." -ForegroundColor DarkGray
+                }
+            } catch {
+                Write-Host "      choco install failed: $($_.Exception.Message)" -ForegroundColor DarkGray
+            }
+        }
+    }
+
+    # Method 1B: Primary installation via winget (if choco was not used or failed)
+    if ((-not $javaInstalledSuccess) -and $wingetExe) {
         Write-Host "      Using winget to install Java 21..." -ForegroundColor Cyan
         $wingetPackages = @("Microsoft.OpenJDK.21", "EclipseAdoptium.Temurin.21.JDK", "Oracle.JDK.21")
 

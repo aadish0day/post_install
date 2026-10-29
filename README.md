@@ -194,7 +194,7 @@ post_install/
 ├── fedora/                     # Fedora modular sub-scripts, config, & fedora/lib/common.sh
 ├── kali/                       # Kali Linux modular sub-scripts (apps, hardware)
 ├── termux/                     # Termux scripts & font installer
-├── window/                     # Windows PowerShell scripts & assets (burp/, system/winget_install.ps1)
+├── window/                     # Windows PowerShell scripts & assets (burp/, system/winget_install.ps1, system/choco_install.ps1)
 └── theme_and_font.sh           # Standalone font and theme installer
 ```
 

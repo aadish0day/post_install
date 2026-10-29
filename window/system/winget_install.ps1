@@ -112,17 +112,17 @@ function Show-TuiMenu {
             [System.Console]::SetCursorPosition(0, $startTop)
         } catch {}
 
-        Write-Host "  ┌───────────────────────────────────────────────────────────────┐" -ForegroundColor Cyan
-        Write-Host "  │           WinGet Package Manager - Setup & Maintenance        │" -ForegroundColor Cyan
-        Write-Host "  └───────────────────────────────────────────────────────────────┘" -ForegroundColor Cyan
-        Write-Host "   Use [↑ / ↓] to Navigate | [Enter] Select | [1/2/3] Quick Select | [Q] Quit`n" -ForegroundColor DarkGray
+        Write-Host "  +---------------------------------------------------------------+" -ForegroundColor Cyan
+        Write-Host "  |           WinGet Package Manager - Setup & Maintenance        |" -ForegroundColor Cyan
+        Write-Host "  +---------------------------------------------------------------+" -ForegroundColor Cyan
+        Write-Host "   Use [Up / Down] to Navigate | [Enter] Select | [1/2/3] Quick Select | [Q] Quit`n" -ForegroundColor DarkGray
 
         for ($i = 0; $i -lt $MenuItems.Count; $i++) {
             $item = $MenuItems[$i]
             $isHighlighted = ($i -eq $CurrentIndex)
 
             if ($isHighlighted) {
-                Write-Host "  ► " -NoNewline -ForegroundColor Green
+                Write-Host "  > " -NoNewline -ForegroundColor Green
                 Write-Host "[$($i + 1)] $($item.Title)" -ForegroundColor Black -BackgroundColor Cyan
                 foreach ($descLine in $item.Description) {
                     Write-Host "       $descLine" -ForegroundColor Cyan
@@ -218,25 +218,25 @@ if (-not $Action) {
             Title = "Install / Update WinGet"
             Action = "Install"
             Description = @(
-                "• Full clean installation or update to latest official release",
-                "• Official Microsoft.WinGet.Client engine (WinUtil logic)",
-                "• Registers User PATH and synchronizes official sources"
+                "* Full clean installation or update to latest official release",
+                "* Official Microsoft.WinGet.Client engine (WinUtil logic)",
+                "* Registers User PATH and synchronizes official sources"
             )
         },
         @{
             Title = "Repair WinGet Environment"
             Action = "Repair"
             Description = @(
-                "• Resets AppX package state & re-registers AppXManifest",
-                "• Runs Repair-WinGetPackageManager for deep system repair",
-                "• Restores broken WindowsApps PATH, aliases & purges SQLite cache"
+                "* Resets AppX package state & re-registers AppXManifest",
+                "* Runs Repair-WinGetPackageManager for deep system repair",
+                "* Restores broken WindowsApps PATH, aliases & purges SQLite cache"
             )
         },
         @{
             Title = "Exit"
             Action = "Exit"
             Description = @(
-                "• Cancel and return to terminal"
+                "* Cancel and return to terminal"
             )
         }
     )
