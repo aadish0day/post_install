@@ -401,25 +401,90 @@ if (-not $loaderDownloaded) {
 }
 
 # ------------------------------------------------------------------------------
-# 5. Clean Old Versions & Download Burp Suite Pro JAR
+# 5. Clean Old Versions & Download Burp Suite Pro JAR (Skip if Equal or Greater)
 # ------------------------------------------------------------------------------
 Write-Host "`n(5/8) Managing Burp Suite Pro JAR releases..." -ForegroundColor Cyan
 
-Get-ChildItem -Path $InstallDir -Filter "burpsuite_pro_v*.jar" -File -ErrorAction SilentlyContinue |
-    Where-Object { $_.Name -ne $JarName } |
-    ForEach-Object {
-        $oldFile = $_.Name
-        Write-Host "      Removing old version: $oldFile" -ForegroundColor DarkGray
-        Remove-Item -Path $_.FullName -Force -ErrorAction SilentlyContinue
+function Compare-VersionStrings {
+    param ([string]$v1, [string]$v2)
+    try {
+        $cleanV1 = ($v1 -replace '[^\d\.]', '')
+        $cleanV2 = ($v2 -replace '[^\d\.]', '')
+        if ($cleanV1 -notlike "*.*") { $cleanV1 += ".0" }
+        if ($cleanV2 -notlike "*.*") { $cleanV2 += ".0" }
+        $ver1 = [System.Version]$cleanV1
+        $ver2 = [System.Version]$cleanV2
+        return $ver1.CompareTo($ver2)
+    } catch {
+        $p1 = $v1.Split('.')
+        $p2 = $v2.Split('.')
+        $len = [math]::Max($p1.Length, $p2.Length)
+        for ($i = 0; $i -lt $len; $i++) {
+            $num1 = if ($i -lt $p1.Length -and $p1[$i] -match '^\d+$') { [int]$p1[$i] } else { 0 }
+            $num2 = if ($i -lt $p2.Length -and $p2[$i] -match '^\d+$') { [int]$p2[$i] } else { 0 }
+            if ($num1 -gt $num2) { return 1 }
+            if ($num1 -lt $num2) { return -1 }
+        }
+        return 0
     }
+}
 
+$skipDownload = $false
 $TargetJar = Join-Path $InstallDir $JarName
-if ($ForceDownload -or (-not (Test-Path $TargetJar)) -or ((Get-Item $TargetJar).Length -lt 104857600)) {
+
+# Check for existing Burp Pro JARs in the installation folder
+$existingJars = Get-ChildItem -Path $InstallDir -Filter "burpsuite_pro_v*.jar" -File -ErrorAction SilentlyContinue
+
+if ($existingJars -and -not $ForceDownload) {
+    # Sort existing JARs by version to find the highest installed release
+    $sortedJars = $existingJars | Sort-Object {
+        $v = $_.BaseName -replace '^burpsuite_pro_v', ''
+        try {
+            $c = ($v -replace '[^\d\.]', '')
+            if ($c -notlike "*.*") { $c += ".0" }
+            [System.Version]$c
+        } catch {
+            [System.Version]"0.0"
+        }
+    }
+    $highestJar = $sortedJars | Select-Object -Last 1
+
+    if ($highestJar -and $highestJar.Length -gt 10485760) {
+        $existingVersion = $highestJar.BaseName -replace '^burpsuite_pro_v', ''
+        $cmp = Compare-VersionStrings -v1 $existingVersion -v2 $BURP_VERSION
+
+        if ($cmp -eq 0) {
+            Write-Host "      [OK] Burp Suite Professional $BURP_VERSION is already downloaded and up-to-date. Skipping download." -ForegroundColor Green
+            $skipDownload = $true
+            $JarName = $highestJar.Name
+            $TargetJar = $highestJar.FullName
+        } elseif ($cmp -gt 0) {
+            Write-Host "      [OK] Installed version ($existingVersion) is newer than PortSwigger release ($BURP_VERSION). Skipping download." -ForegroundColor Green
+            $skipDownload = $true
+            $JarName = $highestJar.Name
+            $TargetJar = $highestJar.FullName
+        } else {
+            Write-Host "      [*] Found older version ($existingVersion). Upgrading to latest ($BURP_VERSION)..." -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "      [*] Existing JAR is incomplete or corrupted. Re-downloading..." -ForegroundColor Yellow
+    }
+}
+
+if (-not $skipDownload) {
+    $tempTarget = "$TargetJar.tmp"
     Write-Host "      Downloading $JarName (~700MB)..." -ForegroundColor Yellow
-    Download-FileWithProgress -Url $DownloadUrl -OutputFile $TargetJar -Description "Downloading Burp Suite Professional $BURP_VERSION"
+    Download-FileWithProgress -Url $DownloadUrl -OutputFile $tempTarget -Description "Downloading Burp Suite Professional $BURP_VERSION"
+    Move-Item -Path $tempTarget -Destination $TargetJar -Force
     Write-Host "      [OK] Download completed." -ForegroundColor Green
-} else {
-    Write-Host "      [OK] $JarName is already up-to-date in $InstallDir." -ForegroundColor Green
+
+    # Clean up older versions only after download succeeds
+    Get-ChildItem -Path $InstallDir -Filter "burpsuite_pro_v*.jar" -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -ne $JarName } |
+        ForEach-Object {
+            Write-Host "      Removing old version: $($_.Name)" -ForegroundColor DarkGray
+            Remove-Item -Path $_.FullName -Force -ErrorAction SilentlyContinue
+        }
 }
 
 Write-Host "      Calculating cryptographic checksums..." -ForegroundColor DarkGray
