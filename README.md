@@ -138,10 +138,15 @@ Supported flags:
 
 For Windows installation (such as Burp Suite Professional, JDK 21 detection, and Windows shortcuts):
 
-Open PowerShell as Administrator (or standard user) and run:
+- Open `PowerShell` as administrator and execute the command below to set Script Execution Policy:
 
 ```powershell
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
+Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
+```
+
+- Now execute `install.ps1` in PowerShell to complete installation:
+
+```powershell
 .\install.ps1
 ```
 

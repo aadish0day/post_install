@@ -11,10 +11,15 @@ Automated, production-grade PowerShell installer for **Burp Suite Professional**
 
 ## ⚡ Quick Start
 
-Open PowerShell (as standard user or Administrator) and run:
+- Open `PowerShell` as administrator and execute the below command to set Script Execution Policy:
 
 ```powershell
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
+Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
+```
+
+- Now execute `install.ps1` in PowerShell to complete installation:
+
+```powershell
 .\install.ps1
 ```
 
@@ -22,7 +27,7 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
 If you haven't cloned the repository, run directly from GitHub:
 
 ```powershell
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
+Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
 irm "https://raw.githubusercontent.com/aadish0day/post_install/main/window/burp/install.ps1" | iex
 ```
 
@@ -101,7 +106,7 @@ C:\Users\<Username>\Documents\Crack\Burpsuite-Professional\
 ### Execution Policy Error
 If PowerShell blocks script execution (`running scripts is disabled on this system`):
 ```powershell
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
+Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
 ```
 
 ### Manual Java 21 Download
