@@ -56,8 +56,12 @@ build_plan_kali() {
         fi
     fi
 
+    local -a burp_args=()
+    case "${CFG_BURP_CHANNEL:-}" in
+        stable|latest) burp_args=(--channel "$CFG_BURP_CHANNEL") ;;
+    esac
     if [ "${CFG_SECURITY_BURP:-false}" = true ] && [ -f "$distro_dir/apps/burp/install.sh" ]; then
-        plan_add "Setup Burp Suite Professional (kali/apps/burp/install.sh)" run_module "kali/apps/burp/install.sh"
+        plan_add "Setup Burp Suite Professional (kali/apps/burp/install.sh)" run_module "kali/apps/burp/install.sh" "${burp_args[@]}"
     fi
 
     if [ "${CFG_ADVCPMV:-false}" = true ] && [ -f "$distro_dir/apps/advcpmv.sh" ]; then

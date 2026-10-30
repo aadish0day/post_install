@@ -79,6 +79,21 @@ If neither `dialog` nor `whiptail` is installed, the installer automatically run
 ./install.sh --cli
 ```
 
+#### Burp Suite Professional Version Channel
+
+The TUI and the standalone Arch/Kali installers let you pick a channel:
+
+- **Tested stable** — `v2026.10.1` (recommended)
+- **Latest** — newest PortSwigger release (untested)
+
+```bash
+./kali/apps/burp/install.sh              # asks: tested 2026.10.1 or latest (untested)
+./kali/apps/burp/install.sh --channel latest
+./kali/apps/burp/install.sh -v 2026.10.1
+```
+
+Use `--channel stable` for the tested release, `--channel latest` for the newest (untested) PortSwigger build, or `-v <version>` / `BURP_VERSION=<version>` for an exact version. `-f` forces a re-download and `--skip-launch` installs without starting Burp.
+
 ### 2. Non-Destructive Simulation (Dry-Run)
 
 Inspect exactly what steps and functions will execute without making any changes to your system:

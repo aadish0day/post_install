@@ -352,6 +352,13 @@ run_execution_plan() {
             if [ "$(id -u)" -ne 0 ]; then
                 log_info "Acquiring sudo credentials for installation..."
                 if ! sudo -v; then
+                    if [ "$TARGET_DISTRO" = "debian" ] && [ -f "$SCRIPT_DIR/debian/system/sudo.sh" ]; then
+                        log_warn "Sudo is not configured for user $USER. Launching debian/system/sudo.sh..."
+                        if "$SCRIPT_DIR/debian/system/sudo.sh" "$USER"; then
+                            log_info "Re-checking sudo credentials..."
+                            exec sudo bash "$0" "$@"
+                        fi
+                    fi
                     log_error "Failed to acquire sudo credentials."
                     return 1
                 fi

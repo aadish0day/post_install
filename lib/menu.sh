@@ -4,14 +4,19 @@
 # kind = toggle | choice | multi | info | action
 # label starting with @ is resolved by menu_label_for.
 
+BURP_STABLE_VERSION="2026.10.1"
+: "${CFG_BURP_CHANNEL:=off}"
+: "${CFG_DEBIAN_SUDO:=true}"
+
 MENU_ROWS=(
     "distro|Distribution / Target OS|choice|TARGET_DISTRO|arch debian fedora kali termux|menu_badge_distro"
+    "debian_sudo|Sudo & Root Privileges|toggle|CFG_DEBIAN_SUDO|debian|menu_badge_debian_sudo"
     "desktop|Desktop Environment|choice|CFG_DESKTOP|arch debian fedora|menu_badge_desktop"
     "hardware|@hardware|multi|CFG_HARDWARE|arch debian fedora|menu_badge_hardware"
     "virt|@virt|multi|CFG_VIRT|arch debian fedora|menu_badge_virt"
     "docker|@docker|toggle|CFG_DOCKER|arch debian fedora kali|menu_badge_docker"
     "coding|@coding|multi|CFG_CODING_TOOLS|arch debian fedora|menu_badge_coding"
-    "burp|Burp Suite Professional|toggle|CFG_SECURITY_BURP|arch kali|menu_badge_burp"
+    "burp|Burp Suite Professional|choice|CFG_SECURITY_BURP|arch kali|menu_badge_burp"
     "gaming|@gaming|toggle|CFG_GAMING|arch debian fedora|menu_badge_gaming"
     "aiml|AI / ML Acceleration (ROCm)|toggle|CFG_AIML|arch debian fedora|menu_badge_aiml"
     "prod|@prod|multi|CFG_PROD_APPS|arch debian fedora|menu_badge_prod"
@@ -29,7 +34,7 @@ MENU_ROWS=(
 # Per-distro row order matching main
 declare -A MENU_ORDER=(
     [arch]="distro desktop hardware virt docker coding burp gaming aiml prod aur mirrors install abort"
-    [debian]="distro desktop hardware virt docker coding gaming aiml prod install abort"
+    [debian]="distro debian_sudo desktop hardware virt docker coding gaming aiml prod install abort"
     [fedora]="distro desktop hardware virt docker coding gaming aiml prod install abort"
     [kali]="distro burp kali_meta wifi docker advcpmv install abort"
     [termux]="distro termux_core fonts install abort"
@@ -196,6 +201,10 @@ menu_badge_virt() {
     fi
 }
 
+menu_badge_debian_sudo() {
+    if [ "${CFG_DEBIAN_SUDO:-true}" = true ]; then printf '[Yes]'; else printf '[No]'; fi
+}
+
 menu_badge_docker() {
     if [ "$CFG_DOCKER" = true ]; then printf '[Yes]'; else printf '[No]'; fi
 }
@@ -209,7 +218,41 @@ menu_badge_coding() {
 }
 
 menu_badge_burp() {
-    if [ "$CFG_SECURITY_BURP" = true ]; then printf '[Yes]'; else printf '[No]'; fi
+    case "${CFG_BURP_CHANNEL:-off}" in
+        stable) printf '[Stable %s]' "${BURP_STABLE_VERSION:-2026.10.1}" ;;
+        latest) printf '[Latest ⚠]' ;;
+        *)      printf '[No]' ;;
+    esac
+}
+
+menu_choice_burp() {
+    local current="off"
+    if [ "${CFG_SECURITY_BURP:-false}" = true ]; then
+        current="${CFG_BURP_CHANNEL:-stable}"
+    fi
+
+    local sel=""
+    sel=$(ui_menu "Burp Suite Professional — Version Channel" \
+        "Select Burp Suite Professional installation channel:\n\n  Stable: v${BURP_STABLE_VERSION:-2026.10.1} (tested & verified)\n  Latest: Fetches newest release from PortSwigger API (untested)" \
+        "$current" \
+        "off"    "Don't install Burp Suite Professional" \
+        "stable" "Stable — v${BURP_STABLE_VERSION:-2026.10.1} (Recommended, tested)" \
+        "latest" "Latest — Newest PortSwigger release (⚠ untested)") || return 0
+
+    case "$sel" in
+        off)
+            CFG_SECURITY_BURP=false
+            CFG_BURP_CHANNEL="off"
+            ;;
+        stable)
+            CFG_SECURITY_BURP=true
+            CFG_BURP_CHANNEL="stable"
+            ;;
+        latest)
+            CFG_SECURITY_BURP=true
+            CFG_BURP_CHANNEL="latest"
+            ;;
+    esac
 }
 
 menu_badge_gaming() {

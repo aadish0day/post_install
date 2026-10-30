@@ -71,6 +71,10 @@ build_plan_debian() {
     plan_managed_app "xdm"
     plan_managed_app "advcpmv"
 
+    if [ "${CFG_DEBIAN_SUDO:-true}" = true ] && [ -f "$distro_dir/system/sudo.sh" ]; then
+        plan_add "Configure Sudo & User Privileges (debian/system/sudo.sh)" run_module "debian/system/sudo.sh" "${SYS_USER:-$USER}"
+    fi
+
     if [ -f "$distro_dir/system/repos.sh" ]; then
         plan_add "Configure System Repositories (debian/system/repos.sh)" run_module "debian/system/repos.sh"
     fi

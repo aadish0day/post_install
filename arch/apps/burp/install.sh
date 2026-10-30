@@ -2,17 +2,49 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BURP_STABLE_VERSION="2026.10.1"
 REPO_DIR="$HOME/Documents/Crack/Burpsuite-Professional"
 LOADER_URL="https://codeberg.org/code07/test01/raw/branch/main/loader.jar"
+
+usage() {
+    cat <<'EOF'
+Usage: install.sh [OPTIONS] [VERSION]
+
+Install Burp Suite Professional with a selectable version channel.
+
+Options:
+  -v, --version <ver>   Install an exact version (e.g. 2026.10.1)
+      --channel <name>  Version channel: stable (tested) or latest (UNTESTED)
+  -f, --force           Re-download even if files already exist
+      --skip-launch     Install without launching Burp Suite
+  -h, --help            Show this help and exit
+
+Environment:
+  BURP_VERSION          Same as --version; -v takes precedence
+
+With no --version, --channel, or BURP_VERSION, the installer prompts for
+stable or latest when stdin and stdout are a terminal. Otherwise it
+defaults to the tested stable version.
+EOF
+}
 
 # Parse CLI options
 SKIP_LAUNCH=false
 FORCE_DOWNLOAD=false
 CUSTOM_VERSION=""
+CHANNEL=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        -h|--help)
+            usage
+            exit 0
+            ;;
         -v|--version)
+            if [[ $# -lt 2 ]]; then
+                echo "ERROR: $1 requires a version argument." >&2
+                exit 1
+            fi
             CUSTOM_VERSION="$2"
             shift 2
             ;;
@@ -24,6 +56,14 @@ while [[ $# -gt 0 ]]; do
             FORCE_DOWNLOAD=true
             shift
             ;;
+        --channel)
+            if [[ $# -lt 2 ]]; then
+                echo "ERROR: $1 requires a channel argument (stable or latest)." >&2
+                exit 1
+            fi
+            CHANNEL="$2"
+            shift 2
+            ;;
         *)
             if [[ -z "$CUSTOM_VERSION" && "$1" =~ ^[0-9]+(\.[0-9]+)*$ ]]; then
                 CUSTOM_VERSION="$1"
@@ -33,7 +73,37 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Resolve version (User override -> Environment -> PortSwigger API)
+# Interactive channel picker (only used on a TTY when nothing was specified)
+prompt_channel() {
+    local reply=""
+    echo ""
+    echo "Burp Suite Professional - version channel"
+    echo "  1) Tested stable  v$BURP_STABLE_VERSION  (recommended)"
+    echo "  2) Latest         newest PortSwigger release (UNTESTED)"
+    while true; do
+        printf 'Select [1]: '
+        if ! IFS= read -r reply; then
+            # EOF or read failure: fall back to the tested stable channel.
+            reply=1
+        fi
+        case "${reply,,}" in
+            ""|1|stable|s)
+                CHANNEL="stable"
+                break
+                ;;
+            2|latest|l)
+                CHANNEL="latest"
+                break
+                ;;
+            *)
+                echo "Invalid selection '$reply'. Enter 1 for tested stable or 2 for latest (UNTESTED)."
+                ;;
+        esac
+    done
+    echo ""
+}
+
+# Resolve version (CLI -v -> BURP_VERSION env -> --channel -> prompt -> stable fallback)
 IS_CUSTOM=false
 if [[ -n "$CUSTOM_VERSION" ]]; then
     BURP_VERSION="$CUSTOM_VERSION"
@@ -43,9 +113,31 @@ elif [[ -n "${BURP_VERSION:-}" ]]; then
     IS_CUSTOM=true
     echo "Using environment BURP_VERSION: $BURP_VERSION"
 else
-    echo "Fetching latest Burp Suite version from PortSwigger..."
-    BURP_VERSION="$(curl -s 'https://portswigger.net/burp/releases/data?pageSize=10' \
-        | python3 -c "
+    if [[ -z "$CHANNEL" ]]; then
+        if [[ -t 0 && -t 1 ]]; then
+            prompt_channel
+        else
+            CHANNEL="stable"
+            echo "No version or channel specified; defaulting to tested stable version v$BURP_STABLE_VERSION."
+        fi
+    fi
+
+    CHANNEL="${CHANNEL,,}"
+    if [[ "$CHANNEL" == "stable" ]]; then
+        BURP_VERSION="$BURP_STABLE_VERSION"
+        echo "Using stable (tested) Burp Suite version: $BURP_VERSION"
+    elif [[ "$CHANNEL" == "latest" ]]; then
+        echo ""
+        echo "╔══════════════════════════════════════════════════════════════╗"
+        echo "║  ⚠  WARNING: Latest channel selected (UNTESTED)            ║"
+        echo "║  This fetches the newest release from PortSwigger.          ║"
+        echo "║  It may contain breaking changes or compatibility issues.   ║"
+        echo "║  Use 'stable' channel for a known-good version.            ║"
+        echo "╚══════════════════════════════════════════════════════════════╝"
+        echo ""
+        echo "Fetching latest Burp Suite version from PortSwigger..."
+        BURP_VERSION="$(curl -s 'https://portswigger.net/burp/releases/data?pageSize=10' \
+            | python3 -c "
 import json, sys
 data = json.load(sys.stdin)
 for r in data['ResultSet']['Results']:
@@ -53,11 +145,15 @@ for r in data['ResultSet']['Results']:
         print(r['version']); break
 " 2>/dev/null || echo '')"
 
-    if [[ -z "$BURP_VERSION" ]]; then
-        BURP_VERSION="2026.10.1"
-        echo "Using fallback release version: $BURP_VERSION"
+        if [[ -z "$BURP_VERSION" ]]; then
+            BURP_VERSION="$BURP_STABLE_VERSION"
+            echo "API unavailable. Falling back to stable version: $BURP_VERSION"
+        else
+            echo "Latest version detected: $BURP_VERSION"
+        fi
     else
-        echo "Latest version detected: $BURP_VERSION"
+        echo "ERROR: Invalid channel '$CHANNEL'. Use 'stable' or 'latest'."
+        exit 1
     fi
 fi
 

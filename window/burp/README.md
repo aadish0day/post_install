@@ -37,6 +37,30 @@ irm "https://raw.githubusercontent.com/aadish0day/post_install/main/window/burp/
 
 ---
 
+## 🎚️ Version Channel (Tested vs. Latest)
+
+Double-clicking `install.bat` (or running `install.ps1` in a console) asks which channel to install:
+
+```text
+Burp Suite Professional - version channel
+  1) Tested stable  v2026.10.1  (recommended)
+  2) Latest         newest PortSwigger release (UNTESTED)
+Select [1]:
+```
+
+Press <kbd>Enter</kbd> for the tested stable build. Choosing latest queries the PortSwigger release API, prints a yellow warning and falls back to the tested version if the API is unreachable. Invalid input re-prompts up to 3 times, then falls back to stable.
+
+For unattended runs, pass a flag instead — no prompt is shown when `-Version`, `-Channel` or `$env:BURP_VERSION` is set, and non-interactive sessions default to tested stable:
+
+```cmd
+.\install.bat                              # asks: tested 2026.10.1 or latest (untested)
+.\install.bat -Channel latest              # newest release, no prompt (UNTESTED)
+.\install.bat -Channel stable              # tested 2026.10.1, no prompt
+.\install.bat -Version 2026.10.1           # pin an exact version
+```
+
+---
+
 ## ✨ Features & Capabilities
 
 - **Intelligent Java 21+ Engine**:
@@ -82,7 +106,7 @@ window/burp/
 | :---: | :--- | :--- |
 | **(1/8)** | **Directory Setup** | Creates `%USERPROFILE%\Documents\Crack\Burpsuite-Professional`. |
 | **(2/8)** | **Java Detection & Setup** | Verifies Java 21+. If missing, silently installs OpenJDK 21 via direct MSI. |
-| **(3/8)** | **Version Resolution** | Queries PortSwigger API for the latest version tag. |
+| **(3/8)** | **Version Resolution** | Prompts for tested stable or latest (non-interactive: stable), or honors `-Version` / `-Channel` / `BURP_VERSION`. |
 | **(4/8)** | **Loader Fetch** | Downloads `loader.jar` with integrity verification (> 10 KB). |
 | **(5/8)** | **JAR Download** | Cleans old releases and downloads the latest ~700 MB JAR with a live visual progress bar and checksum validation. |
 | **(6/8)** | **Asset Deployment** | Copies `.config.ini` and `burp_suite_pro.ico` into the target directory. |
@@ -127,9 +151,14 @@ To reinstall or update the JAR without launching the application at the end:
 ```
 
 ### Specifying an Exact Version
-By default, the installer automatically detects and downloads the latest official release (`2026.10.1`). To install or pin a specific version:
+By default, the installer uses the tested stable release (`2026.10.1`). To install or pin a specific version:
 ```powershell
 .\install.ps1 -Version "2026.10.1"
+```
+
+To opt into the newest PortSwigger release instead (see **Version Channel** above):
+```powershell
+.\install.ps1 -Channel latest
 ```
 
 ---

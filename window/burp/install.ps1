@@ -5,6 +5,11 @@
     PowerShell installer for Burp Suite Professional:
     - Detects Java 21+ (PATH, Registry, Program Files).
     - Auto-installs Java 21 via winget (auto-installs winget via window/system/winget_install.ps1 if missing, with silent MSI fallback).
+    - Resolves the Burp version in this order: -Version, $env:BURP_VERSION,
+      -Channel stable|latest, then an interactive channel prompt (tested stable
+      v2026.10.1 vs. newest PortSwigger release, marked UNTESTED). When no
+      console is attached it defaults to tested stable without prompting, so
+      automation never blocks.
     - Dynamically queries PortSwigger release API for the latest Pro JAR.
     - Downloads key loader with failover mirrors.
     - Generates silent launchers (Burp.bat & Burp-Suite-Pro.vbs).
@@ -19,7 +24,8 @@ param (
     [string]$Version,
     [switch]$SkipLaunch,
     [switch]$ForceDownload,
-    [switch]$Update
+    [switch]$Update,
+    [string]$Channel
 )
 
 $ErrorActionPreference = 'Stop'
@@ -552,11 +558,58 @@ if (-not $validJava) {
 }
 
 # ------------------------------------------------------------------------------
-# 3. Dynamic Release Version Fetch from PortSwigger (Auto-Latest + -Version Override)
+# 3. Dynamic Release Version Fetch from PortSwigger (Stable/Latest Channel + -Version Override)
 # ------------------------------------------------------------------------------
 Write-Host "`n(3/8) Resolving Burp Suite Professional version..." -ForegroundColor Cyan
 $BURP_VERSION = $null
 $isCustomVersion = $false
+$BURP_STABLE_VERSION = "2026.10.1"
+
+# A prompt is only safe when a real console is attached; redirected input,
+# service hosts and `irm | iex` runs must never block waiting for a keypress.
+function Test-InteractiveConsole {
+    try {
+        if (-not [Environment]::UserInteractive) { return $false }
+        if (-not $Host.UI -or -not $Host.UI.RawUI) { return $false }
+        if ([Console]::IsInputRedirected) { return $false }
+    } catch {
+        return $false
+    }
+    return $true
+}
+
+# Interactive channel chooser. Returns "stable" or "latest"; any failure,
+# empty input or EOF falls back to the tested stable channel.
+function Read-BurpChannelChoice {
+    $maxAttempts = 3
+    for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+        Write-Host ""
+        Write-Host "      Burp Suite Professional - version channel" -ForegroundColor Cyan
+        Write-Host "        1) Tested stable  v$BURP_STABLE_VERSION  (recommended)" -ForegroundColor Green
+        Write-Host "        2) Latest         newest PortSwigger release (UNTESTED)" -ForegroundColor Yellow
+        $answer = $null
+        try {
+            $answer = Read-Host "      Select [1]"
+        } catch {
+            Write-Host "      Could not read input. Using tested stable v$BURP_STABLE_VERSION." -ForegroundColor DarkGray
+            return "stable"
+        }
+        if ($null -eq $answer) { return "stable" }
+        $choice = ([string]$answer).Trim().ToLower()
+        if ($choice -eq "") { return "stable" }
+        switch ($choice) {
+            "1"      { return "stable" }
+            "s"      { return "stable" }
+            "stable" { return "stable" }
+            "2"      { return "latest" }
+            "l"      { return "latest" }
+            "latest" { return "latest" }
+        }
+        Write-Host "      Invalid selection '$answer'. Enter 1 (stable) or 2 (latest)." -ForegroundColor Yellow
+    }
+    Write-Host "      No valid selection after $maxAttempts attempts. Using tested stable v$BURP_STABLE_VERSION." -ForegroundColor DarkGray
+    return "stable"
+}
 
 if (-not [string]::IsNullOrWhiteSpace($Version)) {
     $BURP_VERSION = $Version.Trim()
@@ -567,27 +620,55 @@ if (-not [string]::IsNullOrWhiteSpace($Version)) {
     $isCustomVersion = $true
     Write-Host "      Using environment variable BURP_VERSION: $BURP_VERSION" -ForegroundColor Green
 } else {
-    Write-Host "      Checking PortSwigger release API for latest version..." -ForegroundColor DarkGray
-    try {
-        $releases = Invoke-RestMethod -Uri "https://portswigger.net/burp/releases/data?pageSize=10" -Method Get -TimeoutSec 10
-        if ($releases -and $releases.ResultSet -and $releases.ResultSet.Results) {
-            foreach ($r in $releases.ResultSet.Results) {
-                $hasJar = $r.builds | Where-Object { $_.BuildCategoryPlatform -eq "Jar" }
-                if ($hasJar) {
-                    $BURP_VERSION = $r.version
-                    break
+    # No -Version and no BURP_VERSION: honor an explicit -Channel, otherwise
+    # ask on interactive consoles and fall back to tested stable everywhere else.
+    if ([string]::IsNullOrWhiteSpace($Channel)) {
+        if (Test-InteractiveConsole) {
+            $Channel = Read-BurpChannelChoice
+        } else {
+            $Channel = "stable"
+            Write-Host "      No version or channel supplied. Defaulting to tested stable v$BURP_STABLE_VERSION." -ForegroundColor DarkGray
+        }
+    }
+    $Channel = $Channel.Trim().ToLower()
+
+    if ($Channel -eq "stable") {
+        $BURP_VERSION = $BURP_STABLE_VERSION
+        Write-Host "      Using stable (tested) version: $BURP_VERSION" -ForegroundColor Green
+    } elseif ($Channel -eq "latest") {
+        Write-Host ""
+        Write-Host "      ╔══════════════════════════════════════════════════════════════╗" -ForegroundColor Yellow
+        Write-Host "      ║  ⚠  WARNING: Latest channel selected (UNTESTED)            ║" -ForegroundColor Yellow
+        Write-Host "      ║  This fetches the newest release from PortSwigger.          ║" -ForegroundColor Yellow
+        Write-Host "      ║  It may contain breaking changes or compatibility issues.   ║" -ForegroundColor Yellow
+        Write-Host "      ║  Use 'stable' channel for a known-good version.            ║" -ForegroundColor Yellow
+        Write-Host "      ╚══════════════════════════════════════════════════════════════╝" -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host "      Checking PortSwigger release API for latest version..." -ForegroundColor DarkGray
+        try {
+            $releases = Invoke-RestMethod -Uri "https://portswigger.net/burp/releases/data?pageSize=10" -Method Get -TimeoutSec 10
+            if ($releases -and $releases.ResultSet -and $releases.ResultSet.Results) {
+                foreach ($r in $releases.ResultSet.Results) {
+                    $hasJar = $r.builds | Where-Object { $_.BuildCategoryPlatform -eq "Jar" }
+                    if ($hasJar) {
+                        $BURP_VERSION = $r.version
+                        break
+                    }
                 }
             }
+        } catch {
+            Write-Warning "Could not query PortSwigger API: $($_.Exception.Message)"
         }
-    } catch {
-        Write-Warning "Could not query PortSwigger API: $($_.Exception.Message)"
-    }
 
-    if ([string]::IsNullOrWhiteSpace($BURP_VERSION)) {
-        $BURP_VERSION = "2026.10.1"
-        Write-Host "      Using fallback release version: $BURP_VERSION" -ForegroundColor Yellow
+        if ([string]::IsNullOrWhiteSpace($BURP_VERSION)) {
+            $BURP_VERSION = $BURP_STABLE_VERSION
+            Write-Host "      API unavailable. Falling back to stable version: $BURP_VERSION" -ForegroundColor Yellow
+        } else {
+            Write-Host "      Latest official release detected: $BURP_VERSION" -ForegroundColor Green
+        }
     } else {
-        Write-Host "      Latest official release detected: $BURP_VERSION" -ForegroundColor Green
+        Write-Error "ERROR: Invalid channel '$Channel'. Use 'stable' or 'latest'."
+        exit 1
     }
 }
 
