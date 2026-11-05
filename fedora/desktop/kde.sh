@@ -31,10 +31,10 @@ if ! in_container; then
 fi
 enable_service sddm.service
 
-if ! in_container; then
+if ! in_container && systemctl --user show-environment >/dev/null 2>&1; then
     for s in xdg-desktop-portal.service plasma-xdg-desktop-portal-kde.service xdg-desktop-portal-gtk.service; do
         if systemctl --user list-unit-files "$s" &>/dev/null; then
-            systemctl --user start "$s" 2>/dev/null || true
+            systemctl --user start --no-block "$s" 2>/dev/null || true
         fi
     done
 fi

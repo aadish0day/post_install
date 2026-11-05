@@ -180,16 +180,22 @@ step_arch_prod_apps() {
 
 step_arch_services_shell() {
     if [ "${DRY_RUN_MODE:-false}" = true ]; then return 0; fi
-    sudo systemctl enable --now rtkit-daemon.service 2>/dev/null || true
-    for s in xdg-desktop-portal.service xdg-desktop-portal-gtk.service; do
-        if systemctl --user list-unit-files 2>/dev/null | grep -q "$s"; then
-            systemctl --user start "$s" 2>/dev/null || true
-        fi
-    done
-    local zsh_bin
+    sudo systemctl enable --now --no-block rtkit-daemon.service 2>/dev/null || true
+    if systemctl --user show-environment >/dev/null 2>&1; then
+        for s in xdg-desktop-portal.service xdg-desktop-portal-gtk.service; do
+            if systemctl --user list-unit-files "$s" 2>/dev/null | grep -q "$s"; then
+                systemctl --user start --no-block "$s" 2>/dev/null || true
+            fi
+        done
+    fi
+    local zsh_bin target_user current_shell
     zsh_bin="$(command -v zsh 2>/dev/null || echo '')"
-    if [ -n "$zsh_bin" ] && [ "${SHELL:-}" != "$zsh_bin" ]; then
-        chsh -s "$zsh_bin" "${USER:-$(id -un)}" 2>/dev/null || true
+    target_user="${SYS_USER:-${SUDO_USER:-${USER:-$(id -un)}}}"
+    current_shell="$(getent passwd "$target_user" 2>/dev/null | cut -d: -f7)"
+    if [ -n "$zsh_bin" ] && [ -n "$target_user" ] && [ "$current_shell" != "$zsh_bin" ]; then
+        if [ "$(realpath "$current_shell" 2>/dev/null)" != "$(realpath "$zsh_bin" 2>/dev/null)" ]; then
+            sudo usermod -s "$zsh_bin" "$target_user" 2>/dev/null || chsh -s "$zsh_bin" "$target_user" < /dev/null 2>/dev/null || true
+        fi
     fi
 }
 

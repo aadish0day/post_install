@@ -95,11 +95,13 @@ elif systemctl list-unit-files | grep -q "dbus-daemon.service"; then
 fi
 
 # Start XDG desktop portal services
-for s in xdg-desktop-portal.service xdg-desktop-portal-gtk.service; do
-    if systemctl --user list-unit-files | grep -q "$s"; then
-        systemctl --user start "$s" 2>/dev/null || true
-    fi
-done
+if systemctl --user show-environment >/dev/null 2>&1; then
+    for s in xdg-desktop-portal.service xdg-desktop-portal-gtk.service; do
+        if systemctl --user list-unit-files "$s" 2>/dev/null | grep -q "$s"; then
+            systemctl --user start --no-block "$s" 2>/dev/null || true
+        fi
+    done
+fi
 
 # 5. Set default applications & user directories
 echo "Configuring default applications..."

@@ -23,7 +23,7 @@ elif is_simulate; then
     log "[simulate] would change default shell to $zsh_path"
 elif [ -t 0 ]; then
     log "Changing default shell to zsh..."
-    chsh -s "$zsh_path" || warn "chsh failed; run: chsh -s $zsh_path"
+    $SUDO usermod -s "$zsh_path" "$(current_user)" 2>/dev/null || chsh -s "$zsh_path" || warn "chsh failed; run: chsh -s $zsh_path"
 else
     log "Changing default shell to zsh (non-interactive)..."
     $SUDO usermod -s "$zsh_path" "$(current_user)" || warn "Could not change shell; run: chsh -s $zsh_path"
@@ -45,7 +45,7 @@ fi
 if ! in_container && ! is_simulate && systemctl --user show-environment >/dev/null 2>&1; then
     for s in xdg-desktop-portal.service xdg-desktop-portal-gtk.service xdg-desktop-portal-kde.service; do
         if systemctl --user list-unit-files "$s" 2>/dev/null | grep -q "$s"; then
-            systemctl --user start "$s" 2>/dev/null && log "Started $s" || true
+            systemctl --user start --no-block "$s" 2>/dev/null && log "Started $s" || true
         fi
     done
 fi

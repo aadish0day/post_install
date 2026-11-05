@@ -23,10 +23,11 @@ elif in_container; then
 elif is_simulate; then
     log "[simulate] would change default shell to $ZSH_PATH"
 elif [ ! -t 0 ]; then
-    warn "No terminal for the password prompt; run: chsh -s $ZSH_PATH"
+    log "Changing default shell to zsh (non-interactive)..."
+    $SUDO usermod -s "$ZSH_PATH" "$(id -un)" 2>/dev/null || chsh -s "$ZSH_PATH" < /dev/null 2>/dev/null || warn "Could not change shell; run: chsh -s $ZSH_PATH"
 else
     log "Changing default shell to zsh..."
-    chsh -s "$ZSH_PATH"
+    $SUDO usermod -s "$ZSH_PATH" "$(id -un)" 2>/dev/null || chsh -s "$ZSH_PATH" || warn "chsh failed; run: chsh -s $ZSH_PATH"
     log "Log out and back in for the shell change to take effect."
 fi
 
@@ -38,10 +39,10 @@ if command -v starship &>/dev/null; then
     done
 fi
 
-if ! in_container; then
+if ! in_container && systemctl --user show-environment >/dev/null 2>&1; then
     for s in xdg-desktop-portal.service xdg-desktop-portal-gtk.service; do
         if systemctl --user list-unit-files "$s" &>/dev/null; then
-            systemctl --user start "$s" 2>/dev/null || true
+            systemctl --user start --no-block "$s" 2>/dev/null || true
         fi
     done
 fi

@@ -33,10 +33,12 @@ if systemctl list-unit-files | grep -q "sddm.service"; then
 fi
 
 # Start XDG desktop portal services for KDE Wayland/X11
-for s in xdg-desktop-portal.service plasma-xdg-desktop-portal-kde.service xdg-desktop-portal-gtk.service; do
-    if systemctl --user list-unit-files | grep -q "$s"; then
-        systemctl --user start "$s" 2>/dev/null || true
-    fi
-done
+if systemctl --user show-environment >/dev/null 2>&1; then
+    for s in xdg-desktop-portal.service plasma-xdg-desktop-portal-kde.service xdg-desktop-portal-gtk.service; do
+        if systemctl --user list-unit-files "$s" 2>/dev/null | grep -q "$s"; then
+            systemctl --user start --no-block "$s" 2>/dev/null || true
+        fi
+    done
+fi
 
 echo "KDE Plasma desktop environment configuration complete."

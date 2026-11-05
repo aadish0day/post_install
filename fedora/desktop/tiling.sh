@@ -119,10 +119,10 @@ fi
 
 # 6. Services
 enable_service bluetooth.service --now
-if ! in_container && ! is_simulate; then
+if ! in_container && ! is_simulate && systemctl --user show-environment >/dev/null 2>&1; then
     for s in xdg-desktop-portal.service xdg-desktop-portal-gtk.service; do
         if command -v systemctl &>/dev/null && systemctl --user list-unit-files "$s" &>/dev/null; then
-            systemctl --user start "$s" 2>/dev/null || true
+            systemctl --user start --no-block "$s" 2>/dev/null || true
         fi
     done
 fi
