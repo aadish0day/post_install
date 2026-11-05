@@ -880,8 +880,7 @@ Write-Host "      Target File:        $JarName" -ForegroundColor DarkGray
 Write-Host "`n(4/8) Checking key loader..." -ForegroundColor Cyan
 $TargetLoader = Join-Path $InstallDir "loader.jar"
 $loaderSources = @(
-    "https://codeberg.org/code07/test01/raw/branch/main/loader.jar",
-    "https://github.com/xiv3r/Burpsuite-Professional/raw/refs/heads/main/loader.jar"
+    "https://codeberg.org/code07/test01/raw/branch/main/loader.jar"
 )
 
 $loaderDownloaded = $false

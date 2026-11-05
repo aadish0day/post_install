@@ -13,8 +13,6 @@ JYTHON_FILE="$REPO_DIR/$JYTHON_JAR"
 
 LOADER_URLS=(
     "https://codeberg.org/code07/test01/raw/branch/main/loader.jar"
-    "https://github.com/xiv3r/Burpsuite-Professional/raw/refs/heads/main/loader.jar"
-    "https://raw.githubusercontent.com/xiv3r/Burpsuite-Professional/main/loader.jar"
 )
 
 # Helper function to find best Java 21 binary
