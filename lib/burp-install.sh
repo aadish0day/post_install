@@ -660,13 +660,14 @@ EOF
         if curl -s -f -m 2 "$cert_url" -o /dev/null 2>/dev/null; then
             cert_active=true
         else
-            echo "Waiting for Burp Suite proxy listener (up to 45s)..."
-            for ((att = 1; att <= 9; att++)); do
+            echo "Waiting for Burp Suite proxy listener (up to 5 min / 300s)..."
+            for ((att = 1; att <= 60; att++)); do
                 sleep 5
                 if curl -s -f -m 3 "$cert_url" -o /dev/null 2>/dev/null; then
                     cert_active=true
                     break
                 fi
+                echo "  Waiting for proxy listener... ($((att * 5))/300s)"
             done
         fi
 

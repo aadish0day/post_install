@@ -85,20 +85,20 @@ if ! curl -s -f -m 3 "$CERT_URL" -o /dev/null 2>/dev/null; then
         echo "Burp Suite process detected. Waiting for proxy listener..."
     fi
 
-    echo "Waiting for Burp Suite proxy to become active at $CERT_URL (up to 90s)..."
+    echo "Waiting for Burp Suite proxy to become active at $CERT_URL (up to 5 min / 300s)..."
     burp_ready=false
-    for ((attempt = 1; attempt <= 18; attempt++)); do
+    for ((attempt = 1; attempt <= 60; attempt++)); do
         sleep 5
         if curl -s -f -m 3 "$CERT_URL" -o /dev/null 2>/dev/null; then
             burp_ready=true
-            echo "  [✓] Burp Suite proxy is active and ready (attempt $attempt)."
+            echo "  [✓] Burp Suite proxy is active and ready (detected after $((attempt * 5))s)."
             break
         fi
-        echo "  Waiting for proxy... ($((attempt * 5))/90s)"
+        echo "  Waiting for proxy... ($((attempt * 5))/300s)"
     done
 
     if [ "$burp_ready" = false ]; then
-        echo "ERROR: Burp Suite proxy did not become active at $CERT_URL after 90 seconds." >&2
+        echo "ERROR: Burp Suite proxy did not become active at $CERT_URL after 5 minutes." >&2
         echo "Please ensure Burp Suite is running with proxy listener enabled on 127.0.0.1:8080." >&2
         exit 1
     fi

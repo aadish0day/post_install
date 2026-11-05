@@ -334,13 +334,13 @@ menu_action_burp_ca() {
         disown 2>/dev/null || true
 
         local ready=false
-        for ((attempt=1; attempt<=18; attempt++)); do
+        for ((attempt=1; attempt<=60; attempt++)); do
             if [ "$UI_TOOL" = "dialog" ]; then
-                dialog --title "Waiting for Burp Suite" --infobox "Starting Burp Suite Professional in background...\n\nChecking http://127.0.0.1:8080/cert every 5 seconds...\nAttempt $attempt/18 ($((attempt * 5))s elapsed)" 7 65 </dev/tty || true
+                dialog --title "Waiting for Burp Suite" --infobox "Starting Burp Suite Professional in background...\n\nChecking http://127.0.0.1:8080/cert every 5 seconds...\nAttempt $attempt/60 ($((attempt * 5))/300s elapsed)" 7 65 </dev/tty || true
             elif [ "$UI_TOOL" = "whiptail" ]; then
-                whiptail --title "Waiting for Burp Suite" --infobox "Starting Burp Suite Professional in background...\n\nChecking http://127.0.0.1:8080/cert every 5 seconds...\nAttempt $attempt/18 ($((attempt * 5))s elapsed)" 7 65 </dev/tty || true
+                whiptail --title "Waiting for Burp Suite" --infobox "Starting Burp Suite Professional in background...\n\nChecking http://127.0.0.1:8080/cert every 5 seconds...\nAttempt $attempt/60 ($((attempt * 5))/300s elapsed)" 7 65 </dev/tty || true
             else
-                printf "  [Attempt %d/18] Waiting 5s for Burp proxy at %s...\n" "$attempt" "$CERT_URL"
+                printf "  [Attempt %d/60] Waiting 5s for Burp proxy at %s ($((attempt * 5))/300s)...\n" "$attempt" "$CERT_URL"
             fi
             sleep 5
             if curl -s -f -m 3 "$CERT_URL" -o /dev/null 2>/dev/null; then
@@ -350,7 +350,7 @@ menu_action_burp_ca() {
         done
 
         if [ "$ready" = false ]; then
-            ui_msg "Timeout Waiting for Burp" "Burp Suite proxy did not respond on http://127.0.0.1:8080/cert after 90 seconds.\n\nPlease verify Burp Suite launches successfully and try again."
+            ui_msg "Timeout Waiting for Burp" "Burp Suite proxy did not respond on http://127.0.0.1:8080/cert after 5 minutes (300 seconds).\n\nPlease verify Burp Suite launches successfully and try again."
             return 0
         fi
     fi
