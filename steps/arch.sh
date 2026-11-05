@@ -209,9 +209,6 @@ arch_needs_aur() {
         return 0
     fi
 
-    # If Burp Suite is selected
-    [ "${CFG_SECURITY_BURP:-false}" = true ] && return 0
-
     return 1
 }
 

@@ -4,7 +4,7 @@
 # kind = toggle | choice | multi | info | action
 # label starting with @ is resolved by menu_label_for.
 
-BURP_STABLE_VERSION="2026.10.1"
+: "${BURP_STABLE_VERSION:=2026.10.1}"
 : "${CFG_BURP_CHANNEL:=off}"
 : "${CFG_DEBIAN_SUDO:=true}"
 
@@ -274,9 +274,7 @@ menu_badge_burp_ca() {
 
     # 2. Check if Burp Suite launcher is installed on system
     local burp_bin=""
-    for b in "$HOME/.local/bin/burpsuitepro" "/usr/local/bin/burpsuitepro" "$HOME/Documents/Crack/Burpsuite-Professional/burpsuitepro"; do
-        if [ -x "$b" ]; then burp_bin="$b"; break; fi
-    done
+    burp_bin="$(find_burp_bin 2>/dev/null || true)"
     if [ -z "$burp_bin" ]; then
         printf '[Requires Burp]'
         return
@@ -294,9 +292,7 @@ menu_badge_burp_ca() {
 
 menu_action_burp_ca() {
     local burp_bin=""
-    for b in "$HOME/.local/bin/burpsuitepro" "/usr/local/bin/burpsuitepro" "$HOME/Documents/Crack/Burpsuite-Professional/burpsuitepro"; do
-        if [ -x "$b" ]; then burp_bin="$b"; break; fi
-    done
+    burp_bin="$(find_burp_bin 2>/dev/null || true)"
 
     # If Burp is not installed on system, prompt to install it right now!
     if [ -z "$burp_bin" ]; then
@@ -679,9 +675,9 @@ run_tui() {
     ui_detect
 
     if [ "$UI_TOOL" = "none" ]; then
-        log_warn "Neither 'dialog' nor 'whiptail' found. Falling back to CLI mode."
-        run_cli_interactive
-        return
+        log_error "Could not initialize TUI: neither 'dialog' nor 'whiptail' is available."
+        log_info "Please install 'dialog' or 'whiptail', or use --cli for unattended execution."
+        exit 1
     fi
 
     ui_init

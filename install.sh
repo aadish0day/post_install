@@ -25,6 +25,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/common.sh"
 # shellcheck source=lib/ui.sh
 source "$SCRIPT_DIR/lib/ui.sh"
+# shellcheck source=lib/burp-install.sh
+source "$SCRIPT_DIR/lib/burp-install.sh"
 # shellcheck source=lib/menu.sh
 source "$SCRIPT_DIR/lib/menu.sh"
 # shellcheck source=steps/common.sh
@@ -455,109 +457,6 @@ run_execution_plan() {
                 done_msg+="\n\nPlease restart your session or reboot for all changes to take effect."
                 ui_msg "Installation Complete" "$done_msg"
             fi
-}
-
-# ============================================================================
-# CLI INTERACTIVE FALLBACK (Non-dialog terminal)
-# ============================================================================
-run_cli_interactive() {
-    if [ "$TERM" != "dumb" ]; then clear 2>/dev/null || true; fi
-    echo -e "${BOLD}${CYAN}============================================================${NC}"
-    echo -e "${BOLD}${CYAN} POST-INSTALLATION SUITE - INTERACTIVE CLI                  ${NC}"
-    echo -e "${BOLD}${CYAN}============================================================${NC}"
-    echo -e " Target Distribution: ${BOLD}${DISTRO_NAME}${NC} (${TARGET_DISTRO})"
-    echo -e " Hostname / User:     ${SYS_HOSTNAME} (${SYS_USER})"
-    echo -e "${BOLD}${CYAN}============================================================${NC}"
-    echo ""
-    echo "Options:"
-    echo "  1) Install (Run with Current Settings)"
-    echo "  2) Toggle Desktop Environment (Current: $CFG_DESKTOP)"
-    echo "  3) Toggle Docker ($CFG_DOCKER)"
-    echo "  4) Toggle Gaming Stack ($CFG_GAMING)"
-    echo "  5) Toggle AI/ML ($CFG_AIML)"
-    echo "  6) Toggle ArtCraft Suite ($CFG_CRAFT)"
-    echo "  7) Switch Distribution ($TARGET_DISTRO)"
-    echo "  8) Trust Burp CA Certificate in Browsers"
-    echo "  9) Preview Execution Plan"
-    echo " 10) Exit"
-    echo ""
-    read -rp "Enter choice [1-10] (default: 1): " choice </dev/tty || choice="1"
-    choice="${choice:-1}"
-
-    case "$choice" in
-        1) run_execution_plan false ;;
-        2)
-            echo "1) KDE Plasma  2) i3 Window Manager  3) BSPWM  4) Both (i3 + BSPWM)  5) None"
-            read -rp "Select desktop [1-5]: " de_c </dev/tty || de_c="1"
-            case "$de_c" in
-                1) CFG_DESKTOP="kde" ;;
-                2) CFG_DESKTOP="i3" ;;
-                3) CFG_DESKTOP="bspwm" ;;
-                4) CFG_DESKTOP="both" ;;
-                *) CFG_DESKTOP="none" ;;
-            esac
-            run_cli_interactive
-            ;;
-        3)
-            if [ "$CFG_DOCKER" = true ]; then CFG_DOCKER=false; else CFG_DOCKER=true; fi
-            run_cli_interactive
-            ;;
-        4)
-            if [ "$CFG_GAMING" = true ]; then CFG_GAMING=false; else CFG_GAMING=true; fi
-            run_cli_interactive
-            ;;
-        5)
-            if [ "$CFG_AIML" = true ]; then CFG_AIML=false; else CFG_AIML=true; fi
-            run_cli_interactive
-            ;;
-        6)
-            if [ "$CFG_CRAFT" = true ]; then CFG_CRAFT=false; else CFG_CRAFT=true; fi
-            run_cli_interactive
-            ;;
-        7)
-            echo "1) Arch  2) Debian  3) Fedora  4) Kali  5) Termux"
-            read -rp "Select distro [1-5]: " d_c </dev/tty || d_c="1"
-            case "$d_c" in
-                1) TARGET_DISTRO="arch" ;;
-                2) TARGET_DISTRO="debian" ;;
-                3) TARGET_DISTRO="fedora" ;;
-                4) TARGET_DISTRO="kali" ;;
-                5) TARGET_DISTRO="termux" ;;
-            esac
-            set_distro_defaults
-            run_cli_interactive
-            ;;
-        8)
-            if declare -f menu_action_burp_ca >/dev/null 2>&1; then
-                menu_action_burp_ca
-            else
-                local burp_bin=""
-                for b in "$HOME/.local/bin/burpsuitepro" "/usr/local/bin/burpsuitepro" "$HOME/Documents/Crack/Burpsuite-Professional/burpsuitepro"; do
-                    if [ -x "$b" ]; then burp_bin="$b"; break; fi
-                done
-                if [ -n "$burp_bin" ]; then
-                    "$burp_bin" --trust-ca
-                else
-                    echo "Burp Suite launcher not found."
-                fi
-                read -rp "Press Enter to return to menu..." </dev/tty || true
-            fi
-            run_cli_interactive
-            ;;
-        9)
-            run_execution_plan true
-            read -rp "Press Enter to return to menu..." </dev/tty || true
-            run_cli_interactive
-            ;;
-        10)
-            log_info "Exiting."
-            exit 0
-            ;;
-        *)
-            log_error "Invalid selection."
-            exit 1
-            ;;
-    esac
 }
 
 show_help() {

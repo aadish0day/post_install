@@ -104,15 +104,7 @@ step_burp_trust_ca() {
     if [ "${DRY_RUN_MODE:-false}" = true ]; then return 0; fi
 
     local burp_bin=""
-    if [ -n "${BURP_BIN:-}" ]; then
-        if [ "$BURP_BIN" != "none" ] && [ -x "$BURP_BIN" ]; then
-            burp_bin="$BURP_BIN"
-        fi
-    else
-        for b in "$HOME/.local/bin/burpsuitepro" "/usr/local/bin/burpsuitepro" "$HOME/Documents/Crack/Burpsuite-Professional/burpsuitepro"; do
-            if [ -x "$b" ]; then burp_bin="$b"; break; fi
-        done
-    fi
+    burp_bin="$(find_burp_bin 2>/dev/null || true)"
 
     if [ -z "$burp_bin" ]; then
         echo "Burp Suite launcher not found. Skipping CA trust step."
