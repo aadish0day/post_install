@@ -511,6 +511,27 @@ PYEOF
         echo "Jython 2.7.4 configured."
     fi
 
+    # Pre-seed Burp Suite license & preferences so Burp launches without manual keygen prompts
+    local prefs_dir="$HOME/.java/.userPrefs/burp"
+    local prefs_file="$prefs_dir/prefs.xml"
+    if [ ! -f "$prefs_file" ] || ! grep -q "license1" "$prefs_file" 2>/dev/null; then
+        echo "Pre-seeding Burp Suite Professional license and preferences..."
+        mkdir -p "$prefs_dir"
+        cat <<'EOFPREFS' >"$prefs_file"
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE map SYSTEM "http://java.sun.com/dtd/preferences.dtd">
+<map MAP_XML_VERSION="1.0">
+  <entry key="burp.eula" value="13"/>
+  <entry key="use_community_edition" value="false"/>
+  <entry key="suite.alertsdisabledforjre-1115054815" value="true"/>
+  <entry key="suite.alertsdisabledforjre-3189538875" value="true"/>
+  <entry key="license1" value="QKLM8/zjeX0FDxLCu5RTDbUc3jgF5M+7U+1qDz6yBjuvYAn2zh0uJq9gCfbOHS4mVlbyb7O0fZyFaQcK+3ebZC29Goqrc80aBZR6BQBSNDvdJqOWpxVZat/P1DHTsOB7cirx9E5NLm18OLtASpkVObKMOnfMiwYBBbqouffwTsxuqhOtj6ctAEjH92GhaVmYHSMHTuipOIEx38XYk+isqe4fYQGvpyOSW4/Ka96eY0fVQNzYUDnEnW5ecc0TG+dvW8jFwgo02yyQ+cLP+i8W8d96Kc8AopXsF67+60ceFTZobP8v3Otb7r6JAEK0TEIX7ZzHakGZTqad8sb559Lj5oHvt4dbkvNzJdrjNDe8OUYPWslw91/On6UQi41rEcj7lahwRRpdV9fYwAotUrHiu2YF87a8a5UXO0z0XvjA/6eKk7DAldfwcvtmDgH/NlzZuEVrO7AxMhGt4CNopbjkpqtXB3PxMB6J0ZOnyMbH/tFY9oLoir25KQr7TPFkfydK5Jbf1cz5UKk8lXfAf/lqBOZxcYoZnyocgSLm169Jx6ur42wTreOONfBFqWGtdAUBYuQwVBe3GS4xtV9F8nsu1P7iEBWwFo7TTU0duxNsr5NLMtqebrpvN1lWnRXlVnFOGuodWEZ5VTp4IxQbmDc2puBHO35TOubsivJlLa7zpD7nOgfLVpSdoU3DK0/lBqpZI75P6VjyXviGWvmp/n8dBKLvE4cOhCvTvm4wvEJOpMhgz3YGzqTf/6u1Kv7A9Kxv3STVHx4cBF5hpjLsiRG/lfeG+56CFTvLdXMzRFX0Y9M="/>
+  <entry key="zRHyUR2Op7fIprORODg24A==" value="rbojo9jt6ZB24ppIimQBtBmKg228sphoRBryhZRnnpztuo5B0UqERnXyrKnEDFaaU1hUrjYaSgm8T2uGta23A0fdAgy15Rg7dzW1Du+TJqkzBnQzljo2tMOge1NHpJZ55ijGar+VxsqV4oDkWWKgNV3xz2rW1YyoiskDuk9pcCJcc2Q87RoG331t6HOdyhAJf8hCZRoALn/PaLu9g9puCMpDHUDwb1O9KhXjHkB0WuOpKOZyBeVXM9xJWXRwzHlKSOIwBXov3Cy1QMeb4Q3bnd8G1cpK76lqwzNavRycSVP1oxHZJJAPCZF2xk4kutYxKAtzV8pMkoYb5wqeo4lm73ee8hH6VDhZg+EWE+ll6gAAtONOltqkYiwYvkCkqtlOYKOM2YAMWwmknxRjkzh1tnyoWY2aeSDFzkj8SqasPkIZdVK8OBcd3vcRIBaGI47evaSkjA/d1cFClq2Oi/erkVN/zA75zZbfWt96rRIKhirMC2mVBQnyIXLt4VBsGgEjtZU5RvcYbhOf/zp4eNZOjAgB1kQrgoVHsb6PA8dfpoJ13zuuRn4Nwz1JH1uOdsM6CVSoZY9OnnD8ffAMWftJJ6tzLfa31yHLYwD/VzrfE3GaEd1Yh/3RTAy0y/ni9OzR0oGzy7FwDtC3j8UVnjeQqSN6fLL8Tnz57Neg5jWuyyKng6Npc0EW6s6u4S+l4nNMoNNNdaFWhSfo5xDRr6WOjdt+v6RGZevaa2fog50ImWDnmr6wsW0VTbyLf+Bg9V569QFpnTPBfRiFGDj36n5yNMn/GP+CqLDmGAVnVXmKoGjbwEq2HYbb9XNUPcpf+CyuXTzVkJrzWhS62kVOlaq6MgG7+XIDBl4g"/>
+</map>
+EOFPREFS
+        chmod 600 "$prefs_file"
+    fi
+
     # 6. Create clean launcher binary
     mkdir -p "$HOME/.local/bin"
     local launcher_path="$HOME/.local/bin/burpsuitepro"
@@ -535,6 +556,8 @@ JAVA_BIN="java"
 for j in \
     "/usr/lib/jvm/java-21-openjdk/bin/java" \
     "/usr/lib/jvm/java-21-openjdk-amd64/bin/java" \
+    "/usr/lib/jvm/jre-21-openjdk/bin/java" \
+    "/usr/lib/jvm/java-21/bin/java" \
     "/usr/lib/jvm/default-runtime/bin/java"; do
     if [ -x "\$j" ]; then
         JAVA_BIN="\$j"
@@ -588,7 +611,6 @@ exec "\$JAVA_BIN" \\
   --add-opens=java.base/java.lang=ALL-UNNAMED \\
   --add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED \\
   --add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED \\
-  --add-opens=java.base/jdk.internal.org.objectweb.asm.Opcodes=ALL-UNNAMED \\
   -XX:MaxRAMPercentage=50 \\
   -XX:+UseG1GC \\
   -Dawt.useSystemAAFontSettings=on \\
@@ -623,6 +645,20 @@ Categories=Network;Security;
 Keywords=burp;suite;pro;web;security;scanner;
 Path=$REPO_DIR
 StartupWMClass=burp-StartBurp
+EOF
+
+    cat <<EOF >"$desktop_dir/burpsuitepro-keygen.desktop"
+[Desktop Entry]
+Name=Burp Suite Pro Keygen / Loader
+Comment=Burp Suite Professional - Keygen and Loader Utility
+Exec=$launcher_path -k
+Icon=$REPO_DIR/burp_suite_pro_icon.svg
+Terminal=false
+Type=Application
+Categories=Network;Security;
+Keywords=burp;suite;pro;keygen;loader;license;
+Path=$REPO_DIR
+StartupWMClass=com-h3110w0r1d-burploaderkeygen-KeygenForm
 EOF
     update-desktop-database "$desktop_dir" 2>/dev/null || true
 

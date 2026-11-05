@@ -21,7 +21,7 @@ packages=(
     build-essential gcc make gettext libtool doxygen maven nodejs npm python3-pip linux-headers-amd64
     # Media & documents
     mpv mpv-mpris mediainfo ffmpegthumbnailer imagemagick img2pdf jpegoptim highlight yt-dlp obs-studio
-    fluidsynth libdca0 libgme0 liblrdf0 libltc11 soundstretch libspandsp2t64 libspandsp2 libchromaprint1 libavtp0
+    fluidsynth libdca0 libgme0 liblrdf0 libltc11 soundstretch libspandsp2t64 libchromaprint1 libavtp0
     gstreamer1.0-libav gstreamer1.0-plugins-ugly
     # Audio (PipeWire stack)
     pipewire pipewire-audio pipewire-alsa pipewire-jack pipewire-pulse pipewire-libcamera wireplumber

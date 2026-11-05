@@ -117,7 +117,11 @@ if [ -z "${POST_INSTALL_LOGGED:-}" ]; then
 fi
 
 # Symlink latest log and banner
-ln -sf "$LOG_FILE" /tmp/post-install-latest.log 2>/dev/null || true
+if [ -L /tmp/post-install-latest.log ] || [ -f /tmp/post-install-latest.log ]; then
+    rm -f /tmp/post-install-latest.log 2>/dev/null || ${SUDO:-sudo} rm -f /tmp/post-install-latest.log 2>/dev/null || true
+fi
+ln -sf "$LOG_FILE" /tmp/post-install-latest.log 2>/dev/null || ${SUDO:-sudo} ln -sf "$LOG_FILE" /tmp/post-install-latest.log 2>/dev/null || true
+chmod 666 /tmp/post-install-latest.log 2>/dev/null || ${SUDO:-sudo} chmod 666 /tmp/post-install-latest.log 2>/dev/null || true
 printf '==> Session start: %s | args: %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "${*:-none}"
 printf '==> Full log: %s\n' "$LOG_FILE"
 

@@ -51,12 +51,48 @@ url_ok() {
 # ----------------------------------------------------------------------------
 _APT_UPDATED=0
 
+wait_for_apt_lock() {
+    is_simulate && return 0
+    local lock_files=("/run/lock/nala.lock" "/var/lib/dpkg/lock-frontend" "/var/lib/dpkg/lock" "/var/lib/apt/lists/lock")
+    local lf pid wait_time=0 max_wait=30
+    for lf in "${lock_files[@]}"; do
+        while [ -f "$lf" ]; do
+            pid=""
+            if [ "$lf" = "/run/lock/nala.lock" ]; then
+                pid="$(head -n1 "$lf" 2>/dev/null | tr -cd '0-9' || true)"
+                if [ -n "$pid" ] && ! kill -0 "$pid" 2>/dev/null; then
+                    $SUDO rm -f "$lf" 2>/dev/null || true
+                    break
+                fi
+            fi
+            if command -v fuser >/dev/null 2>&1; then
+                if ! $SUDO fuser "$lf" >/dev/null 2>&1; then
+                    break
+                fi
+            elif [ -z "$pid" ]; then
+                break
+            fi
+            if [ "$wait_time" -ge "$max_wait" ]; then
+                warn "Timed out waiting for lock on $lf (holding PID: ${pid:-unknown}); proceeding with caution..."
+                [ "$lf" = "/run/lock/nala.lock" ] && $SUDO rm -f "$lf" 2>/dev/null || true
+                break
+            fi
+            sleep 1
+            wait_time=$((wait_time + 1))
+        done
+    done
+}
+
 apt_update() {
     is_simulate && return 0
     if [ "$_APT_UPDATED" = "0" ]; then
+        wait_for_apt_lock
         if command -v nala >/dev/null 2>&1; then
             log "Updating package lists with nala..."
-            $SUDO nala update
+            if ! $SUDO nala update; then
+                warn "nala update failed, falling back to apt-get update..."
+                $SUDO apt-get update -qq
+            fi
         else
             log "Updating apt package lists..."
             $SUDO apt-get update -qq
@@ -124,20 +160,29 @@ apt_install() {
                 return 0
         fi
 
+        wait_for_apt_lock
         if command -v nala >/dev/null 2>&1; then
             log "Installing ${#pkgs[@]} packages with nala..."
-                $SUDO nala install -y "${pkgs[@]}"
-            else
-                log "Installing ${#pkgs[@]} packages with apt..."
-                    $SUDO apt-get install -y "${pkgs[@]}"
+            if ! $SUDO nala install -y "${pkgs[@]}"; then
+                warn "nala install failed, falling back to apt-get..."
+                wait_for_apt_lock
+                $SUDO apt-get install -y "${pkgs[@]}"
+            fi
+        else
+            log "Installing ${#pkgs[@]} packages with apt..."
+            $SUDO apt-get install -y "${pkgs[@]}"
         fi
 }
 
 # apt_remove PKG... : remove packages with nala when present, apt-get otherwise.
 apt_remove() {
     [ "$#" -gt 0 ] || return 0
+    wait_for_apt_lock
     if command -v nala >/dev/null 2>&1; then
-        $SUDO nala remove -y "$@"
+        if ! $SUDO nala remove -y "$@"; then
+            warn "nala remove failed, falling back to apt-get..."
+            $SUDO apt-get remove -y "$@"
+        fi
     else
         $SUDO apt-get remove -y "$@"
     fi

@@ -289,15 +289,15 @@ fi
 
 # 4. Install to OS System Trust Store
 echo "Installing CA certificate to system trust store (requires sudo)..."
-if [ -d /etc/ca-certificates/trust-source/anchors ] || command -v trust &>/dev/null; then
-    # Arch Linux
-    sys_anchor_dir="/etc/ca-certificates/trust-source/anchors"
-    sys_cert="$sys_anchor_dir/burpsuite-ca.crt"
-    sudo mkdir -p "$sys_anchor_dir" 2>/dev/null || true
-    if sudo cp "$tmp_crt" "$sys_cert" && sudo chmod 644 "$sys_cert" && sudo trust extract-compat; then
-        echo "[✓] System trust store updated via trust extract-compat ($sys_cert)."
+if [ -f /etc/debian_version ] || command -v update-ca-certificates &>/dev/null; then
+    # Debian / Ubuntu / Kali
+    sys_cert_dir="/usr/local/share/ca-certificates"
+    sys_cert="$sys_cert_dir/burpsuite-ca.crt"
+    sudo mkdir -p "$sys_cert_dir" 2>/dev/null || true
+    if sudo cp "$tmp_crt" "$sys_cert" && sudo chmod 644 "$sys_cert" && sudo update-ca-certificates; then
+        echo "[✓] System trust store updated via update-ca-certificates ($sys_cert)."
     else
-        echo "[!] Warning: Failed to update Arch system trust store." >&2
+        echo "[!] Warning: Failed to update Debian/Kali system trust store." >&2
     fi
 elif [ -d /etc/pki/ca-trust/source/anchors ] || command -v update-ca-trust &>/dev/null; then
     # Fedora / RHEL
@@ -309,15 +309,25 @@ elif [ -d /etc/pki/ca-trust/source/anchors ] || command -v update-ca-trust &>/de
     else
         echo "[!] Warning: Failed to update Fedora system trust store." >&2
     fi
+elif [ -d /etc/ca-certificates/trust-source/anchors ] || [ -f /etc/arch-release ]; then
+    # Arch Linux
+    sys_anchor_dir="/etc/ca-certificates/trust-source/anchors"
+    sys_cert="$sys_anchor_dir/burpsuite-ca.crt"
+    sudo mkdir -p "$sys_anchor_dir" 2>/dev/null || true
+    if sudo cp "$tmp_crt" "$sys_cert" && sudo chmod 644 "$sys_cert" && sudo trust extract-compat; then
+        echo "[✓] System trust store updated via trust extract-compat ($sys_cert)."
+    else
+        echo "[!] Warning: Failed to update Arch system trust store." >&2
+    fi
 else
-    # Debian / Ubuntu / Kali
+    # Fallback
     sys_cert_dir="/usr/local/share/ca-certificates"
     sys_cert="$sys_cert_dir/burpsuite-ca.crt"
     sudo mkdir -p "$sys_cert_dir" 2>/dev/null || true
-    if sudo cp "$tmp_crt" "$sys_cert" && sudo chmod 644 "$sys_cert" && sudo update-ca-certificates; then
-        echo "[✓] System trust store updated via update-ca-certificates ($sys_cert)."
+    if sudo cp "$tmp_crt" "$sys_cert" && sudo chmod 644 "$sys_cert" && sudo update-ca-certificates 2>/dev/null; then
+        echo "[✓] System trust store updated ($sys_cert)."
     else
-        echo "[!] Warning: Failed to update Debian/Kali system trust store." >&2
+        echo "[!] Warning: Could not detect system CA trust store command." >&2
     fi
 fi
 
