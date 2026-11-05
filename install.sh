@@ -473,6 +473,8 @@ Options:
   --distro <distro>     Override distribution (arch, debian, fedora, kali, termux)
   --desktop <de>        Override desktop environment (kde, i3, bspwm, both, none)
   --craft               Install ArtCraft suite (AppMan + wordcraft, gridcraft, deckcraft, photocraft, filmcraft)
+  --burp                Install Burp Suite Professional (tested Java 21 LTS + CA trust)
+  --channel <channel>   Set Burp channel (stable or latest)
   -h, --help            Show this help message
 
 Examples:
@@ -494,6 +496,18 @@ FORCE_CLI=false
 DRY_RUN=false
 STRICT_MODE=false
 
+# Pre-scan for --distro override so distro defaults are loaded before applying overrides
+for ((arg_idx = 1; arg_idx <= $#; arg_idx++)); do
+    if [ "${!arg_idx}" = "--distro" ]; then
+        next_idx=$((arg_idx + 1))
+        if [ $next_idx -le $# ]; then
+            TARGET_DISTRO="${!next_idx}"
+            set_distro_defaults
+            break
+        fi
+    fi
+done
+
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --tui)
@@ -513,8 +527,6 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --distro)
-            TARGET_DISTRO="$2"
-            set_distro_defaults
             shift 2
             ;;
         --desktop)
@@ -524,6 +536,17 @@ while [[ $# -gt 0 ]]; do
         --craft)
             CFG_CRAFT=true
             shift
+            ;;
+        --burp)
+            CFG_SECURITY_BURP=true
+            if [ -z "${CFG_BURP_CHANNEL:-}" ] || [ "$CFG_BURP_CHANNEL" = "off" ]; then
+                CFG_BURP_CHANNEL="stable"
+            fi
+            shift
+            ;;
+        --channel)
+            CFG_BURP_CHANNEL="$2"
+            shift 2
             ;;
         -h | --help)
             show_help

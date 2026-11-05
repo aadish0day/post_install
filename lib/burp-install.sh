@@ -17,6 +17,25 @@ LOADER_URLS=(
     "https://raw.githubusercontent.com/xiv3r/Burpsuite-Professional/main/loader.jar"
 )
 
+# Helper function to find best Java 21 binary
+find_java_bin() {
+    local j
+    for j in \
+        "/usr/lib/jvm/java-21-openjdk/bin/java" \
+        "/usr/lib/jvm/java-21-openjdk-amd64/bin/java" \
+        "/usr/lib/jvm/default-runtime/bin/java"; do
+        if [ -x "$j" ]; then
+            echo "$j"
+            return 0
+        fi
+    done
+    if command -v java &>/dev/null; then
+        echo "java"
+        return 0
+    fi
+    echo "java"
+}
+
 # Helper function to find burp binary
 find_burp_bin() {
     if [ -n "${BURP_BIN:-}" ] && [ "$BURP_BIN" != "none" ] && [ -x "$BURP_BIN" ]; then
@@ -154,40 +173,40 @@ run_burp_installation() {
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            -h | --help)
-                burp_usage
-                exit 0
-                ;;
-            -v | --version)
-                if [[ $# -lt 2 ]]; then
-                    echo "ERROR: $1 requires a version argument." >&2
-                    exit 1
-                fi
-                custom_version="$2"
-                shift 2
-                ;;
-            --skip-launch)
-                skip_launch=true
-                shift
-                ;;
-            -f | --force)
-                force_download=true
-                shift
-                ;;
-            --channel)
-                if [[ $# -lt 2 ]]; then
-                    echo "ERROR: $1 requires a channel argument (stable or latest)." >&2
-                    exit 1
-                fi
-                channel="$2"
-                shift 2
-                ;;
-            *)
-                if [[ -z "$custom_version" && "$1" =~ ^[0-9]+(\.[0-9]+)*$ ]]; then
-                    custom_version="$1"
-                fi
-                shift
-                ;;
+        -h | --help)
+            burp_usage
+            exit 0
+            ;;
+        -v | --version)
+            if [[ $# -lt 2 ]]; then
+                echo "ERROR: $1 requires a version argument." >&2
+                exit 1
+            fi
+            custom_version="$2"
+            shift 2
+            ;;
+        --skip-launch)
+            skip_launch=true
+            shift
+            ;;
+        -f | --force)
+            force_download=true
+            shift
+            ;;
+        --channel)
+            if [[ $# -lt 2 ]]; then
+                echo "ERROR: $1 requires a channel argument (stable or latest)." >&2
+                exit 1
+            fi
+            channel="$2"
+            shift 2
+            ;;
+        *)
+            if [[ -z "$custom_version" && "$1" =~ ^[0-9]+(\.[0-9]+)*$ ]]; then
+                custom_version="$1"
+            fi
+            shift
+            ;;
         esac
     done
 
@@ -511,10 +530,22 @@ REPO_DIR="$REPO_DIR"
 JAR_NAME="$jar_name"
 BURP_VERSION="$burp_ver"
 
+# Locate best Java 21+ binary
+JAVA_BIN="java"
+for j in \
+    "/usr/lib/jvm/java-21-openjdk/bin/java" \
+    "/usr/lib/jvm/java-21-openjdk-amd64/bin/java" \
+    "/usr/lib/jvm/default-runtime/bin/java"; do
+    if [ -x "\$j" ]; then
+        JAVA_BIN="\$j"
+        break
+    fi
+done
+
 case "\${1:-}" in
     -k|--keygen)
         echo "Starting Burp Suite Keygen / Loader..."
-        exec java -jar "\$REPO_DIR/loader.jar"
+        exec "\$JAVA_BIN" -jar "\$REPO_DIR/loader.jar"
         ;;
     -v|--version)
         echo "Burp Suite Professional v\$BURP_VERSION (\$JAR_NAME)"
@@ -552,7 +583,7 @@ HLP
         ;;
 esac
 
-exec java \\
+exec "\$JAVA_BIN" \\
   --add-opens=java.desktop/javax.swing=ALL-UNNAMED \\
   --add-opens=java.base/java.lang=ALL-UNNAMED \\
   --add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED \\
@@ -564,7 +595,6 @@ exec java \\
   -Dswing.aatext=true \\
   -Dsun.java2d.uiScale=auto \\
   -javaagent:"\$REPO_DIR/loader.jar" \\
-  -noverify \\
   -jar "\$REPO_DIR/\$JAR_NAME" "\$@"
 EOF
     chmod +x "$launcher_path"
@@ -604,9 +634,12 @@ EOF
             fi
         fi
 
+        local active_java
+        active_java="$(find_java_bin)"
+
         if [ -f "$REPO_DIR/loader.jar" ]; then
             echo "Starting Key loader.jar in background..."
-            nohup java -jar "$REPO_DIR/loader.jar" >/dev/null 2>&1 &
+            nohup "$active_java" -jar "$REPO_DIR/loader.jar" >/dev/null 2>&1 &
             disown 2>/dev/null || true
         fi
 

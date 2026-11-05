@@ -71,6 +71,7 @@ build_plan_debian() {
     plan_managed_app "xdm"
     plan_managed_app "advcpmv"
     plan_managed_app "craft"
+    plan_managed_app "burp"
 
     if [ "${CFG_DEBIAN_SUDO:-true}" = true ] && [ -f "$distro_dir/system/sudo.sh" ]; then
         plan_add "Configure Sudo & User Privileges (debian/system/sudo.sh)" run_module "debian/system/sudo.sh" "${SYS_USER:-$USER}"
@@ -138,6 +139,14 @@ build_plan_debian() {
 
     if [ "${CFG_CODING:-false}" = true ] && [ -n "${CFG_CODING_TOOLS+x}" ] && [ "${#CFG_CODING_TOOLS[@]}" -gt 0 ] && [ -f "$distro_dir/apps/coding.sh" ]; then
         plan_add "Install Developer Suite (debian/apps/coding.sh)" run_module "debian/apps/coding.sh" "${CFG_CODING_TOOLS[@]}"
+    fi
+
+    local -a burp_args=(--skip-launch)
+    case "${CFG_BURP_CHANNEL:-}" in
+        stable|latest) burp_args+=(--channel "$CFG_BURP_CHANNEL") ;;
+    esac
+    if [ "${CFG_SECURITY_BURP:-false}" = true ] && [ -f "$distro_dir/apps/burp/install.sh" ]; then
+        plan_add "Setup Burp Suite Professional (debian/apps/burp/install.sh)" run_module "debian/apps/burp/install.sh" "${burp_args[@]}"
     fi
 
     if [ "${CFG_GAMING:-false}" = true ] && [ -f "$distro_dir/apps/gaming.sh" ]; then

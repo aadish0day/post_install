@@ -1298,7 +1298,7 @@ $BatLines = @(
     ") else (",
     "    set `"JAVA_BIN=javaw`"",
     ")",
-    "start `"`" `"%JAVA_BIN%`" -XX:+UseG1GC -XX:MaxRAMPercentage=50 -Dsun.java2d.uiScale=auto -Dawt.useSystemAAFontSettings=on -Dswing.aatext=true --add-opens=java.desktop/javax.swing=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm.Opcodes=ALL-UNNAMED -javaagent:`"%~dp0loader.jar`" -noverify -jar `"%~dp0$JarName`" %*",
+    "start `"`" `"%JAVA_BIN%`" -XX:+UseG1GC -XX:MaxRAMPercentage=50 -Dsun.java2d.uiScale=auto -Dawt.useSystemAAFontSettings=on -Dswing.aatext=true --add-opens=java.desktop/javax.swing=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm.Opcodes=ALL-UNNAMED -javaagent:`"%~dp0loader.jar`" -jar `"%~dp0$JarName`" %*",
     "endlocal",
     "exit /b 0",
     ""
@@ -1608,7 +1608,7 @@ try {
 
     if ($javawPath) {
         $shortcutTarget = $javawPath
-        $shortcutArgs = "-XX:+UseG1GC -XX:MaxRAMPercentage=50 -Dsun.java2d.uiScale=auto -Dawt.useSystemAAFontSettings=on -Dswing.aatext=true --add-opens=java.desktop/javax.swing=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm.Opcodes=ALL-UNNAMED -javaagent:`"$TargetLoader`" -noverify -jar `"$TargetJar`""
+        $shortcutArgs = "-XX:+UseG1GC -XX:MaxRAMPercentage=50 -Dsun.java2d.uiScale=auto -Dawt.useSystemAAFontSettings=on -Dswing.aatext=true --add-opens=java.desktop/javax.swing=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm.Opcodes=ALL-UNNAMED -javaagent:`"$TargetLoader`" -jar `"$TargetJar`""
     }
 
     function Create-AppShortcut {

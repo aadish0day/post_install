@@ -16,8 +16,8 @@ MENU_ROWS=(
     "virt|@virt|multi|CFG_VIRT|arch debian fedora|menu_badge_virt"
     "docker|@docker|toggle|CFG_DOCKER|arch debian fedora kali|menu_badge_docker"
     "coding|@coding|multi|CFG_CODING_TOOLS|arch debian fedora|menu_badge_coding"
-    "burp|Burp Suite Professional|choice|CFG_SECURITY_BURP|arch kali|menu_badge_burp"
-    "burp_ca|Trust Burp CA Certificate|action||arch kali|menu_badge_burp_ca"
+    "burp|Burp Suite Professional|choice|CFG_SECURITY_BURP|arch debian kali|menu_badge_burp"
+    "burp_ca|Trust Burp CA Certificate|action||arch debian kali|menu_badge_burp_ca"
     "gaming|@gaming|toggle|CFG_GAMING|arch debian fedora|menu_badge_gaming"
     "aiml|AI / ML Acceleration (ROCm)|toggle|CFG_AIML|arch debian fedora|menu_badge_aiml"
     "prod|@prod|multi|CFG_PROD_APPS|arch debian fedora|menu_badge_prod"
@@ -36,7 +36,7 @@ MENU_ROWS=(
 # Per-distro row order matching main
 declare -A MENU_ORDER=(
     [arch]="distro desktop hardware virt docker coding burp burp_ca gaming aiml prod craft aur mirrors install abort"
-    [debian]="distro debian_sudo desktop hardware virt docker coding gaming aiml prod craft install abort"
+    [debian]="distro debian_sudo desktop hardware virt docker coding burp burp_ca gaming aiml prod craft install abort"
     [fedora]="distro desktop hardware virt docker coding gaming aiml prod craft install abort"
     [kali]="distro burp burp_ca kali_meta wifi docker craft advcpmv install abort"
     [termux]="distro termux_core fonts install abort"
@@ -301,6 +301,8 @@ menu_action_burp_ca() {
             distro_script="$SCRIPT_DIR/arch/apps/burp/install.sh"
         elif [ "$TARGET_DISTRO" = "kali" ] && [ -f "$SCRIPT_DIR/kali/apps/burp/install.sh" ]; then
             distro_script="$SCRIPT_DIR/kali/apps/burp/install.sh"
+        elif [ "$TARGET_DISTRO" = "debian" ] && [ -f "$SCRIPT_DIR/debian/apps/burp/install.sh" ]; then
+            distro_script="$SCRIPT_DIR/debian/apps/burp/install.sh"
         fi
 
         if [ -n "$distro_script" ]; then
