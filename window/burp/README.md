@@ -73,9 +73,28 @@ For unattended runs, pass a flag instead — no prompt is shown when `-Version`,
   - Automatically leverages native Windows `curl.exe` (`C:\Windows\System32\curl.exe`) with HTTP/2 and auto-resume (`-C -`), delivering maximum download speeds for the ~750MB JAR. Falls back smoothly to an optimized 1MB buffered .NET stream reader if needed.
 - **Failover Mirror Redundancy**:
   - Primary download from Codeberg with automatic failover to GitHub mirrors for `loader.jar`.
-- **Silent Launchers (Zero Black Console Windows)**:
+- **High-RAM & Smooth GC Optimization**:
+  - Configures optimized JVM runtime parameters in `Burp.bat` and desktop shortcuts:
+    - `-XX:+UseG1GC`: Low-latency Garbage-First garbage collection.
+    - `-XX:MaxRAMPercentage=50`: Dynamically assigns up to 50% of available system memory without hardcoded limits.
+    - `-Dsun.java2d.uiScale=auto`: Crystal-clear automatic HiDPI scaling for high-resolution displays.
+    - `-Dawt.useSystemAAFontSettings=on -Dswing.aatext=true`: Smooth subpixel anti-aliased font rendering.
+- **Built-in Jython 2.7.4 Standalone & Python BApps Out-of-the-Box**:
+  - Automatically downloads `jython-standalone-2.7.4.jar` to the installation folder with smart caching (skips if file exists and > 20MB).
+  - Automatically pre-configures Burp's `UserConfigPro.json` in both `%USERPROFILE%\.BurpSuite\UserConfigPro.json` and `%APPDATA%\BurpSuite\UserConfigPro.json`.
+  - Sets `user_options.extender.python.location_of_jython_standalone_jar_file` so all Python BApps (Autorize, Logger++, Turbo Intruder, Software Vulnerability Scanner, etc.) work immediately without any manual Extender setup.
+- **Automated Burp CA Certificate Trust (`--trust-ca` / `-t`)**:
+  - Automatically checks if Burp proxy is active on `http://127.0.0.1:8080/cert` and downloads the CA certificate.
+  - Installs the certificate into the Windows Root Certificate store (`Cert:\CurrentUser\Root`), securing Windows system tools and OS services.
+  - Automatically scans and lists Firefox and Gecko-based browsers (Firefox, Zen Browser, LibreWolf, Floorp, Waterfox) in `%APPDATA%`.
+  - Provides an **interactive browser selection menu** (`[1]`, `[2]`, `[A] All`, `[N] None`) to choose specific browsers, all, or none, enabling `security.enterprise_roots.enabled` in `user.js` and NSS `cert9.db`.
+- **Pre-seeded JRE Warning Suppression**:
+  - Automatically pre-seeds Java Preferences in the Windows Registry (`HKCU:\Software\JavaSoft\Prefs\burp`) with `alertsdisabledforjre` suppression keys, eliminating annoying unsupported JRE popups on startup.
+- **Silent Launchers & CLI Helper Flags**:
   - Generates `Burp.bat` using location-independent `%~dp0` variables, G1 garbage collector, and Java 21 `--add-opens` flags.
   - Generates `Burp-Suite-Pro.vbs` to execute Burp silently in the background without persistent console popups.
+  - Generates `trust-ca.ps1` helper for quick certificate management.
+  - Provides full CLI helper flags (`--keygen`, `--trust-ca`, `--version`, `--path`, `--help`) for fast terminal workflows.
 - **Native Windows Search & Start Menu Integration**:
   - Installs shortcuts to both the **Desktop** and **Start Menu**.
   - Direct `javaw.exe` linking ensures pressing the <kbd>Windows</kbd> key and searching `burp` or `burp suite pro` immediately surfaces the application under **Best match (App)**.
@@ -108,10 +127,44 @@ window/burp/
 | **(2/8)** | **Java Detection & Setup** | Verifies Java 21+. If missing, silently installs OpenJDK 21 via direct MSI. |
 | **(3/8)** | **Version Resolution** | Prompts for tested stable or latest (non-interactive: stable), or honors `-Version` / `-Channel` / `BURP_VERSION`. |
 | **(4/8)** | **Loader Fetch** | Downloads `loader.jar` with integrity verification (> 10 KB). |
-| **(5/8)** | **JAR Download** | Cleans old releases and downloads the latest ~700 MB JAR with a live visual progress bar and checksum validation. |
-| **(6/8)** | **Asset Deployment** | Copies `.config.ini` and `burp_suite_pro.ico` into the target directory. |
-| **(7/8)** | **Shortcuts & CLI** | Creates Desktop + Start Menu shortcuts and registers `burpsuitepro` in User `PATH`. |
+| **(5/8)** | **JAR Download & Smart Caching** | Skips download if existing valid JAR matches or exceeds requested version; backs up older JARs with `.bk` extension (non-destructive) instead of deleting them. |
+| **(6/8)** | **Assets, Jython & Registry** | Copies `.config.ini`, `burp_suite_pro.ico`, downloads `jython-standalone-2.7.4.jar`, configures `UserConfigPro.json` for Python BApps, and pre-seeds JRE warning suppression flags in Windows Java Preferences registry. |
+| **(7/8)** | **Launchers & CLI** | Creates Desktop + Start Menu shortcuts, `trust-ca.ps1`, and generates `burpsuitepro` CLI with helper flags (`--keygen`, `--trust-ca`, `--version`, `--path`, `--help`). |
 | **(8/8)** | **Launch** | Launches the Key Loader and opens Burp Suite Professional. |
+
+---
+
+## 💻 Command-Line Interface (CLI)
+
+Once installed, `burpsuitepro` (or `Burp.bat`) can be executed from any terminal (PowerShell, CMD, Windows Terminal):
+
+```cmd
+# Standard launch (passes arguments directly to Burp Suite Pro)
+burpsuitepro
+
+# Launch with Burp Suite project file
+burpsuitepro --project-file="C:\path\to\project.burp"
+
+# Launch the Key Loader GUI (loader.jar)
+burpsuitepro --keygen
+burpsuitepro -k
+
+# Auto-trust Burp CA Certificate across Windows Root & Browsers (interactive selection)
+burpsuitepro --trust-ca
+burpsuitepro -t
+
+# Print the installed version and active JAR filename
+burpsuitepro --version
+burpsuitepro -v
+
+# Print the installation directory path
+burpsuitepro --path
+burpsuitepro -p
+
+# Display usage help
+burpsuitepro --help
+burpsuitepro -h
+```
 
 ---
 
@@ -124,9 +177,11 @@ C:\Users\<Username>\Documents\Crack\Burpsuite-Professional\
 ├── .config.ini
 ├── burp_suite_pro.ico
 ├── loader.jar
+├── jython-standalone-2.7.4.jar
 ├── burpsuite_pro_v<version>.jar
 ├── Burp.bat
 ├── Burp-Suite-Pro.vbs
+├── trust-ca.ps1
 └── burpsuitepro.cmd
 ```
 

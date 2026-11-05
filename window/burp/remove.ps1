@@ -237,7 +237,7 @@ if (-not $KeepData) {
     }
 
     # Clean temporary downloaded files
-    $tempMatches = @("burpsuite*", "openjdk21_installer.msi")
+    $tempMatches = @("burpsuite*", "openjdk21_installer.msi", "jython*")
     foreach ($tm in $tempMatches) {
         Get-ChildItem -Path $env:TEMP -Filter $tm -ErrorAction SilentlyContinue | ForEach-Object {
             Remove-Item -Path $_.FullName -Recurse -Force -ErrorAction SilentlyContinue

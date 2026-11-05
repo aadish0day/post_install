@@ -3,6 +3,7 @@
     Automated Burp Suite Professional Installer for Windows.
 .DESCRIPTION
     PowerShell installer for Burp Suite Professional:
+    - Target folder preservation: never deletes or wipes the installation directory.
     - Detects Java 21+ (PATH, Registry, Program Files).
     - Auto-installs Java 21 via winget (auto-installs winget via window/system/winget_install.ps1 if missing, with silent MSI fallback).
     - Resolves the Burp version in this order: -Version, $env:BURP_VERSION,
@@ -11,9 +12,13 @@
       console is attached it defaults to tested stable without prompting, so
       automation never blocks.
     - Dynamically queries PortSwigger release API for the latest Pro JAR.
-    - Downloads key loader with failover mirrors.
-    - Generates silent launchers (Burp.bat & Burp-Suite-Pro.vbs).
-    - Creates Desktop & Start Menu shortcuts with the official .ico icon.
+    - Smart caching: skips downloading loader.jar, Jython 2.7.4, and Burp Suite Pro JAR if valid and matching/newer versions exist.
+    - Built-in Jython 2.7.4 Standalone: automatically downloads and configures UserConfigPro.json for out-of-the-box Python BApp support.
+    - Non-destructive updates: backs up older Burp Suite Pro JARs with .bk extension (never deletes them).
+    - Pre-seeds JRE warning suppression flags in Windows Java Preferences registry.
+    - Auto-trust Burp CA Certificate flag (--trust-ca / -t) for Windows Root Store and Firefox forks (Zen, LibreWolf, Floorp, Waterfox).
+    - Generates optimized launchers (Burp.bat & Burp-Suite-Pro.vbs) with G1GC, 50% RAM, HiDPI scaling, and CLI helper flags.
+    - Creates Desktop & Start Menu shortcuts with the official .ico icon pointing to the active JAR.
     - Registers CLI command in User PATH for terminal access.
     - Auto-starts key loader and Burp Suite Pro.
 #>
@@ -25,7 +30,9 @@ param (
     [switch]$SkipLaunch,
     [switch]$ForceDownload,
     [switch]$Update,
-    [string]$Channel
+    [string]$Channel,
+    [Alias("trust-ca", "t")]
+    [switch]$TrustCA
 )
 
 $ErrorActionPreference = 'Stop'
@@ -183,6 +190,196 @@ function Download-FileWithProgress {
 }
 
 # ------------------------------------------------------------------------------
+# Auto-Trust Burp CA Certificate Function
+# ------------------------------------------------------------------------------
+function Install-BurpTrustedCA {
+    $certUrl = "http://127.0.0.1:8080/cert"
+    $tempCert = Join-Path $env:TEMP "burpsuite-ca.cer"
+
+    Write-Host "Checking Burp Suite proxy on http://127.0.0.1:8080..." -ForegroundColor Cyan
+
+    $downloadSuccess = $false
+    try {
+        $req = [System.Net.HttpWebRequest][System.Net.WebRequest]::Create($certUrl)
+        $req.Timeout = 4000
+        $resp = $req.GetResponse()
+        $stream = $resp.GetResponseStream()
+        $fileStream = [System.IO.File]::Create($tempCert)
+        $stream.CopyTo($fileStream)
+        $fileStream.Close()
+        $resp.Close()
+        if ((Test-Path $tempCert) -and ((Get-Item $tempCert).Length -gt 0)) {
+            $downloadSuccess = $true
+        }
+    } catch {
+        $downloadSuccess = $false
+    }
+
+    if (-not $downloadSuccess) {
+        Write-Host "Burp proxy not detected on http://127.0.0.1:8080. Start Burp Suite first, then re-run 'burpsuitepro --trust-ca'" -ForegroundColor Yellow
+        return $false
+    }
+
+    Write-Host "Importing Burp CA Certificate into Windows Root Certificate Store (CurrentUser)..." -ForegroundColor Cyan
+    $imported = $false
+
+    try {
+        Import-Certificate -FilePath $tempCert -CertStoreLocation Cert:\CurrentUser\Root -ErrorAction Stop | Out-Null
+        $imported = $true
+    } catch {
+        try {
+            certutil.exe -addstore -user -f "Root" $tempCert | Out-Null
+            $imported = $true
+        } catch {
+            try {
+                certutil.exe -addstore -f "Root" $tempCert | Out-Null
+                $imported = $true
+            } catch {
+                Write-Error "Failed to import certificate into Windows store: $($_.Exception.Message)"
+                return $false
+            }
+        }
+    }
+
+    if ($imported) {
+        Write-Host "      [OK] Burp Suite CA Certificate successfully imported into Windows Root Certificate Store (CurrentUser)." -ForegroundColor Green
+    }
+
+    # Support Firefox and Gecko forks: Zen Browser (%APPDATA%\Zen), LibreWolf, Floorp, Waterfox, etc.
+    Write-Host "Scanning for Firefox and Gecko-based browsers..." -ForegroundColor Cyan
+    $browserDefinitions = @(
+        @{ Name = "Firefox"; Roots = @((Join-Path $env:APPDATA "Mozilla\Firefox\Profiles"), (Join-Path $env:APPDATA "Mozilla\Firefox")) },
+        @{ Name = "Zen Browser"; Roots = @((Join-Path $env:APPDATA "zen\Profiles"), (Join-Path $env:APPDATA "Zen\Profiles"), (Join-Path $env:APPDATA "zen"), (Join-Path $env:APPDATA "Zen")) },
+        @{ Name = "LibreWolf"; Roots = @((Join-Path $env:APPDATA "LibreWolf\Profiles"), (Join-Path $env:APPDATA "LibreWolf")) },
+        @{ Name = "Floorp"; Roots = @((Join-Path $env:APPDATA "Floorp\Profiles"), (Join-Path $env:APPDATA "Floorp")) },
+        @{ Name = "Waterfox"; Roots = @((Join-Path $env:APPDATA "Waterfox\Profiles"), (Join-Path $env:APPDATA "Waterfox"), (Join-Path $env:APPDATA "Waterfox Projects\Waterfox\Profiles"), (Join-Path $env:APPDATA "Waterfox Projects\Waterfox")) }
+    )
+
+    $detectedBrowsers = [System.Collections.Generic.List[PSCustomObject]]::new()
+    foreach ($bDef in $browserDefinitions) {
+        $profiles = [System.Collections.Generic.List[string]]::new()
+        foreach ($r in $bDef.Roots) {
+            if (Test-Path $r) {
+                $dbs = Get-ChildItem -Path $r -Recurse -Depth 4 -ErrorAction SilentlyContinue | Where-Object { $_.Name -in @("cert9.db", "prefs.js") }
+                foreach ($db in $dbs) {
+                    $dir = $db.DirectoryName
+                    if (-not $profiles.Contains($dir)) {
+                        $profiles.Add($dir)
+                    }
+                }
+            }
+        }
+        if ($profiles.Count -gt 0) {
+            $detectedBrowsers.Add([PSCustomObject]@{
+                Name     = $bDef.Name
+                Profiles = $profiles
+            })
+        }
+    }
+
+    if ($detectedBrowsers.Count -gt 0) {
+        $isInteractive = $false
+        try {
+            if ([Environment]::UserInteractive -and $Host.UI -and $Host.UI.RawUI -and -not [Console]::IsInputRedirected) {
+                $isInteractive = $true
+            }
+        } catch {}
+
+        $selectedIndices = @()
+        if ($isInteractive) {
+            Write-Host ""
+            Write-Host "=== Detected Browsers ===" -ForegroundColor Cyan
+            for ($i = 0; $i -lt $detectedBrowsers.Count; $i++) {
+                $pCount = $detectedBrowsers[$i].Profiles.Count
+                $suffix = if ($pCount -eq 1) { "found 1 profile" } else { "found $pCount profiles" }
+                Write-Host "  [$($i + 1)] $($detectedBrowsers[$i].Name) ($suffix)" -ForegroundColor White
+            }
+            Write-Host "  -------------------------------------" -ForegroundColor DarkGray
+            Write-Host "  [A] All detected browsers (Default)" -ForegroundColor Green
+            Write-Host "  [N] None (Windows System Store only)" -ForegroundColor Yellow
+            Write-Host ""
+
+            $selection = ""
+            try {
+                $selection = (Read-Host "Select browsers to trust [A/N or numbers like 1,2] (Default: A)").Trim()
+            } catch {
+                $selection = "A"
+            }
+
+            if ([string]::IsNullOrWhiteSpace($selection) -or $selection -match '^(?i)a(ll)?$') {
+                $selectedIndices = @(0..($detectedBrowsers.Count - 1))
+            } elseif ($selection -match '^(?i)n(one)?$') {
+                $selectedIndices = @()
+                Write-Host "Skipping browser-specific injection (Windows System Store only)." -ForegroundColor DarkGray
+            } else {
+                $parts = $selection -split '[,;\s]+'
+                foreach ($p in $parts) {
+                    if ($p -match '^\d+$') {
+                        $num = [int]$p
+                        if ($num -ge 1 -and $num -le $detectedBrowsers.Count) {
+                            $idx = $num - 1
+                            if ($selectedIndices -notcontains $idx) {
+                                $selectedIndices += $idx
+                            }
+                        }
+                    }
+                }
+                if ($selectedIndices.Count -eq 0) {
+                    Write-Host "Unrecognized selection '$selection', defaulting to all detected browsers." -ForegroundColor Yellow
+                    $selectedIndices = @(0..($detectedBrowsers.Count - 1))
+                }
+            }
+        } else {
+            # Non-interactive: default to all detected browsers
+            $selectedIndices = @(0..($detectedBrowsers.Count - 1))
+        }
+
+        foreach ($idx in $selectedIndices) {
+            $targetBrowser = $detectedBrowsers[$idx]
+            Write-Host "Configuring $($targetBrowser.Name)..." -ForegroundColor Cyan
+            foreach ($pDir in $targetBrowser.Profiles) {
+                $pName = Split-Path -Leaf $pDir
+                try {
+                    $userJsPath = Join-Path $pDir "user.js"
+                    $prefLine = 'user_pref("security.enterprise_roots.enabled", true);'
+                    $existingContent = if (Test-Path $userJsPath) { Get-Content -Path $userJsPath -Raw -ErrorAction SilentlyContinue } else { "" }
+                    if ($existingContent -notlike "*security.enterprise_roots.enabled*") {
+                        Add-Content -Path $userJsPath -Value "`r`n$prefLine" -Force -Encoding UTF8
+                    }
+                    Write-Host "      [OK] $($targetBrowser.Name) ($pName): Enterprise root CA trust enabled" -ForegroundColor Green
+                } catch {
+                    Write-Warning "Could not update user.js in $pName"
+                }
+
+                # If Mozilla NSS certutil is available, also import directly into cert9.db
+                $nssCertUtil = Get-Command certutil.exe -ErrorAction SilentlyContinue | Where-Object { $_.Source -notlike "*System32*" }
+                if ($nssCertUtil) {
+                    try {
+                        & $nssCertUtil.Source -A -n "PortSwigger CA" -t "TCu,Cu,Tu" -i $tempCert -d "sql:$pDir" 2>$null
+                    } catch {}
+                }
+            }
+        }
+    } else {
+        Write-Host "      [*] No active Firefox/Zen/LibreWolf/Floorp/Waterfox profiles detected in %APPDATA%." -ForegroundColor DarkGray
+    }
+
+    Remove-Item -Path $tempCert -Force -ErrorAction SilentlyContinue
+    if ($selectedIndices.Count -gt 0) {
+        Write-Host "`n[OK] Burp Suite CA Certificate successfully trusted across Windows & selected browsers!" -ForegroundColor Green
+    } else {
+        Write-Host "`n[OK] Burp Suite CA Certificate successfully trusted in Windows Root Certificate Store!" -ForegroundColor Green
+    }
+    return $true
+}
+
+if ($TrustCA) {
+    Write-Host "Executing Burp CA certificate auto-trust utility..." -ForegroundColor Cyan
+    $res = Install-BurpTrustedCA
+    if ($res) { exit 0 } else { exit 1 }
+}
+
+# ------------------------------------------------------------------------------
 # 1. Directory Initialization & Process Check
 # ------------------------------------------------------------------------------
 $ScriptDir = if (![string]::IsNullOrEmpty($PSScriptRoot)) { $PSScriptRoot }
@@ -237,7 +434,7 @@ if (-not (Test-Path $InstallDir)) {
     New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
     Write-Host "      Created directory: $InstallDir" -ForegroundColor Green
 } else {
-    Write-Host "      Target directory exists." -ForegroundColor DarkGray
+    Write-Host "      Target directory exists. Preserving existing contents (non-destructive)." -ForegroundColor DarkGray
 }
 
 # ------------------------------------------------------------------------------
@@ -612,11 +809,11 @@ function Read-BurpChannelChoice {
 }
 
 if (-not [string]::IsNullOrWhiteSpace($Version)) {
-    $BURP_VERSION = $Version.Trim()
+    $BURP_VERSION = ($Version.Trim() -replace '^v', '')
     $isCustomVersion = $true
     Write-Host "      Using user-specified version: $BURP_VERSION" -ForegroundColor Green
 } elseif (-not [string]::IsNullOrWhiteSpace($env:BURP_VERSION)) {
-    $BURP_VERSION = $env:BURP_VERSION.Trim()
+    $BURP_VERSION = ($env:BURP_VERSION.Trim() -replace '^v', '')
     $isCustomVersion = $true
     Write-Host "      Using environment variable BURP_VERSION: $BURP_VERSION" -ForegroundColor Green
 } else {
@@ -690,9 +887,13 @@ $loaderSources = @(
 $loaderDownloaded = $false
 if ((Test-Path $TargetLoader) -and ((Get-Item $TargetLoader).Length -gt 10240) -and -not $ForceDownload) {
     $lBytes = (Get-Item $TargetLoader).Length
-    Write-Host "      [OK] Existing loader.jar verified ($lBytes bytes). Skipping download." -ForegroundColor Green
+    $lKb = [math]::Round($lBytes / 1KB, 1)
+    Write-Host "      [OK] Valid loader.jar already exists in $InstallDir ($lKb KB). Skipping download." -ForegroundColor Green
     $loaderDownloaded = $true
 } else {
+    if ($ForceDownload -and (Test-Path $TargetLoader)) {
+        Write-Host "      [*] -ForceDownload specified. Re-downloading loader.jar..." -ForegroundColor Yellow
+    }
     foreach ($url in $loaderSources) {
         try {
             Write-Host "      Fetching from $url ..." -ForegroundColor DarkGray
@@ -715,7 +916,7 @@ if (-not $loaderDownloaded) {
 }
 
 # ------------------------------------------------------------------------------
-# 5. Clean Old Versions & Download Burp Suite Pro JAR (Skip if Equal or Greater)
+# 5. Manage Burp Suite Pro JAR Releases (Smart Caching & Non-Destructive Backup)
 # ------------------------------------------------------------------------------
 Write-Host "`n(5/8) Managing Burp Suite Pro JAR releases..." -ForegroundColor Cyan
 
@@ -746,51 +947,57 @@ function Compare-VersionStrings {
 $skipDownload = $false
 $TargetJar = Join-Path $InstallDir $JarName
 
-# Check for existing Burp Pro JARs in the installation folder
-$existingJars = Get-ChildItem -Path $InstallDir -Filter "burpsuite_pro_v*.jar" -File -ErrorAction SilentlyContinue
-
-if ($existingJars -and -not $ForceDownload) {
-    if ($isCustomVersion) {
-        # Exact version requested: check if that specific version is already present
-        $exactJar = $existingJars | Where-Object { $_.Name -eq $JarName -and $_.Length -gt 10485760 } | Select-Object -First 1
-        if ($exactJar) {
-            Write-Host "      [OK] Requested version $BURP_VERSION is already downloaded. Skipping download." -ForegroundColor Green
-            $skipDownload = $true
-            $TargetJar = $exactJar.FullName
-        }
+# Smart caching / download skipping check
+if (-not $ForceDownload) {
+    # Check 1: Check if the exact requested version $JarName already exists and is valid (> 10MB)
+    if ((Test-Path $TargetJar) -and ((Get-Item $TargetJar).Length -gt 10485760)) {
+        $jarSizeMb = [math]::Round((Get-Item $TargetJar).Length / 1MB, 1)
+        Write-Host "      [OK] Exact requested version $BURP_VERSION ($JarName) already exists in target directory ($jarSizeMb MB)." -ForegroundColor Green
+        Write-Host "      Matching version found. Skipping download." -ForegroundColor Green
+        $skipDownload = $true
     } else {
-        # Auto-latest mode: Sort existing JARs by version to find highest installed release
-        $sortedJars = $existingJars | Sort-Object {
-            $v = $_.BaseName -replace '^burpsuite_pro_v', ''
-            Parse-VersionSafe -VerString $v
-        }
-        $highestJar = $sortedJars | Select-Object -Last 1
+        # Check 2: Check if any existing JAR in $InstallDir has version >= requested version
+        $existingJars = Get-ChildItem -Path $InstallDir -Filter "burpsuite_pro_v*.jar" -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.Extension -eq '.jar' -and $_.Length -gt 10485760 -and $_.BaseName -match '^burpsuite_pro_v(\d+.*)$' }
 
-        if ($highestJar -and $highestJar.Length -gt 10485760) {
-            $existingVersion = $highestJar.BaseName -replace '^burpsuite_pro_v', ''
-            $cmp = Compare-VersionStrings -v1 $existingVersion -v2 $BURP_VERSION
-
-            if ($cmp -eq 0) {
-                Write-Host "      [OK] Burp Suite Professional $BURP_VERSION is already downloaded and up-to-date. Skipping download." -ForegroundColor Green
-                $skipDownload = $true
-                $JarName = $highestJar.Name
-                $TargetJar = $highestJar.FullName
-            } elseif ($cmp -gt 0) {
-                Write-Host "      [OK] Installed version ($existingVersion) is newer than PortSwigger release ($BURP_VERSION). Skipping download." -ForegroundColor Green
-                $skipDownload = $true
-                $JarName = $highestJar.Name
-                $TargetJar = $highestJar.FullName
-            } else {
-                Write-Host "      [*] Found older version ($existingVersion). Upgrading to latest ($BURP_VERSION)..." -ForegroundColor Yellow
+        if ($existingJars) {
+            $sortedJars = $existingJars | Sort-Object {
+                $v = $_.BaseName -replace '^burpsuite_pro_v', ''
+                Parse-VersionSafe -VerString $v
             }
-        } else {
-            Write-Host "      [*] Existing JAR is incomplete or corrupted. Re-downloading..." -ForegroundColor Yellow
+            $highestJar = $sortedJars | Select-Object -Last 1
+
+            if ($highestJar) {
+                $existingVersion = $highestJar.BaseName -replace '^burpsuite_pro_v', ''
+                $cmp = Compare-VersionStrings -v1 $existingVersion -v2 $BURP_VERSION
+
+                if ($cmp -ge 0) {
+                    $jarSizeMb = [math]::Round($highestJar.Length / 1MB, 1)
+                    if ($cmp -eq 0) {
+                        Write-Host "      [OK] Existing version ($existingVersion, $jarSizeMb MB) matches requested version ($BURP_VERSION). Skipping download." -ForegroundColor Green
+                    } else {
+                        Write-Host "      [OK] Installed version ($existingVersion, $jarSizeMb MB) is newer than requested version ($BURP_VERSION). Skipping download." -ForegroundColor Green
+                    }
+                    $skipDownload = $true
+                    $BURP_VERSION = $existingVersion
+                    $JarName = $highestJar.Name
+                    $TargetJar = $highestJar.FullName
+                } else {
+                    Write-Host "      [*] Found older version ($existingVersion). Upgrading to requested version ($BURP_VERSION)..." -ForegroundColor Yellow
+                }
+            }
         }
     }
+} else {
+    Write-Host "      [*] -ForceDownload specified. Forcing fresh download of $JarName..." -ForegroundColor Yellow
 }
 
 if (-not $skipDownload) {
+    # Ensure TargetJar and DownloadUrl match the active version being downloaded
+    $TargetJar = Join-Path $InstallDir $JarName
+    $DownloadUrl = "https://portswigger.net/burp/releases/download?product=desktop&version=$BURP_VERSION&type=Jar"
     $tempTarget = "$TargetJar.tmp"
+
     Write-Host "      Downloading $JarName (~700MB)..." -ForegroundColor Yellow
     Download-FileWithProgress -Url $DownloadUrl -OutputFile $tempTarget -Description "Downloading Burp Suite Professional $BURP_VERSION"
 
@@ -806,14 +1013,6 @@ if (-not $skipDownload) {
         exit 1
     }
 
-    # Clean up older versions only after download succeeds
-    Get-ChildItem -Path $InstallDir -Filter "burpsuite_pro_v*.jar" -File -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -ne $JarName } |
-        ForEach-Object {
-            Write-Host "      Removing old version: $($_.Name)" -ForegroundColor DarkGray
-            Remove-Item -Path $_.FullName -Force -ErrorAction SilentlyContinue
-        }
-
     Write-Host "      Calculating cryptographic checksums..." -ForegroundColor DarkGray
     $sha256 = (Get-FileHash -Path $TargetJar -Algorithm SHA256).Hash
     $md5 = (Get-FileHash -Path $TargetJar -Algorithm MD5).Hash
@@ -822,10 +1021,35 @@ if (-not $skipDownload) {
 }
 
 # ------------------------------------------------------------------------------
-# 6. Deploy Assets (.config.ini & burp_suite_pro.ico)
+# Backup older JARs with .bk extension (DO NOT DELETE - Non-Destructive)
 # ------------------------------------------------------------------------------
-Write-Host "`n(6/8) Deploying assets & icons..." -ForegroundColor Cyan
+$olderJars = Get-ChildItem -Path $InstallDir -Filter "burpsuite_pro_v*.jar" -File -ErrorAction SilentlyContinue |
+    Where-Object { $_.Extension -eq '.jar' -and $_.Name -ne $JarName }
 
+if ($olderJars) {
+    Write-Host "      Backing up older Burp Suite Pro JAR files with .bk extension..." -ForegroundColor Cyan
+    foreach ($oldJar in $olderJars) {
+        $bkName = "$($oldJar.Name).bk"
+        $bkPath = Join-Path $InstallDir $bkName
+        Write-Host "      Backing up older version: $($oldJar.Name) -> $bkName" -ForegroundColor DarkGray
+        try {
+            if (Test-Path $bkPath) {
+                Remove-Item -Path $bkPath -Force -ErrorAction SilentlyContinue
+            }
+            Rename-Item -Path $oldJar.FullName -NewName $bkName -Force
+            Write-Host "      [OK] Preserved older release: $($oldJar.Name) -> $bkName" -ForegroundColor Green
+        } catch {
+            Write-Warning "Could not backup $($oldJar.Name) to $bkName: $($_.Exception.Message)"
+        }
+    }
+}
+
+# ------------------------------------------------------------------------------
+# 6. Deploy Assets, Built-in Jython 2.7.4 & User Configuration
+# ------------------------------------------------------------------------------
+Write-Host "`n(6/8) Deploying assets, Jython 2.7.4 & preferences..." -ForegroundColor Cyan
+
+# 6A. Deploy Assets (.config.ini & burp_suite_pro.ico)
 $LocalConfig = Join-Path $ScriptDir ".config.ini"
 $TargetConfig = Join-Path $InstallDir ".config.ini"
 if (Test-Path $LocalConfig) {
@@ -856,14 +1080,230 @@ if (Test-Path $LocalIcon) {
     }
 }
 
+# 6B. Built-in Jython Standalone 2.7.4 Support
+Write-Host "      Configuring Jython Standalone 2.7.4 (Python BApps support)..." -ForegroundColor DarkCyan
+$TargetJython = Join-Path $InstallDir "jython-standalone-2.7.4.jar"
+$jythonSources = @(
+    "https://repo1.maven.org/maven2/org/python/jython-standalone/2.7.4/jython-standalone-2.7.4.jar",
+    "https://search.maven.org/remotecontent?filepath=org/python/jython-standalone/2.7.4/jython-standalone-2.7.4.jar"
+)
+
+$jythonReady = $false
+if ((Test-Path $TargetJython) -and ((Get-Item $TargetJython).Length -gt 20MB) -and -not $ForceDownload) {
+    $jMb = [math]::Round((Get-Item $TargetJython).Length / 1MB, 1)
+    Write-Host "      [OK] Valid jython-standalone-2.7.4.jar already exists in $InstallDir ($jMb MB). Skipping download." -ForegroundColor Green
+    $jythonReady = $true
+} else {
+    if ($ForceDownload -and (Test-Path $TargetJython)) {
+        Write-Host "      [*] -ForceDownload specified. Re-downloading Jython 2.7.4..." -ForegroundColor Yellow
+    }
+    $tempJython = "$TargetJython.tmp"
+    foreach ($url in $jythonSources) {
+        try {
+            Write-Host "      Downloading Jython 2.7.4 from $url (~48MB)..." -ForegroundColor Yellow
+            Download-FileWithProgress -Url $url -OutputFile $tempJython -Description "Downloading Jython Standalone 2.7.4"
+            if ((Test-Path $tempJython) -and ((Get-Item $tempJython).Length -gt 20MB)) {
+                Move-Item -Path $tempJython -Destination $TargetJython -Force
+                $jMb = [math]::Round((Get-Item $TargetJython).Length / 1MB, 1)
+                Write-Host "      [OK] Downloaded and verified jython-standalone-2.7.4.jar ($jMb MB)." -ForegroundColor Green
+                $jythonReady = $true
+                break
+            } else {
+                if (Test-Path $tempJython) {
+                    Remove-Item -Path $tempJython -Force -ErrorAction SilentlyContinue
+                }
+            }
+        } catch {
+            if (Test-Path $tempJython) {
+                Remove-Item -Path $tempJython -Force -ErrorAction SilentlyContinue
+            }
+            Write-Warning "Download from $url failed: $($_.Exception.Message)"
+        }
+    }
+}
+
+# Automatically configure Burp User Config (UserConfigPro.json) in User Profile and AppData
+if (Test-Path $TargetJython) {
+    $configTargets = [System.Collections.Generic.List[string]]::new()
+    if ($env:USERPROFILE) {
+        $configTargets.Add((Join-Path $env:USERPROFILE ".BurpSuite\UserConfigPro.json"))
+    }
+    if ($env:APPDATA) {
+        $configTargets.Add((Join-Path $env:APPDATA "BurpSuite\UserConfigPro.json"))
+    }
+
+    foreach ($cfgPath in $configTargets) {
+        try {
+            $cfgDir = Split-Path -Parent $cfgPath
+            if (-not (Test-Path $cfgDir)) {
+                New-Item -ItemType Directory -Path $cfgDir -Force | Out-Null
+            }
+
+            $cfgObj = $null
+            if (Test-Path $cfgPath) {
+                try {
+                    $rawText = Get-Content -Path $cfgPath -Raw -ErrorAction Stop
+                    if (-not [string]::IsNullOrWhiteSpace($rawText)) {
+                        $cfgObj = $rawText | ConvertFrom-Json -ErrorAction Stop
+                    }
+                } catch {
+                    Write-Warning "Could not parse existing $cfgPath as JSON. Creating backup."
+                    Copy-Item -Path $cfgPath -Destination "$cfgPath.bk" -Force -ErrorAction SilentlyContinue
+                    $cfgObj = $null
+                }
+            }
+
+            if ($null -eq $cfgObj) {
+                $cfgObj = [PSCustomObject]@{
+                    user_options = [PSCustomObject]@{
+                        extender = [PSCustomObject]@{
+                            python = [PSCustomObject]@{
+                                location_of_jython_standalone_jar_file = $TargetJython
+                            }
+                        }
+                    }
+                }
+            } else {
+                if (-not ($cfgObj.PSObject.Properties['user_options']) -or ($null -eq $cfgObj.user_options)) {
+                    $cfgObj | Add-Member -NotePropertyName "user_options" -NotePropertyValue ([PSCustomObject]@{}) -Force
+                }
+                if (-not ($cfgObj.user_options.PSObject.Properties['extender']) -or ($null -eq $cfgObj.user_options.extender)) {
+                    $cfgObj.user_options | Add-Member -NotePropertyName "extender" -NotePropertyValue ([PSCustomObject]@{}) -Force
+                }
+                if (-not ($cfgObj.user_options.extender.PSObject.Properties['python']) -or ($null -eq $cfgObj.user_options.extender.python)) {
+                    $cfgObj.user_options.extender | Add-Member -NotePropertyName "python" -NotePropertyValue ([PSCustomObject]@{}) -Force
+                }
+
+                if ($cfgObj.user_options.extender.python.PSObject.Properties['location_of_jython_standalone_jar_file']) {
+                    $cfgObj.user_options.extender.python.location_of_jython_standalone_jar_file = $TargetJython
+                } else {
+                    $cfgObj.user_options.extender.python | Add-Member -NotePropertyName "location_of_jython_standalone_jar_file" -NotePropertyValue $TargetJython -Force
+                }
+            }
+
+            $jsonOut = $cfgObj | ConvertTo-Json -Depth 32
+            $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+            [System.IO.File]::WriteAllText($cfgPath, $jsonOut, $utf8NoBom)
+            Write-Host "      [OK] Configured Jython path in: $cfgPath" -ForegroundColor Green
+        } catch {
+            Write-Warning "Could not configure Jython path in $cfgPath: $($_.Exception.Message)"
+        }
+    }
+} else {
+    Write-Warning "Jython 2.7.4 JAR was not found at $TargetJython. Python BApps will require manual configuration."
+}
+
+# 6C. Pre-seed JRE Warning Suppression in Windows Java Preferences
+function Set-BurpJreWarningSuppression {
+    Write-Host "      Configuring JRE warning suppression in Windows Java Preferences registry..." -ForegroundColor DarkCyan
+    try {
+        $burpPrefKey = "HKCU:\Software\JavaSoft\Prefs\burp"
+        if (-not (Test-Path $burpPrefKey)) {
+            New-Item -Path $burpPrefKey -Force | Out-Null
+        }
+
+        $jreAlertValues = [ordered]@{
+            "suite.alertsdisabledforjre-3189538875"      = "true"
+            "suite.alertsdisabledforjre-1115054815"      = "true"
+            "burp.suite.alertsdisabledforjre-3189538875" = "true"
+            "burp.suite.alertsdisabledforjre-1115054815" = "true"
+            "burp.suite.alertsdisabledforjre-1872878544" = "true"
+            "burp.suite.alertsdisabledforjre-413592390"  = "true"
+        }
+
+        foreach ($entry in $jreAlertValues.GetEnumerator()) {
+            Set-ItemProperty -Path $burpPrefKey -Name $entry.Key -Value $entry.Value -Type String -Force
+        }
+        Write-Host "      [OK] Pre-seeded JRE warning suppression flags in $burpPrefKey" -ForegroundColor Green
+    } catch {
+        Write-Warning "Could not pre-seed JRE warning suppression registry keys: $($_.Exception.Message)"
+    }
+}
+Set-BurpJreWarningSuppression
+
 # ------------------------------------------------------------------------------
 # 7. Create Launchers & Desktop/Start Menu Shortcuts
 # ------------------------------------------------------------------------------
 Write-Host "`n(7/8) Creating launchers and Windows shortcuts..." -ForegroundColor Cyan
 
-# 7A. Burp.bat (Direct / CLI launcher with Java 21 module flags)
+# 7A. Burp.bat (Direct / CLI launcher with High-RAM, G1GC, HiDPI, --trust-ca and CLI helper flags)
 $BatPath = Join-Path $InstallDir "Burp.bat"
-$BatContent = "@echo off`r`nsetlocal`r`ncd /d `"%~dp0`"`r`nif exist `"%JAVA_HOME%\bin\javaw.exe`" (`r`n    set `"JAVA_BIN=%JAVA_HOME%\bin\javaw.exe`"`r`n) else (`r`n    set `"JAVA_BIN=javaw`"`r`n)`r`nstart `"`" `"%JAVA_BIN%`" -XX:+UseG1GC --add-opens=java.desktop/javax.swing=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm.Opcodes=ALL-UNNAMED -javaagent:`"%~dp0loader.jar`" -noverify -jar `"%~dp0$JarName`" %*`r`nendlocal`r`n"
+$BatLines = @(
+    "@echo off",
+    "setlocal",
+    "cd /d `"%~dp0`"",
+    "",
+    "rem CLI helper flags for Burp Suite Professional",
+    "if /i `"%~1`"==`"--keygen`" goto keygen",
+    "if /i `"%~1`"==`"-k`" goto keygen",
+    "if /i `"%~1`"==`"--trust-ca`" goto trust_ca",
+    "if /i `"%~1`"==`"-t`" goto trust_ca",
+    "if /i `"%~1`"==`"--version`" goto version",
+    "if /i `"%~1`"==`"-v`" goto version",
+    "if /i `"%~1`"==`"--path`" goto path",
+    "if /i `"%~1`"==`"-p`" goto path",
+    "if /i `"%~1`"==`"--help`" goto help",
+    "if /i `"%~1`"==`"-h`" goto help",
+    "goto launch",
+    "",
+    ":keygen",
+    "if exist `"%JAVA_HOME%\bin\java.exe`" (",
+    "    start `"`" `"%JAVA_HOME%\bin\java.exe`" -jar `"%~dp0loader.jar`"",
+    ") else (",
+    "    start `"`" java -jar `"%~dp0loader.jar`"",
+    ")",
+    "endlocal",
+    "exit /b 0",
+    "",
+    ":trust_ca",
+    "if exist `"%~dp0trust-ca.ps1`" (",
+    "    powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"%~dp0trust-ca.ps1`"",
+    ") else (",
+    "    powershell.exe -NoProfile -ExecutionPolicy Bypass -Command `"$u='http://127.0.0.1:8080/cert'; $c=Join-Path $env:TEMP 'burpsuite-ca.cer'; try { $req=[System.Net.HttpWebRequest][System.Net.WebRequest]::Create($u); $req.Timeout=4000; $resp=$req.GetResponse(); $s=$resp.GetResponseStream(); $fs=[System.IO.File]::Create($c); $s.CopyTo($fs); $fs.Close(); $resp.Close(); } catch { Write-Host 'Burp proxy not detected on http://127.0.0.1:8080. Start Burp Suite first, then re-run ''burpsuitepro --trust-ca''' -ForegroundColor Yellow; exit 1 }; if ((Test-Path $c) -and ((Get-Item $c).Length -gt 0)) { try { Import-Certificate -FilePath $c -CertStoreLocation Cert:\CurrentUser\Root -ErrorAction Stop | Out-Null } catch { certutil.exe -addstore -f Root $c | Out-Null }; Write-Host '[OK] Burp Suite CA Certificate successfully imported into Windows Root Certificate Store (CurrentUser).' -ForegroundColor Green; Remove-Item $c -Force -ErrorAction SilentlyContinue; exit 0 } else { Write-Host 'Burp proxy not detected on http://127.0.0.1:8080. Start Burp Suite first, then re-run ''burpsuitepro --trust-ca''' -ForegroundColor Yellow; exit 1 }`"",
+    ")",
+    "endlocal",
+    "exit /b %ERRORLEVEL%",
+    "",
+    ":version",
+    "echo Burp Suite Professional v$BURP_VERSION ($JarName)",
+    "endlocal",
+    "exit /b 0",
+    "",
+    ":path",
+    "echo %~dp0",
+    "endlocal",
+    "exit /b 0",
+    "",
+    ":help",
+    "echo Burp Suite Professional Launcher",
+    "echo.",
+    "echo Usage:",
+    "echo   burpsuitepro [options] [burp-arguments]",
+    "echo   Burp.bat [options] [burp-arguments]",
+    "echo.",
+    "echo Options:",
+    "echo   -k, --keygen    Launch the key loader GUI (loader.jar)",
+    "echo   -t, --trust-ca  Import and trust Burp CA certificate in Windows & browsers",
+    "echo   -v, --version   Print current version and JAR name",
+    "echo   -p, --path      Print installation directory path",
+    "echo   -h, --help      Show quick usage help",
+    "echo.",
+    "echo All other arguments are passed directly to Burp Suite Pro.",
+    "endlocal",
+    "exit /b 0",
+    "",
+    ":launch",
+    "if exist `"%JAVA_HOME%\bin\javaw.exe`" (",
+    "    set `"JAVA_BIN=%JAVA_HOME%\bin\javaw.exe`"",
+    ") else (",
+    "    set `"JAVA_BIN=javaw`"",
+    ")",
+    "start `"`" `"%JAVA_BIN%`" -XX:+UseG1GC -XX:MaxRAMPercentage=50 -Dsun.java2d.uiScale=auto -Dawt.useSystemAAFontSettings=on -Dswing.aatext=true --add-opens=java.desktop/javax.swing=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm.Opcodes=ALL-UNNAMED -javaagent:`"%~dp0loader.jar`" -noverify -jar `"%~dp0$JarName`" %*",
+    "endlocal",
+    "exit /b 0",
+    ""
+)
+$BatContent = $BatLines -join "`r`n"
 [System.IO.File]::WriteAllText($BatPath, $BatContent, [System.Text.Encoding]::ASCII)
 Write-Host "      [OK] Generated $BatPath" -ForegroundColor Green
 
@@ -873,10 +1313,270 @@ $VbsContent = "Set WshShell = CreateObject(`"WScript.Shell`")`r`nWshShell.Run `"
 [System.IO.File]::WriteAllText($VbsPath, $VbsContent, [System.Text.Encoding]::ASCII)
 Write-Host "      [OK] Generated $VbsPath" -ForegroundColor Green
 
-# 7C. Create burpsuitepro.cmd CLI wrapper for PATH
+# 7C. trust-ca.ps1 (Burp CA Certificate Trust Utility with Browser Selection Menu)
+$TrustCaPath = Join-Path $InstallDir "trust-ca.ps1"
+$TrustCaLines = @(
+    "<#",
+    ".SYNOPSIS",
+    "    Automated Burp Suite CA Certificate Trust Utility for Windows.",
+    ".DESCRIPTION",
+    "    Checks Burp proxy on http://127.0.0.1:8080/cert, downloads CA certificate,",
+    "    imports into Windows Root Certificate Store (CurrentUser), and provides an interactive",
+    "    selection menu for Firefox and forks (Zen Browser, LibreWolf, Floorp, Waterfox).",
+    "#>",
+    "[CmdletBinding()]",
+    "param()",
+    "",
+    "`$ErrorActionPreference = 'Stop'",
+    "`$certUrl = 'http://127.0.0.1:8080/cert'",
+    "`$tempCert = Join-Path `$env:TEMP 'burpsuite-ca.cer'",
+    "",
+    "Write-Host 'Checking Burp Suite proxy on http://127.0.0.1:8080...' -ForegroundColor Cyan",
+    "",
+    "`$downloadSuccess = `$false",
+    "try {",
+    "    `$req = [System.Net.HttpWebRequest][System.Net.WebRequest]::Create(`$certUrl)",
+    "    `$req.Timeout = 4000",
+    "    `$resp = `$req.GetResponse()",
+    "    `$stream = `$resp.GetResponseStream()",
+    "    `$fileStream = [System.IO.File]::Create(`$tempCert)",
+    "    `$stream.CopyTo(`$fileStream)",
+    "    `$fileStream.Close()",
+    "    `$resp.Close()",
+    "    if ((Test-Path `$tempCert) -and ((Get-Item `$tempCert).Length -gt 0)) {",
+    "        `$downloadSuccess = `$true",
+    "    }",
+    "} catch {",
+    "    `$downloadSuccess = `$false",
+    "}",
+    "",
+    "if (-not `$downloadSuccess) {",
+    "    Write-Host 'Burp proxy not detected on http://127.0.0.1:8080. Start Burp Suite first, then re-run ''burpsuitepro --trust-ca''' -ForegroundColor Yellow",
+    "    exit 1",
+    "}",
+    "",
+    "Write-Host 'Importing Burp CA Certificate into Windows Root Certificate Store (CurrentUser)...' -ForegroundColor Cyan",
+    "`$imported = `$false",
+    "",
+    "try {",
+    "    Import-Certificate -FilePath `$tempCert -CertStoreLocation Cert:\CurrentUser\Root -ErrorAction Stop | Out-Null",
+    "    `$imported = `$true",
+    "} catch {",
+    "    try {",
+    "        certutil.exe -addstore -user -f 'Root' `$tempCert | Out-Null",
+    "        `$imported = `$true",
+    "    } catch {",
+    "        try {",
+    "            certutil.exe -addstore -f 'Root' `$tempCert | Out-Null",
+    "            `$imported = `$true",
+    "        } catch {",
+    "            Write-Error `"Failed to import certificate into Windows store: `$(`$_.Exception.Message)`"",
+    "            exit 1",
+    "        }",
+    "    }",
+    "}",
+    "",
+    "if (`$imported) {",
+    "    Write-Host '      [OK] Burp Suite CA Certificate successfully imported into Windows Root Certificate Store (CurrentUser).' -ForegroundColor Green",
+    "}",
+    "",
+    "# Support Firefox and Gecko forks: Zen Browser (%APPDATA%\Zen), LibreWolf, Floorp, Waterfox, etc.",
+    "Write-Host 'Scanning for Firefox and Gecko-based browsers...' -ForegroundColor Cyan",
+    "`$browserDefinitions = @(",
+    "    @{ Name = 'Firefox'; Roots = @((Join-Path `$env:APPDATA 'Mozilla\Firefox\Profiles'), (Join-Path `$env:APPDATA 'Mozilla\Firefox')) },",
+    "    @{ Name = 'Zen Browser'; Roots = @((Join-Path `$env:APPDATA 'zen\Profiles'), (Join-Path `$env:APPDATA 'Zen\Profiles'), (Join-Path `$env:APPDATA 'zen'), (Join-Path `$env:APPDATA 'Zen')) },",
+    "    @{ Name = 'LibreWolf'; Roots = @((Join-Path `$env:APPDATA 'LibreWolf\Profiles'), (Join-Path `$env:APPDATA 'LibreWolf')) },",
+    "    @{ Name = 'Floorp'; Roots = @((Join-Path `$env:APPDATA 'Floorp\Profiles'), (Join-Path `$env:APPDATA 'Floorp')) },",
+    "    @{ Name = 'Waterfox'; Roots = @((Join-Path `$env:APPDATA 'Waterfox\Profiles'), (Join-Path `$env:APPDATA 'Waterfox'), (Join-Path `$env:APPDATA 'Waterfox Projects\Waterfox\Profiles'), (Join-Path `$env:APPDATA 'Waterfox Projects\Waterfox')) }",
+    ")",
+    "",
+    "`$detectedBrowsers = [System.Collections.Generic.List[PSCustomObject]]::new()",
+    "foreach (`$bDef in `$browserDefinitions) {",
+    "    `$profiles = [System.Collections.Generic.List[string]]::new()",
+    "    foreach (`$r in `$bDef.Roots) {",
+    "        if (Test-Path `$r) {",
+    "            `$dbs = Get-ChildItem -Path `$r -Recurse -Depth 4 -ErrorAction SilentlyContinue | Where-Object { `$_.Name -in @('cert9.db', 'prefs.js') }",
+    "            foreach (`$db in `$dbs) {",
+    "                `$dir = `$db.DirectoryName",
+    "                if (-not `$profiles.Contains(`$dir)) {",
+    "                    `$profiles.Add(`$dir)",
+    "                }",
+    "            }",
+    "        }",
+    "    }",
+    "    if (`$profiles.Count -gt 0) {",
+    "        `$detectedBrowsers.Add([PSCustomObject]@{",
+    "            Name     = `$bDef.Name",
+    "            Profiles = `$profiles",
+    "        })",
+    "    }",
+    "}",
+    "",
+    "if (`$detectedBrowsers.Count -gt 0) {",
+    "    `$isInteractive = `$false",
+    "    try {",
+    "        if ([Environment]::UserInteractive -and `$Host.UI -and `$Host.UI.RawUI -and -not [Console]::IsInputRedirected) {",
+    "            `$isInteractive = `$true",
+    "        }",
+    "    } catch {}",
+    "",
+    "    `$selectedIndices = @()",
+    "    if (`$isInteractive) {",
+    "        Write-Host ''",
+    "        Write-Host '=== Detected Browsers ===' -ForegroundColor Cyan",
+    "        for (`$i = 0; `$i -lt `$detectedBrowsers.Count; `$i++) {",
+    "            `$pCount = `$detectedBrowsers[`$i].Profiles.Count",
+    "            `$suffix = if (`$pCount -eq 1) { 'found 1 profile' } else { `"found `$pCount profiles`" }",
+    "            Write-Host `"  [`$(`$i + 1)] `$(`$detectedBrowsers[`$i].Name) (`$suffix)`" -ForegroundColor White",
+    "        }",
+    "        Write-Host '  -------------------------------------' -ForegroundColor DarkGray",
+    "        Write-Host '  [A] All detected browsers (Default)' -ForegroundColor Green",
+    "        Write-Host '  [N] None (Windows System Store only)' -ForegroundColor Yellow",
+    "        Write-Host ''",
+    "",
+    "        `$selection = ''",
+    "        try {",
+    "            `$selection = (Read-Host 'Select browsers to trust [A/N or numbers like 1,2] (Default: A)').Trim()",
+    "        } catch {",
+    "            `$selection = 'A'",
+    "        }",
+    "",
+    "        if ([string]::IsNullOrWhiteSpace(`$selection) -or `$selection -match '^(?i)a(ll)?$') {",
+    "            `$selectedIndices = @(0..(`$detectedBrowsers.Count - 1))",
+    "        } elseif (`$selection -match '^(?i)n(one)?$') {",
+    "            `$selectedIndices = @()",
+    "            Write-Host 'Skipping browser-specific injection (Windows System Store only).' -ForegroundColor DarkGray",
+    "        } else {",
+    "            `$parts = `$selection -split '[,;\s]+'",
+    "            foreach (`$p in `$parts) {",
+    "                if (`$p -match '^\d+$') {",
+    "                    `$num = [int]`$p",
+    "                    if (`$num -ge 1 -and `$num -le `$detectedBrowsers.Count) {",
+    "                        `$idx = `$num - 1",
+    "                        if (`$selectedIndices -notcontains `$idx) {",
+    "                            `$selectedIndices += `$idx",
+    "                        }",
+    "                    }",
+    "                }",
+    "            }",
+    "            if (`$selectedIndices.Count -eq 0) {",
+    "                Write-Host `"Unrecognized selection '`$selection', defaulting to all detected browsers.`" -ForegroundColor Yellow",
+    "                `$selectedIndices = @(0..(`$detectedBrowsers.Count - 1))",
+    "            }",
+    "        }",
+    "    } else {",
+    "        # Non-interactive: default to all detected browsers",
+    "        `$selectedIndices = @(0..(`$detectedBrowsers.Count - 1))",
+    "    }",
+    "",
+    "    foreach (`$idx in `$selectedIndices) {",
+    "        `$targetBrowser = `$detectedBrowsers[`$idx]",
+    "        Write-Host `"Configuring `$(`$targetBrowser.Name)...`" -ForegroundColor Cyan",
+    "        foreach (`$pDir in `$targetBrowser.Profiles) {",
+    "            `$pName = Split-Path -Leaf `$pDir",
+    "            try {",
+    "                `$userJsPath = Join-Path `$pDir 'user.js'",
+    "                `$prefLine = 'user_pref(`"security.enterprise_roots.enabled`", true);'",
+    "                `$existingContent = if (Test-Path `$userJsPath) { Get-Content -Path `$userJsPath -Raw -ErrorAction SilentlyContinue } else { '' }",
+    "                if (`$existingContent -notlike '*security.enterprise_roots.enabled*') {",
+    "                    Add-Content -Path `$userJsPath -Value `"`r`n`$prefLine`" -Force -Encoding UTF8",
+    "                }",
+    "                Write-Host `"      [OK] `$(`$targetBrowser.Name) (`$pName): Enterprise root CA trust enabled`" -ForegroundColor Green",
+    "            } catch {",
+    "                Write-Warning `"Could not update user.js in `$pName`"",
+    "            }",
+    "            `$nssCertUtil = Get-Command certutil.exe -ErrorAction SilentlyContinue | Where-Object { `$_.Source -notlike '*System32*' }",
+    "            if (`$nssCertUtil) {",
+    "                try {",
+    "                    & `$nssCertUtil.Source -A -n 'PortSwigger CA' -t 'TCu,Cu,Tu' -i `$tempCert -d `"sql:`$pDir`" 2>`$null",
+    "                } catch {}",
+    "            }",
+    "        }",
+    "    }",
+    "} else {",
+    "    Write-Host '      [*] No active Firefox/Zen/LibreWolf/Floorp/Waterfox profiles detected in %APPDATA%.' -ForegroundColor DarkGray",
+    "}",
+    "",
+    "Remove-Item -Path `$tempCert -Force -ErrorAction SilentlyContinue",
+    "if (`$selectedIndices.Count -gt 0) {",
+    "    Write-Host '`n[OK] Burp Suite CA Certificate successfully trusted across Windows & selected browsers!' -ForegroundColor Green",
+    "} else {",
+    "    Write-Host '`n[OK] Burp Suite CA Certificate successfully trusted in Windows Root Certificate Store!' -ForegroundColor Green",
+    "}",
+    "exit 0"
+)
+$TrustCaContent = $TrustCaLines -join "`r`n"
+[System.IO.File]::WriteAllText($TrustCaPath, $TrustCaContent, [System.Text.Encoding]::ASCII)
+Write-Host "      [OK] Generated $TrustCaPath" -ForegroundColor Green
+
+# 7D. Create burpsuitepro.cmd CLI wrapper for PATH
 $CliCmdPath = Join-Path $InstallDir "burpsuitepro.cmd"
-$CliCmdContent = "@call `"%~dp0Burp.bat`" %*`r`n"
+$CliCmdLines = @(
+    "@echo off",
+    "setlocal",
+    "cd /d `"%~dp0`"",
+    "",
+    "rem CLI helper flags for burpsuitepro",
+    "if /i `"%~1`"==`"--keygen`" goto keygen",
+    "if /i `"%~1`"==`"-k`" goto keygen",
+    "if /i `"%~1`"==`"--trust-ca`" goto trust_ca",
+    "if /i `"%~1`"==`"-t`" goto trust_ca",
+    "if /i `"%~1`"==`"--version`" goto version",
+    "if /i `"%~1`"==`"-v`" goto version",
+    "if /i `"%~1`"==`"--path`" goto path",
+    "if /i `"%~1`"==`"-p`" goto path",
+    "if /i `"%~1`"==`"--help`" goto help",
+    "if /i `"%~1`"==`"-h`" goto help",
+    "",
+    "call `"%~dp0Burp.bat`" %*",
+    "endlocal",
+    "exit /b %ERRORLEVEL%",
+    "",
+    ":keygen",
+    "if exist `"%JAVA_HOME%\bin\java.exe`" (",
+    "    start `"`" `"%JAVA_HOME%\bin\java.exe`" -jar `"%~dp0loader.jar`"",
+    ") else (",
+    "    start `"`" java -jar `"%~dp0loader.jar`"",
+    ")",
+    "endlocal",
+    "exit /b 0",
+    "",
+    ":trust_ca",
+    "call `"%~dp0Burp.bat`" --trust-ca",
+    "endlocal",
+    "exit /b %ERRORLEVEL%",
+    "",
+    ":version",
+    "echo Burp Suite Professional v$BURP_VERSION ($JarName)",
+    "endlocal",
+    "exit /b 0",
+    "",
+    ":path",
+    "echo %~dp0",
+    "endlocal",
+    "exit /b 0",
+    "",
+    ":help",
+    "echo Burp Suite Professional",
+    "echo.",
+    "echo Usage:",
+    "echo   burpsuitepro [options] [burp-arguments]",
+    "echo.",
+    "echo Options:",
+    "echo   -k, --keygen    Launch the key loader GUI (loader.jar)",
+    "echo   -t, --trust-ca  Import and trust Burp CA certificate in Windows & browsers",
+    "echo   -v, --version   Print current version and JAR name",
+    "echo   -p, --path      Print installation directory path",
+    "echo   -h, --help      Show quick usage help",
+    "echo.",
+    "echo All other arguments are passed directly to Burp Suite Pro.",
+    "endlocal",
+    "exit /b 0",
+    ""
+)
+$CliCmdContent = $CliCmdLines -join "`r`n"
 [System.IO.File]::WriteAllText($CliCmdPath, $CliCmdContent, [System.Text.Encoding]::ASCII)
+Write-Host "      [OK] Generated $CliCmdPath" -ForegroundColor Green
 
 $currentUserPath = [System.Environment]::GetEnvironmentVariable("Path", "User")
 if ($currentUserPath -notlike "*$InstallDir*") {
@@ -908,7 +1608,7 @@ try {
 
     if ($javawPath) {
         $shortcutTarget = $javawPath
-        $shortcutArgs = "-XX:+UseG1GC --add-opens=java.desktop/javax.swing=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm.Opcodes=ALL-UNNAMED -javaagent:`"$TargetLoader`" -noverify -jar `"$TargetJar`""
+        $shortcutArgs = "-XX:+UseG1GC -XX:MaxRAMPercentage=50 -Dsun.java2d.uiScale=auto -Dawt.useSystemAAFontSettings=on -Dswing.aatext=true --add-opens=java.desktop/javax.swing=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm.Opcodes=ALL-UNNAMED -javaagent:`"$TargetLoader`" -noverify -jar `"$TargetJar`""
     }
 
     function Create-AppShortcut {
@@ -982,6 +1682,8 @@ Write-Host "`n===============================================================" -
 Write-Host "  Burp Suite Professional Installation Completed Successfully! " -ForegroundColor Green
 Write-Host "===============================================================" -ForegroundColor Green
 Write-Host "Directory:   $InstallDir"
+Write-Host "Active JAR:  $JarName"
+Write-Host "Jython 2.7:  $TargetJython"
 Write-Host "Shortcut:    Desktop & Start Menu ('Burp Suite Professional')"
-Write-Host "CLI Command: burpsuitepro"
+Write-Host "CLI Command: burpsuitepro (supports --keygen, --trust-ca, --version, --path, --help)"
 Write-Host "===============================================================" -ForegroundColor Green
