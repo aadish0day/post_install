@@ -99,3 +99,38 @@ step_standard_dirs() {
     if [ "${DRY_RUN_MODE:-false}" = true ]; then return 0; fi
     mkdir -p "$HOME/Pictures/Screenshots"
 }
+
+step_burp_trust_ca() {
+    if [ "${DRY_RUN_MODE:-false}" = true ]; then return 0; fi
+
+    local burp_bin=""
+    if [ -n "${BURP_BIN:-}" ]; then
+        if [ "$BURP_BIN" != "none" ] && [ -x "$BURP_BIN" ]; then
+            burp_bin="$BURP_BIN"
+        fi
+    else
+        for b in "$HOME/.local/bin/burpsuitepro" "/usr/local/bin/burpsuitepro" "$HOME/Documents/Crack/Burpsuite-Professional/burpsuitepro"; do
+            if [ -x "$b" ]; then burp_bin="$b"; break; fi
+        done
+    fi
+
+    if [ -z "$burp_bin" ]; then
+        echo "Burp Suite launcher not found. Skipping CA trust step."
+        return 0
+    fi
+
+    echo ""
+    echo "=================================================="
+    echo "  Burp Suite CA Certificate Auto-Trust Setup     "
+    echo "=================================================="
+    echo "All applications & browsers have been installed."
+    echo "Configuring Burp CA certificate across detected browsers..."
+
+    if ! "$burp_bin" --trust-ca --all; then
+        echo ""
+        echo "[!] Note: Burp CA certificate auto-trust could not complete automatically."
+        echo "    If Burp Suite is starting for the first time, complete license activation."
+        echo "    Then run 'burpsuitepro --trust-ca' anytime in a terminal."
+        return 0
+    fi
+}

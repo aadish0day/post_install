@@ -17,9 +17,11 @@ MENU_ROWS=(
     "docker|@docker|toggle|CFG_DOCKER|arch debian fedora kali|menu_badge_docker"
     "coding|@coding|multi|CFG_CODING_TOOLS|arch debian fedora|menu_badge_coding"
     "burp|Burp Suite Professional|choice|CFG_SECURITY_BURP|arch kali|menu_badge_burp"
+    "burp_ca|Trust Burp CA Certificate|action||arch kali|menu_badge_burp_ca"
     "gaming|@gaming|toggle|CFG_GAMING|arch debian fedora|menu_badge_gaming"
     "aiml|AI / ML Acceleration (ROCm)|toggle|CFG_AIML|arch debian fedora|menu_badge_aiml"
     "prod|@prod|multi|CFG_PROD_APPS|arch debian fedora|menu_badge_prod"
+    "craft|ArtCraft Suite (AppMan & 5 Apps)|toggle|CFG_CRAFT|arch debian fedora kali|menu_badge_craft"
     "aur|AUR Helper Selection|choice|CFG_AUR|arch|menu_badge_aur"
     "mirrors|Mirror Optimization (Reflector India)|toggle|CFG_MIRRORS|arch|menu_badge_mirrors"
     "kali_meta|Kali Metapackages|choice|CFG_KALI_META|kali|menu_badge_kali_meta"
@@ -33,10 +35,10 @@ MENU_ROWS=(
 
 # Per-distro row order matching main
 declare -A MENU_ORDER=(
-    [arch]="distro desktop hardware virt docker coding burp gaming aiml prod aur mirrors install abort"
-    [debian]="distro debian_sudo desktop hardware virt docker coding gaming aiml prod install abort"
-    [fedora]="distro desktop hardware virt docker coding gaming aiml prod install abort"
-    [kali]="distro burp kali_meta wifi docker advcpmv install abort"
+    [arch]="distro desktop hardware virt docker coding burp burp_ca gaming aiml prod craft aur mirrors install abort"
+    [debian]="distro debian_sudo desktop hardware virt docker coding gaming aiml prod craft install abort"
+    [fedora]="distro desktop hardware virt docker coding gaming aiml prod craft install abort"
+    [kali]="distro burp burp_ca kali_meta wifi docker craft advcpmv install abort"
     [termux]="distro termux_core fonts install abort"
 )
 
@@ -237,7 +239,8 @@ menu_choice_burp() {
         "$current" \
         "off"    "Don't install Burp Suite Professional" \
         "stable" "Stable — v${BURP_STABLE_VERSION:-2026.10.1} (Recommended, tested)" \
-        "latest" "Latest — Newest PortSwigger release (⚠ untested)") || return 0
+        "latest" "Latest — Newest PortSwigger release (⚠ untested)" \
+        "trust"  "Auto-Trust CA — Install & trust Burp CA certificate now") || return 0
 
     case "$sel" in
         off)
@@ -252,7 +255,114 @@ menu_choice_burp() {
             CFG_SECURITY_BURP=true
             CFG_BURP_CHANNEL="latest"
             ;;
+        trust)
+            menu_action_burp_ca
+            ;;
     esac
+}
+
+menu_badge_burp_ca() {
+    # 1. If Burp Suite is enabled for this installation run, show that it runs automatically at the end!
+    if [ "${CFG_SECURITY_BURP:-false}" = true ] && [ "${CFG_BURP_CHANNEL:-off}" != "off" ]; then
+        if curl -s -f -m 1 "http://127.0.0.1:8080/cert" -o /dev/null 2>/dev/null; then
+            printf '[Proxy Live ✓]'
+        else
+            printf '[Auto-runs at end of install]'
+        fi
+        return
+    fi
+
+    # 2. Check if Burp Suite launcher is installed on system
+    local burp_bin=""
+    for b in "$HOME/.local/bin/burpsuitepro" "/usr/local/bin/burpsuitepro" "$HOME/Documents/Crack/Burpsuite-Professional/burpsuitepro"; do
+        if [ -x "$b" ]; then burp_bin="$b"; break; fi
+    done
+    if [ -z "$burp_bin" ]; then
+        printf '[Requires Burp]'
+        return
+    fi
+
+    # 3. If Burp is installed on system
+    if curl -s -f -m 1 "http://127.0.0.1:8080/cert" -o /dev/null 2>/dev/null; then
+        printf '[Proxy Live ✓]'
+    elif [ -f "/etc/ca-certificates/trust-source/anchors/burpsuite-ca.crt" ] || [ -f "/usr/local/share/ca-certificates/burpsuite-ca.crt" ]; then
+        printf '[Re-run Setup]'
+    else
+        printf '[Requires Burp Proxy]'
+    fi
+}
+
+menu_action_burp_ca() {
+    local burp_bin=""
+    for b in "$HOME/.local/bin/burpsuitepro" "/usr/local/bin/burpsuitepro" "$HOME/Documents/Crack/Burpsuite-Professional/burpsuitepro"; do
+        if [ -x "$b" ]; then burp_bin="$b"; break; fi
+    done
+
+    # If Burp is not installed on system, prompt to install it right now!
+    if [ -z "$burp_bin" ]; then
+        local distro_script=""
+        if [ "$TARGET_DISTRO" = "arch" ] && [ -f "$SCRIPT_DIR/arch/apps/burp/install.sh" ]; then
+            distro_script="$SCRIPT_DIR/arch/apps/burp/install.sh"
+        elif [ "$TARGET_DISTRO" = "kali" ] && [ -f "$SCRIPT_DIR/kali/apps/burp/install.sh" ]; then
+            distro_script="$SCRIPT_DIR/kali/apps/burp/install.sh"
+        fi
+
+        if [ -n "$distro_script" ]; then
+            if ui_yesno "Install Burp Suite Professional?" "Burp Suite Professional is not yet installed on this system.\n\nWould you like to install Burp Suite Professional now?\n\nThis will:\n  1. Download Burp Suite Pro & Jython 2.7.4\n  2. Launch Burp in the background\n  3. Detect all browsers on your system\n  4. Prompt to trust the Burp CA certificate"; then
+                if [ "$TERM" != "dumb" ]; then clear 2>/dev/null || true; fi
+                bash "$distro_script"
+                ui_restore_cursor
+                if [ -t 0 ] || [ -c /dev/tty ]; then
+                    read -rp "Press Enter to return to menu..." </dev/tty || true
+                fi
+                return 0
+            else
+                return 0
+            fi
+        else
+            ui_msg "Burp Suite Required" "Burp Suite Professional is not installed yet.\n\nPlease enable Burp Suite in the menu and run '--> Install'."
+            return 0
+        fi
+    fi
+
+    local CERT_URL="http://127.0.0.1:8080/cert"
+    if ! curl -s -f -m 2 "$CERT_URL" -o /dev/null 2>/dev/null; then
+        if ! ui_yesno "Launch Burp Suite in Background?" "Burp Suite proxy is not currently running on http://127.0.0.1:8080.\n\nTo export and trust the CA certificate, Burp must be running.\n\nWould you like to start Burp Suite in the background now and wait for the proxy to initialize?"; then
+            return 0
+        fi
+
+        echo "Starting Burp Suite Professional in background..."
+        nohup "$burp_bin" >/dev/null 2>&1 &
+        disown 2>/dev/null || true
+
+        local ready=false
+        for ((attempt=1; attempt<=18; attempt++)); do
+            if [ "$UI_TOOL" = "dialog" ]; then
+                dialog --title "Waiting for Burp Suite" --infobox "Starting Burp Suite Professional in background...\n\nChecking http://127.0.0.1:8080/cert every 5 seconds...\nAttempt $attempt/18 ($((attempt * 5))s elapsed)" 7 65 </dev/tty || true
+            elif [ "$UI_TOOL" = "whiptail" ]; then
+                whiptail --title "Waiting for Burp Suite" --infobox "Starting Burp Suite Professional in background...\n\nChecking http://127.0.0.1:8080/cert every 5 seconds...\nAttempt $attempt/18 ($((attempt * 5))s elapsed)" 7 65 </dev/tty || true
+            else
+                printf "  [Attempt %d/18] Waiting 5s for Burp proxy at %s...\n" "$attempt" "$CERT_URL"
+            fi
+            sleep 5
+            if curl -s -f -m 3 "$CERT_URL" -o /dev/null 2>/dev/null; then
+                ready=true
+                break
+            fi
+        done
+
+        if [ "$ready" = false ]; then
+            ui_msg "Timeout Waiting for Burp" "Burp Suite proxy did not respond on http://127.0.0.1:8080/cert after 90 seconds.\n\nPlease verify Burp Suite launches successfully and try again."
+            return 0
+        fi
+    fi
+
+    if [ "$TERM" != "dumb" ]; then clear 2>/dev/null || true; fi
+    "$burp_bin" --trust-ca
+    ui_restore_cursor
+    if [ -t 0 ] || [ -c /dev/tty ]; then
+        read -rp "Press Enter to return to menu..." </dev/tty || true
+    fi
 }
 
 menu_badge_gaming() {
@@ -269,6 +379,10 @@ menu_badge_prod() {
         else
             printf '[No]'
     fi
+}
+
+menu_badge_craft() {
+    if [ "${CFG_CRAFT:-false}" = true ]; then printf '[Yes]'; else printf '[No]'; fi
 }
 
 menu_badge_aur() {
@@ -551,7 +665,12 @@ menu_activate() {
             ;;
         choice) "menu_choice_$ROW_TAG" ;;
         multi) "menu_multi_$ROW_TAG" ;;
-        info | action) : ;;
+        action)
+            if declare -f "menu_action_$ROW_TAG" >/dev/null 2>&1; then
+                "menu_action_$ROW_TAG"
+            fi
+            ;;
+        info) : ;;
     esac
 }
 

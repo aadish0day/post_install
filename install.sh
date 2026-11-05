@@ -297,6 +297,12 @@ build_plan() {
         fi
 
         plan_add "Create Standard Directories (~/Pictures/Screenshots)" step_standard_dirs
+
+        # Universal Burp CA certificate trust: runs at the very end of installation
+        # after all apps and browsers (Firefox, Zen Browser, LibreWolf, Floorp, Waterfox) are installed
+        if [ "${CFG_SECURITY_BURP:-false}" = true ]; then
+            plan_add "Auto-Trust Burp CA in Detected Browsers" step_burp_trust_ca
+        fi
     fi
 }
 
@@ -455,7 +461,7 @@ run_execution_plan() {
 # CLI INTERACTIVE FALLBACK (Non-dialog terminal)
 # ============================================================================
 run_cli_interactive() {
-    [ "$TERM" != "dumb" ] && clear 2>/dev/null || true
+    if [ "$TERM" != "dumb" ]; then clear 2>/dev/null || true; fi
     echo -e "${BOLD}${CYAN}============================================================${NC}"
     echo -e "${BOLD}${CYAN} POST-INSTALLATION SUITE - INTERACTIVE CLI                  ${NC}"
     echo -e "${BOLD}${CYAN}============================================================${NC}"
@@ -469,11 +475,13 @@ run_cli_interactive() {
     echo "  3) Toggle Docker ($CFG_DOCKER)"
     echo "  4) Toggle Gaming Stack ($CFG_GAMING)"
     echo "  5) Toggle AI/ML ($CFG_AIML)"
-    echo "  6) Switch Distribution ($TARGET_DISTRO)"
-    echo "  7) Preview Execution Plan"
-    echo "  8) Exit"
+    echo "  6) Toggle ArtCraft Suite ($CFG_CRAFT)"
+    echo "  7) Switch Distribution ($TARGET_DISTRO)"
+    echo "  8) Trust Burp CA Certificate in Browsers"
+    echo "  9) Preview Execution Plan"
+    echo " 10) Exit"
     echo ""
-    read -rp "Enter choice [1-8] (default: 1): " choice </dev/tty || choice="1"
+    read -rp "Enter choice [1-10] (default: 1): " choice </dev/tty || choice="1"
     choice="${choice:-1}"
 
     case "$choice" in
@@ -503,6 +511,10 @@ run_cli_interactive() {
             run_cli_interactive
             ;;
         6)
+            if [ "$CFG_CRAFT" = true ]; then CFG_CRAFT=false; else CFG_CRAFT=true; fi
+            run_cli_interactive
+            ;;
+        7)
             echo "1) Arch  2) Debian  3) Fedora  4) Kali  5) Termux"
             read -rp "Select distro [1-5]: " d_c </dev/tty || d_c="1"
             case "$d_c" in
@@ -515,12 +527,29 @@ run_cli_interactive() {
             set_distro_defaults
             run_cli_interactive
             ;;
-        7)
+        8)
+            if declare -f menu_action_burp_ca >/dev/null 2>&1; then
+                menu_action_burp_ca
+            else
+                local burp_bin=""
+                for b in "$HOME/.local/bin/burpsuitepro" "/usr/local/bin/burpsuitepro" "$HOME/Documents/Crack/Burpsuite-Professional/burpsuitepro"; do
+                    if [ -x "$b" ]; then burp_bin="$b"; break; fi
+                done
+                if [ -n "$burp_bin" ]; then
+                    "$burp_bin" --trust-ca
+                else
+                    echo "Burp Suite launcher not found."
+                fi
+                read -rp "Press Enter to return to menu..." </dev/tty || true
+            fi
+            run_cli_interactive
+            ;;
+        9)
             run_execution_plan true
             read -rp "Press Enter to return to menu..." </dev/tty || true
             run_cli_interactive
             ;;
-        8)
+        10)
             log_info "Exiting."
             exit 0
             ;;
@@ -544,6 +573,7 @@ Options:
   --strict              Abort installation immediately on first failed step
   --distro <distro>     Override distribution (arch, debian, fedora, kali, termux)
   --desktop <de>        Override desktop environment (kde, i3, bspwm, both, none)
+  --craft               Install ArtCraft suite (AppMan + wordcraft, gridcraft, deckcraft, photocraft, filmcraft)
   -h, --help            Show this help message
 
 Examples:
@@ -591,6 +621,10 @@ while [[ $# -gt 0 ]]; do
         --desktop)
             CFG_DESKTOP="$2"
             shift 2
+            ;;
+        --craft)
+            CFG_CRAFT=true
+            shift
             ;;
         -h | --help)
             show_help

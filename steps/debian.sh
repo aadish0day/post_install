@@ -70,6 +70,7 @@ build_plan_debian() {
     plan_managed_app "markitdown"
     plan_managed_app "xdm"
     plan_managed_app "advcpmv"
+    plan_managed_app "craft"
 
     if [ "${CFG_DEBIAN_SUDO:-true}" = true ] && [ -f "$distro_dir/system/sudo.sh" ]; then
         plan_add "Configure Sudo & User Privileges (debian/system/sudo.sh)" run_module "debian/system/sudo.sh" "${SYS_USER:-$USER}"
@@ -161,6 +162,10 @@ build_plan_debian() {
         if [ "$has_xdm" = true ] && [ -f "$distro_dir/apps/xdm.sh" ]; then
             plan_add "Install XDM Download Manager (debian/apps/xdm.sh)" run_module "debian/apps/xdm.sh"
         fi
+    fi
+
+    if [ "${CFG_CRAFT:-false}" = true ] && [ -f "$distro_dir/apps/craft.sh" ]; then
+        plan_add "Install ArtCraft Suite (wordcraft, gridcraft, deckcraft, photocraft, filmcraft)" run_module "debian/apps/craft.sh"
     fi
 
     append_extra_scripts "$distro_dir" "debian"

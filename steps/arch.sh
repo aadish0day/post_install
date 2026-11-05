@@ -226,6 +226,7 @@ build_plan_arch() {
     plan_managed_app "flutter"
     plan_managed_app "burp"
     plan_managed_app "xdm"
+    plan_managed_app "craft"
 
     if [ "${CFG_MIRRORS:-false}" = true ]; then
         plan_add "Optimize Mirrorlist (Reflector India)" step_arch_mirrors
@@ -303,9 +304,9 @@ build_plan_arch() {
         plan_add "Install Developer & Coding Suite (${#coding_tools[@]} tools)" step_arch_coding
     fi
 
-    local -a burp_args=()
+    local -a burp_args=(--skip-launch)
     case "${CFG_BURP_CHANNEL:-}" in
-        stable|latest) burp_args=(--channel "$CFG_BURP_CHANNEL") ;;
+        stable|latest) burp_args+=(--channel "$CFG_BURP_CHANNEL") ;;
     esac
     if [ "${CFG_SECURITY_BURP:-false}" = true ] && [ -f "$distro_dir/apps/burp/install.sh" ]; then
         plan_add "Setup Burp Suite Professional (arch/apps/burp/install.sh)" run_module "arch/apps/burp/install.sh" "${burp_args[@]}"
@@ -336,6 +337,10 @@ build_plan_arch() {
         if [ "$has_xdm" = true ] && [ -f "$distro_dir/apps/xdm.sh" ]; then
             plan_add "Install XDM Download Manager (arch/apps/xdm.sh)" run_module "arch/apps/xdm.sh"
         fi
+    fi
+
+    if [ "${CFG_CRAFT:-false}" = true ] && [ -f "$distro_dir/apps/craft.sh" ]; then
+        plan_add "Install ArtCraft Suite (wordcraft, gridcraft, deckcraft, photocraft, filmcraft)" run_module "arch/apps/craft.sh"
     fi
 
     append_extra_scripts "$distro_dir" "arch"

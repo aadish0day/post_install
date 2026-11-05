@@ -41,6 +41,7 @@ build_plan_fedora() {
     plan_managed_app "productivity"
     plan_managed_app "markitdown"
     plan_managed_app "xdm"
+    plan_managed_app "craft"
 
     if [ -f "$distro_dir/system/dnf.sh" ]; then
         plan_add "Configure DNF & Performance Tweaks (fedora/system/dnf.sh)" run_module "fedora/system/dnf.sh"
@@ -128,6 +129,10 @@ build_plan_fedora() {
         if [ "$has_xdm" = true ] && [ -f "$distro_dir/apps/xdm.sh" ]; then
             plan_add "Install XDM Download Manager (fedora/apps/xdm.sh)" run_module "fedora/apps/xdm.sh"
         fi
+    fi
+
+    if [ "${CFG_CRAFT:-false}" = true ] && [ -f "$distro_dir/apps/craft.sh" ]; then
+        plan_add "Install ArtCraft Suite (wordcraft, gridcraft, deckcraft, photocraft, filmcraft)" run_module "fedora/apps/craft.sh"
     fi
 
     append_extra_scripts "$distro_dir" "fedora"
