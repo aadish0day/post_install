@@ -388,15 +388,19 @@ build_plan_arch() {
     if [ "${CFG_PRODUCTIVITY:-false}" = true ] && [ ${#prod_apps[@]} -gt 0 ]; then
         plan_add "Install Essential AUR Productivity Tools (${#prod_apps[@]} apps)" step_arch_prod_apps
 
-        local has_xdm=false p
+        local has_xdm=false has_uscreen=false p
         for p in "${prod_apps[@]}"; do
             if [ "$p" = "xdm" ]; then
                 has_xdm=true
-                break
+            elif [ "$p" = "uscreen" ]; then
+                has_uscreen=true
             fi
         done
         if [ "$has_xdm" = true ] && [ -f "$distro_dir/apps/xdm.sh" ]; then
             plan_add "Install XDM Download Manager (arch/apps/xdm.sh)" run_module "arch/apps/xdm.sh"
+        fi
+        if [ "$has_uscreen" = true ] && [ -f "$distro_dir/apps/uscreen.sh" ]; then
+            plan_add "Install UScreen USB Second Display (arch/apps/uscreen.sh)" run_module "arch/apps/uscreen.sh"
         fi
     fi
 

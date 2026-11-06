@@ -75,6 +75,7 @@ CATALOG_PROD=(
     "libreoffice|LibreOffice (Office productivity suite)|CFG_PROD_APPS|debian"
     "xdm|XDM (Xtreme Download Manager)|CFG_PROD_APPS|"
     "advcpmv|advcpmv (cp/mv with progress bars)|CFG_PROD_APPS|arch debian"
+    "uscreen|UScreen (Android tablet as USB second monitor)|CFG_PROD_APPS|arch"
 )
 
 CHECKLIST_PROMPT="Toggle components to configure (select ALL/NONE to bulk toggle):\n\n[j/k]=Navigate  [SPACE]=Toggle  [ENTER]=Confirm"
@@ -636,7 +637,7 @@ menu_multi_prod() {
         CFG_PROD_APPS=()
         while IFS= read -r tag; do
             case "$tag" in
-                thorium | zen | vesktop | localsend | anydesk | obsidian | markitdown | gallery_dl | ani_cli | xdm | advcpmv | libreoffice)
+                thorium | zen | vesktop | localsend | anydesk | obsidian | markitdown | gallery_dl | ani_cli | xdm | advcpmv | libreoffice | uscreen)
                     CFG_PROD_APPS+=("$tag")
                     ;;
             esac
