@@ -4,21 +4,22 @@ A curated reference guide of verified performance, Wayland, and GPU hardware acc
 
 ---
 
-## 1. Curated Flag List
+## 1. Verified Working Flags (`~/.config/thorium/thorium-flags.conf`)
 
-| # | Flag ID (`chrome://flags`) | Feature Name | Setting | CLI Flag / Feature Parameter |
-|---|----------------------------|--------------|---------|------------------------------|
-| 1 | `#enable-native-gpu-memory-buffers` | Enable Native GPU Memory Buffers | **Enabled** | `--enable-native-gpu-memory-buffers` |
-| 2 | `#enable-gpu-rasterization` | GPU rasterization | **Enabled** | `--enable-gpu-rasterization` |
-| 3 | `#enable-zero-copy` | Zero-copy rasterizer | **Enabled** | `--enable-zero-copy` |
-| 4 | `#ozone-platform-hint` | Preferred Ozone platform | **Wayland** | `--ozone-platform-hint=wayland` |
-| 5 | `#wayland-text-input-v3` | Wayland text-input-v3 | **Enabled** | `WaylandTextInputV3` |
-| 6 | `#wayland-linux-drm-syncobj` | Wayland linux-drm-syncobj explicit sync | **Enabled** | `WaylandLinuxDrmSyncobj` |
-| 7 | `#enable-parallel-downloading` | Parallel downloading | **Enabled** | `ParallelDownloading` |
-| 8 | `#service-worker-auto-preload` | ServiceWorkerAutoPreload | **Enabled** | `ServiceWorkerAutoPreload` |
-| 9 | `#root-scrollbar-follows-browser-theme` | Make scrollbar follow theme | **Enabled** | `RootScrollbarFollowsBrowserTheme` |
-| 10 | `#zero-copy-rbp-partial-raster-with-gpu-compositor` | Zero-copy partial raster with GPU compositor | **Enabled** | `ZeroCopyRBPPartialRasterWithGpuCompositor` |
-| 11 | `#new-content-for-checkerboarded-scrolls` | Change scrolling scheduling to reduce checkerboarding | **Enabled** | `NewContentForCheckerboardedScrolls` |
+For AMD Radeon (RDNA2/Rembrandt 680M / Mesa / Wayland):
+
+```text
+--disable-features=ExtensionManifestV2DeprecationWarning,ExtensionManifestV2Unsupported,ExtensionManifestV2Disabled
+--enable-features=AcceleratedVideoDecodeLinuxGL,VaapiIgnoreDriverChecks,VaapiVideoEncoder,WaylandLinuxDrmSyncobj,WaylandTextInputV3
+--ignore-gpu-blocklist
+--enable-gpu-rasterization
+--ozone-platform-hint=wayland
+```
+
+> [!IMPORTANT]
+> **Do NOT use `AcceleratedVideoDecodeLinuxZeroCopyGL`, `--enable-zero-copy`, or `--enable-native-gpu-memory-buffers` on Wayland with Mesa/ANGLE.**
+> They trigger `eglCreateImage failed with 0x00003009 (EGL_BAD_MATCH)` and `OzoneImageBacking::ProduceSkiaGanesh failed to create GL representation`, which causes audio to play while the video screen stays black or frozen, and creates an endless error loop that lags the browser.
+
 
 ---
 
