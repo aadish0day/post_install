@@ -9,7 +9,6 @@ REPO_DIR="$HOME/Documents/Crack/Burpsuite-Professional"
 LAUNCHER_PATH="$HOME/.local/bin/burpsuitepro"
 DESKTOP_DIR="$HOME/.local/share/applications"
 DESKTOP_FILE="$DESKTOP_DIR/burpsuitepro.desktop"
-KEYGEN_DESKTOP_FILE="$DESKTOP_DIR/burpsuitepro-keygen.desktop"
 
 echo "=== Burp Suite Professional Full Uninstaller ==="
 
@@ -20,7 +19,6 @@ pkill -f "burpsuite_pro|loader.jar|burpsuitepro" 2>/dev/null || true
 # 2. Remove desktop shortcuts, icons, MIME definitions & binaries
 echo "Removing desktop entries, icons, MIME definitions, and binaries..."
 rm -f "$DESKTOP_FILE"
-rm -f "$KEYGEN_DESKTOP_FILE"
 rm -f "$LAUNCHER_PATH"
 
 # Remove user-level icons
@@ -44,9 +42,9 @@ elif command -v sudo &>/dev/null; then
 fi
 
 if [[ -w /usr/local/share/applications ]]; then
-    rm -f /usr/local/share/applications/burpsuitepro.desktop /usr/local/share/applications/burpsuitepro-keygen.desktop 2>/dev/null || true
+    rm -f /usr/local/share/applications/burpsuitepro.desktop 2>/dev/null || true
 elif command -v sudo &>/dev/null; then
-    sudo -n rm -f /usr/local/share/applications/burpsuitepro.desktop /usr/local/share/applications/burpsuitepro-keygen.desktop 2>/dev/null || true
+    sudo -n rm -f /usr/local/share/applications/burpsuitepro.desktop 2>/dev/null || true
 fi
 
 if [[ -w /usr/local/share/icons/hicolor ]]; then

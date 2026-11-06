@@ -19,7 +19,7 @@
     - Auto-trust Burp CA Certificate flag (--trust-ca / -t) for Windows Root Store and Firefox forks (Zen, LibreWolf, Floorp, Waterfox).
     - Generates optimized launchers (Burp.bat, burpsuitepro.cmd & Burp-Suite-Pro.vbs) with dynamic Generational ZGC (G1GC fallback), configurable RAM (BURP_MAX_RAM / 50%), HiDPI scaling, port 8080 conflict guard, and crash catcher.
     - Windows file associations (.burp and .burpstate) registered in HKCU:\Software\Classes with official icon and context menu.
-    - Creates Desktop & Start Menu shortcuts for Burp Suite Professional and dedicated Burp Suite Keygen.
+    - Creates Desktop & Start Menu shortcuts for Burp Suite Professional.
     - Registers CLI command in User PATH for terminal access.
     - Auto-starts key loader and Burp Suite Pro.
 #>
@@ -1916,16 +1916,6 @@ try {
         Create-AppShortcut -Directory $CommonPrograms -Name "Burp Suite Pro" -Description "Burp Suite Professional - Web Application Security Testing"
     }
 
-    # Dedicated Keygen Shortcuts
-    Create-AppShortcut -Directory $DesktopFolder -Name "Burp Suite Keygen" -Description $keygenDesc -CustomTarget $keygenTarget -CustomArgs $keygenArgs -CustomIcon $TargetIcon
-    Create-AppShortcut -Directory $ProgramsFolder -Name "Burp Suite Keygen" -Description $keygenDesc -CustomTarget $keygenTarget -CustomArgs $keygenArgs -CustomIcon $TargetIcon
-    Create-AppShortcut -Directory $ProgramsFolder -Name "Burp Keygen" -Description $keygenDesc -CustomTarget $keygenTarget -CustomArgs $keygenArgs -CustomIcon $TargetIcon
-
-    if (Test-Path $CommonPrograms) {
-        Create-AppShortcut -Directory $CommonPrograms -Name "Burp Suite Keygen" -Description $keygenDesc -CustomTarget $keygenTarget -CustomArgs $keygenArgs -CustomIcon $TargetIcon
-        Create-AppShortcut -Directory $CommonPrograms -Name "Burp Keygen" -Description $keygenDesc -CustomTarget $keygenTarget -CustomArgs $keygenArgs -CustomIcon $TargetIcon
-    }
-
     # Refresh Windows Shell & Icon Cache so Search and File Associations update immediately
     try {
         $shellNotifyCode = '[System.Runtime.InteropServices.DllImport("shell32.dll")] public static extern void SHChangeNotify(int wEventId, int uFlags, IntPtr dwItem1, IntPtr dwItem2);'
@@ -1964,7 +1954,7 @@ Write-Host "Directory:   $InstallDir"
 Write-Host "Active JAR:  $JarName"
 Write-Host "Jython 2.7:  $TargetJython"
 Write-Host "JRuby 9.4:   $TargetJruby"
-Write-Host "Shortcut:    Desktop & Start Menu ('Burp Suite Professional' & 'Burp Suite Keygen')"
+Write-Host "Shortcut:    Desktop & Start Menu ('Burp Suite Professional')"
 Write-Host "File Assoc:  .burp & .burpstate (BurpSuite.Project)"
 Write-Host "CLI Command: burpsuitepro (supports --keygen, --trust-ca, --version, --path, --help)"
 Write-Host "===============================================================" -ForegroundColor Green

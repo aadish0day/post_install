@@ -888,20 +888,6 @@ Exec=$launcher_path --trust-ca
 Icon=burpsuitepro
 EOF
 
-    cat <<EOF >"$desktop_dir/burpsuitepro-keygen.desktop"
-[Desktop Entry]
-Name=Burp Suite Pro Keygen / Loader
-Comment=Burp Suite Professional - Keygen and Loader Utility
-Exec=$launcher_path -k
-Icon=burpsuitepro
-Terminal=false
-Type=Application
-StartupNotify=true
-Categories=Network;Security;
-Keywords=burp;suite;pro;keygen;loader;license;
-Path=$REPO_DIR
-StartupWMClass=com-h3110w0r1d-burploaderkeygen-KeygenForm
-EOF
     update-desktop-database "$desktop_dir" 2>/dev/null || true
     kbuildsycoca6 --noincremental 2>/dev/null || kbuildsycoca6 2>/dev/null || kbuildsycoca5 2>/dev/null || true
 
@@ -909,12 +895,10 @@ EOF
     local sys_desktop_dir="/usr/local/share/applications"
     if [[ -w "$sys_desktop_dir" ]]; then
         cp -f "$desktop_file" "$sys_desktop_dir/burpsuitepro.desktop" 2>/dev/null || true
-        cp -f "$desktop_dir/burpsuitepro-keygen.desktop" "$sys_desktop_dir/burpsuitepro-keygen.desktop" 2>/dev/null || true
         update-desktop-database "$sys_desktop_dir" 2>/dev/null || true
     elif command -v sudo &>/dev/null && sudo -n true 2>/dev/null; then
         sudo -n mkdir -p "$sys_desktop_dir" 2>/dev/null || true
         sudo -n cp -f "$desktop_file" "$sys_desktop_dir/burpsuitepro.desktop" 2>/dev/null || true
-        sudo -n cp -f "$desktop_dir/burpsuitepro-keygen.desktop" "$sys_desktop_dir/burpsuitepro-keygen.desktop" 2>/dev/null || true
         sudo -n update-desktop-database "$sys_desktop_dir" 2>/dev/null || true
     fi
 

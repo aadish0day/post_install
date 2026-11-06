@@ -124,9 +124,7 @@ Write-Host "`n(2/6) Removing Windows shortcuts..." -ForegroundColor Cyan
 
 $shortcutNames = @(
     "Burp Suite Professional.lnk",
-    "Burp Suite Pro.lnk",
-    "Burp Suite Keygen.lnk",
-    "Burp Keygen.lnk"
+    "Burp Suite Pro.lnk"
 )
 $shortcutLocations = @(
     [Environment]::GetFolderPath("Desktop"),
