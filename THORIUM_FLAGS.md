@@ -6,39 +6,22 @@ A curated reference guide of verified performance, Wayland, and GPU hardware acc
 
 ## 1. Verified Working Flags (`~/.config/thorium/thorium-flags.conf`)
 
-For AMD Radeon (RDNA2/Rembrandt 680M / Mesa / Wayland):
+For AMD Advantage Laptops (Dual AMD GPUs: Radeon 680M iGPU + RX 6700S dGPU / Mesa / Wayland):
 
 ```text
 --disable-features=ExtensionManifestV2DeprecationWarning,ExtensionManifestV2Unsupported,ExtensionManifestV2Disabled,WaylandLinuxDrmSyncobj
 --enable-features=AcceleratedVideoDecodeLinuxGL,VaapiIgnoreDriverChecks,VaapiVideoEncoder
---ignore-gpu-blocklist
 --enable-gpu-rasterization
---ozone-platform-hint=auto
+--ignore-gpu-blocklist
+--render-node-override=/dev/dri/renderD129
 ```
 
 > [!IMPORTANT]
-> **Why `WaylandLinuxDrmSyncobj`, `AcceleratedVideoDecodeLinuxZeroCopyGL`, `--enable-zero-copy`, and `--enable-native-gpu-memory-buffers` MUST be disabled on KDE Wayland:**
-> 1. `WaylandLinuxDrmSyncobj` causes a fatal client crash (`wp_linux_drm_syncobj_surface_v1: error 2: only linux dmabuf buffers are allowed to use explicit sync`) because KWin terminates the connection when non-dmabuf surfaces are presented.
-> 2. `AcceleratedVideoDecodeLinuxZeroCopyGL` and `--enable-zero-copy` cause `eglCreateImage failed with 0x00003009 (EGL_BAD_MATCH)` and `OzoneImageBacking::ProduceSkiaGanesh failed to create GL representation`, causing audio to play while video stays black/frozen and the browser stutters/clicks in an endless loop.
-
-
-
----
-
-## 2. Copy-Paste Flag Anchor Tags (`chrome://flags`)
-
-```text
-#enable-native-gpu-memory-buffers
-#enable-gpu-rasterization
-#enable-zero-copy
-#ozone-platform-hint
-#wayland-text-input-v3
-#wayland-linux-drm-syncobj
-#enable-parallel-downloading
-#service-worker-auto-preload
-#root-scrollbar-follows-browser-theme
-#zero-copy-rbp-partial-raster-with-gpu-compositor
-#new-content-for-checkerboarded-scrolls
-```
-
----
+> **Key Technical Fixes:**
+> 1. **`--render-node-override=/dev/dri/renderD129`:**
+>    On dual-GPU laptops (e.g. ASUS ROG Zephyrus G14), the desktop display is handled by the Integrated Radeon 680M (`renderD129`), but Chromium's VA-API scanner defaults to the first DRM device (`renderD128` - discrete RX 6700S). Attempting to import video buffers across the two GPUs causes `nullptr returned from gbm_bo_import`, crashing the GPU process 3 times and disabling hardware acceleration. Overriding the render node directly to `/dev/dri/renderD129` resolves this completely.
+> 2. **`AcceleratedVideoDecodeLinuxGL`:**
+>    Enables VA-API hardware decoding via GL textures, allowing hardware AV1/VP9/HEVC/H.264 playback on the Radeon 680M and eliminating the 15 software `dav1d-worker` CPU threads that cause 80°C overheating.
+> 3. **Avoid `WaylandLinuxDrmSyncobj` & `--enable-zero-copy`:**
+>    - `WaylandLinuxDrmSyncobj` triggers a fatal KWin Wayland explicit sync protocol error (`wp_linux_drm_syncobj_surface_v1 error 2: only linux dmabuf buffers are allowed to use explicit sync`), crashing the browser immediately.
+>    - `--enable-zero-copy` triggers `eglCreateImage 0x3009 (EGL_BAD_MATCH)` on Wayland with ANGLE, causing black video screens with audio clicking loops.
