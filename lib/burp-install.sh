@@ -10,6 +10,10 @@ REPO_DIR="$HOME/Documents/Crack/Burpsuite-Professional"
 JYTHON_URL="https://repo1.maven.org/maven2/org/python/jython-standalone/2.7.4/jython-standalone-2.7.4.jar"
 JYTHON_JAR="jython-standalone-2.7.4.jar"
 JYTHON_FILE="$REPO_DIR/$JYTHON_JAR"
+JRUBY_VERSION="9.4.9.0"
+JRUBY_URL="https://repo1.maven.org/maven2/org/jruby/jruby-complete/${JRUBY_VERSION}/jruby-complete-${JRUBY_VERSION}.jar"
+JRUBY_JAR="jruby-complete-${JRUBY_VERSION}.jar"
+JRUBY_FILE="$REPO_DIR/$JRUBY_JAR"
 
 LOADER_URLS=(
     "https://codeberg.org/code07/test01/raw/branch/main/loader.jar"
@@ -137,6 +141,110 @@ burp_enable_debian_userns() {
             sysctl -w kernel.unprivileged_userns_clone=1 2>/dev/null || true
             echo "kernel.unprivileged_userns_clone=1" >/etc/sysctl.d/99-burp-userns.conf 2>/dev/null || true
         fi
+    fi
+}
+
+# Install scalable and raster icons across user and system hicolor themes
+install_burp_system_icons() {
+    local svg_source="${1:-}"
+    if [[ -z "$svg_source" || ! -f "$svg_source" ]]; then
+        if [[ -f "$REPO_DIR/burp_suite_pro_icon.svg" ]]; then
+            svg_source="$REPO_DIR/burp_suite_pro_icon.svg"
+        else
+            echo "Warning: Icon source SVG not found ($svg_source). Skipping icon installation."
+            return 0
+        fi
+    fi
+
+    echo "Installing Burp Suite system icons..."
+    local user_icon_base="$HOME/.local/share/icons/hicolor"
+    local user_pixmaps="$HOME/.local/share/pixmaps"
+    mkdir -p "$user_icon_base/scalable/apps" "$user_pixmaps"
+
+    cp -f "$svg_source" "$user_icon_base/scalable/apps/burpsuitepro.svg"
+    cp -f "$svg_source" "$user_pixmaps/burpsuitepro.svg"
+
+    local sizes=(16 24 32 48 64 128 256 512)
+    local s
+    for s in "${sizes[@]}"; do
+        local user_size_dir="$user_icon_base/${s}x${s}/apps"
+        mkdir -p "$user_size_dir"
+        local target_png="$user_size_dir/burpsuitepro.png"
+        if command -v rsvg-convert &>/dev/null; then
+            rsvg-convert -w "$s" -h "$s" "$svg_source" -o "$target_png" 2>/dev/null || true
+        elif command -v convert &>/dev/null; then
+            convert -background none "$svg_source" -resize "${s}x${s}" "$target_png" 2>/dev/null || true
+        elif command -v magick &>/dev/null; then
+            magick "$svg_source" -background none -resize "${s}x${s}" "$target_png" 2>/dev/null || true
+        fi
+    done
+
+    # System-wide installation if writable or passwordless sudo
+    local sys_icon_base="/usr/local/share/icons/hicolor"
+    local sys_pixmaps="/usr/share/pixmaps"
+
+    if [[ -w /usr/local/share && -w "$sys_pixmaps" ]]; then
+        mkdir -p "$sys_icon_base/scalable/apps" "$sys_pixmaps"
+        cp -f "$svg_source" "$sys_icon_base/scalable/apps/burpsuitepro.svg" 2>/dev/null || true
+        cp -f "$svg_source" "$sys_pixmaps/burpsuitepro.svg" 2>/dev/null || true
+        for s in "${sizes[@]}"; do
+            if [[ -f "$user_icon_base/${s}x${s}/apps/burpsuitepro.png" ]]; then
+                mkdir -p "$sys_icon_base/${s}x${s}/apps"
+                cp -f "$user_icon_base/${s}x${s}/apps/burpsuitepro.png" "$sys_icon_base/${s}x${s}/apps/burpsuitepro.png" 2>/dev/null || true
+            fi
+        done
+        gtk-update-icon-cache -f -q -t "$sys_icon_base" 2>/dev/null || true
+    elif command -v sudo &>/dev/null && sudo -n true 2>/dev/null; then
+        sudo -n mkdir -p "$sys_icon_base/scalable/apps" "$sys_pixmaps" 2>/dev/null || true
+        sudo -n cp -f "$svg_source" "$sys_icon_base/scalable/apps/burpsuitepro.svg" 2>/dev/null || true
+        sudo -n cp -f "$svg_source" "$sys_pixmaps/burpsuitepro.svg" 2>/dev/null || true
+        for s in "${sizes[@]}"; do
+            if [[ -f "$user_icon_base/${s}x${s}/apps/burpsuitepro.png" ]]; then
+                sudo -n mkdir -p "$sys_icon_base/${s}x${s}/apps" 2>/dev/null || true
+                sudo -n cp -f "$user_icon_base/${s}x${s}/apps/burpsuitepro.png" "$sys_icon_base/${s}x${s}/apps/burpsuitepro.png" 2>/dev/null || true
+            fi
+        done
+        sudo -n gtk-update-icon-cache -f -q -t "$sys_icon_base" 2>/dev/null || true
+    fi
+
+    # Rebuild user icon cache
+    if command -v gtk-update-icon-cache &>/dev/null; then
+        gtk-update-icon-cache -f -q -t "$user_icon_base" 2>/dev/null || true
+    fi
+}
+
+# Install custom MIME type for Burp Suite project files
+install_burp_system_mime() {
+    echo "Installing Burp Suite project MIME type..."
+    local user_mime_dir="$HOME/.local/share/mime/packages"
+    mkdir -p "$user_mime_dir"
+
+    cat <<'EOF' >"$user_mime_dir/burpsuitepro.xml"
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/x-burp-project">
+    <comment>Burp Suite Project</comment>
+    <icon name="burpsuitepro"/>
+    <glob pattern="*.burp"/>
+    <glob pattern="*.burpstate"/>
+  </mime-type>
+</mime-info>
+EOF
+
+    if command -v update-mime-database &>/dev/null; then
+        update-mime-database "$HOME/.local/share/mime" 2>/dev/null || true
+    fi
+
+    # System-wide MIME installation if writable or passwordless sudo
+    local sys_mime_dir="/usr/local/share/mime/packages"
+    if [[ -w /usr/local/share/mime ]]; then
+        mkdir -p "$sys_mime_dir"
+        cp -f "$user_mime_dir/burpsuitepro.xml" "$sys_mime_dir/burpsuitepro.xml" 2>/dev/null || true
+        update-mime-database /usr/local/share/mime 2>/dev/null || true
+    elif command -v sudo &>/dev/null && sudo -n true 2>/dev/null; then
+        sudo -n mkdir -p "$sys_mime_dir" 2>/dev/null || true
+        sudo -n cp -f "$user_mime_dir/burpsuitepro.xml" "$sys_mime_dir/burpsuitepro.xml" 2>/dev/null || true
+        sudo -n update-mime-database /usr/local/share/mime 2>/dev/null || true
     fi
 }
 
@@ -433,9 +541,12 @@ except Exception:
         chmod +x "$REPO_DIR/burp-trust-ca.sh"
     fi
 
+    install_burp_system_icons "$REPO_DIR/burp_suite_pro_icon.svg"
+    install_burp_system_mime
+
     suppress_jre_warnings
 
-    # 5. Jython Standalone & User Config
+    # 5. Jython & JRuby Standalone Extensions & User Config
     echo "Configuring Jython Standalone 2.7.4..."
     local min_jython_size=20971520 # 20MB
     local jython_size
@@ -476,11 +587,52 @@ except Exception:
         fi
     fi
 
-    if [[ -f "$JYTHON_FILE" && $(get_file_size "$JYTHON_FILE") -gt $min_jython_size ]]; then
-        echo "Configuring Burp Suite User Config for Jython..."
-        python3 - "$JYTHON_FILE" <<'PYEOF'
+    echo "Configuring JRuby Standalone $JRUBY_VERSION..."
+    local min_jruby_size=31457280 # 30MB
+    local jruby_size
+    jruby_size="$(get_file_size "$JRUBY_FILE")"
+    if [[ -f "$JRUBY_FILE" && "$jruby_size" -gt $min_jruby_size && "$force_download" == false ]]; then
+        echo "Existing JRuby standalone verified ($((jruby_size / 1024 / 1024))MB)."
+    else
+        echo "Downloading JRuby Standalone $JRUBY_VERSION..."
+        local jruby_download_ok=false
+        if command -v aria2c &>/dev/null; then
+            if aria2c -x 16 -s 16 -j 16 -k 1M -c --file-allocation=none -d "$REPO_DIR" -o "$JRUBY_JAR.tmp" "$JRUBY_URL" 2>/dev/null; then
+                if [[ -f "$JRUBY_FILE.tmp" && $(get_file_size "$JRUBY_FILE.tmp") -gt $min_jruby_size ]]; then
+                    jruby_download_ok=true
+                fi
+            fi
+            rm -f "$JRUBY_FILE.tmp.aria2" 2>/dev/null || true
+        fi
+        if [[ "$jruby_download_ok" == false ]] && command -v curl &>/dev/null; then
+            if curl -fLC - --connect-timeout 10 --retry 3 --retry-delay 2 --progress-bar -o "$JRUBY_FILE.tmp" "$JRUBY_URL"; then
+                if [[ -f "$JRUBY_FILE.tmp" && $(get_file_size "$JRUBY_FILE.tmp") -gt $min_jruby_size ]]; then
+                    jruby_download_ok=true
+                fi
+            fi
+        fi
+        if [[ "$jruby_download_ok" == false ]] && command -v wget &>/dev/null; then
+            if wget -O "$JRUBY_FILE.tmp" --quiet --show-progress "$JRUBY_URL"; then
+                if [[ -f "$JRUBY_FILE.tmp" && $(get_file_size "$JRUBY_FILE.tmp") -gt $min_jruby_size ]]; then
+                    jruby_download_ok=true
+                fi
+            fi
+        fi
+
+        if [[ "$jruby_download_ok" == true && -f "$JRUBY_FILE.tmp" && $(get_file_size "$JRUBY_FILE.tmp") -gt $min_jruby_size ]]; then
+            mv -f "$JRUBY_FILE.tmp" "$JRUBY_FILE"
+            echo "Successfully downloaded $JRUBY_JAR."
+        else
+            rm -f "$JRUBY_FILE.tmp" 2>/dev/null || true
+        fi
+    fi
+
+    if [[ (-f "$JYTHON_FILE" && $(get_file_size "$JYTHON_FILE") -gt $min_jython_size) || (-f "$JRUBY_FILE" && $(get_file_size "$JRUBY_FILE") -gt $min_jruby_size) ]]; then
+        echo "Configuring Burp Suite User Config for Jython & JRuby..."
+        python3 - "$JYTHON_FILE" "$JRUBY_FILE" <<'PYEOF'
 import json, os, sys
 jython_path = sys.argv[1]
+jruby_path = sys.argv[2]
 config_dir = os.path.expanduser("~/.BurpSuite")
 os.makedirs(config_dir, exist_ok=True)
 for cfg in ("UserConfigPro.json", "UserConfig.json"):
@@ -500,13 +652,16 @@ for cfg in ("UserConfigPro.json", "UserConfig.json"):
     py = ext.setdefault("python", {})
     if not isinstance(py, dict): py = {}; ext["python"] = py
     py["location_of_jython_standalone_jar_file"] = jython_path
+    ruby = ext.setdefault("ruby", {})
+    if not isinstance(ruby, dict): ruby = {}; ext["ruby"] = ruby
+    ruby["location_of_jruby_jar_file"] = jruby_path
     tmp = cf + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
         f.write("\n")
     os.replace(tmp, cf)
 PYEOF
-        echo "Jython 2.7.4 configured."
+        echo "Jython 2.7.4 and JRuby 9.4.9.0 configured."
     fi
 
     # Pre-seed Burp Suite license & preferences so Burp launches without manual keygen prompts
@@ -540,7 +695,16 @@ EOFPREFS
 # Wayland and tiling WM compatibility
 export _JAVA_AWT_WM_NONREPARENTING=1
 if [ -z "\${DISPLAY:-}" ]; then
-    if [ -n "\${WAYLAND_DISPLAY:-}" ] || [ -e /tmp/.X11-unix/X0 ]; then
+    for sock in /tmp/.X11-unix/X*; do
+        if [ -S "\$sock" ] || [ -e "\$sock" ]; then
+            disp_num="\${sock##*/X}"
+            if [[ "\$disp_num" =~ ^[0-9]+$ ]]; then
+                export DISPLAY=":\${disp_num}"
+                break
+            fi
+        fi
+    done
+    if [ -z "\${DISPLAY:-}" ] && [ -n "\${WAYLAND_DISPLAY:-}" ]; then
         export DISPLAY=:0
     fi
 fi
@@ -598,31 +762,97 @@ Options:
   -t, --trust-ca  Auto-import Burp CA certificate into system & browsers
   -h, --help      Show this help message
 
+Environment Variables:
+  BURP_MAX_RAM    Maximum Java heap memory (e.g. BURP_MAX_RAM=8g burpsuitepro)
+                  (Also respects BURP_MEMORY or BURP_RAM; defaults to 50% RAM)
+
 All other arguments are passed directly to Burp Suite.
 HLP
         exit 0
         ;;
 esac
 
-exec "\$JAVA_BIN" \\
-  --add-opens=java.desktop/javax.swing=ALL-UNNAMED \\
-  --add-opens=java.base/java.lang=ALL-UNNAMED \\
-  --add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED \\
-  --add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED \\
-  -XX:MaxRAMPercentage=50 \\
-  -XX:+UseG1GC \\
-  -Dawt.useSystemAAFontSettings=on \\
-  -Dswing.aatext=true \\
-  -Dsun.java2d.uiScale=auto \\
-  -javaagent:"\$REPO_DIR/loader.jar" \\
-  -jar "\$REPO_DIR/\$JAR_NAME" "\$@"
+# Resolve file arguments to absolute paths before changing directory to REPO_DIR
+BURP_ARGS=()
+for arg in "\$@"; do
+    if [ -e "\$arg" ]; then
+        BURP_ARGS+=("\$(realpath "\$arg" 2>/dev/null || readlink -f "\$arg" 2>/dev/null || echo "\$arg")")
+    else
+        BURP_ARGS+=("\$arg")
+    fi
+done
+
+# Dynamic memory sizing
+MEM_OPTS=("-XX:MaxRAMPercentage=50")
+BURP_MEM_VAL="\${BURP_MAX_RAM:-\${BURP_MEMORY:-\${BURP_RAM:-}}}"
+if [ -n "\$BURP_MEM_VAL" ]; then
+    if [[ "\$BURP_MEM_VAL" =~ ^-Xmx ]]; then
+        MEM_OPTS=("\$BURP_MEM_VAL")
+    else
+        MEM_OPTS=("-Xmx\$BURP_MEM_VAL")
+    fi
+fi
+
+# Generational ZGC Garbage Collector with G1GC fallback
+GC_OPTS=("-XX:+UseG1GC")
+if "\$JAVA_BIN" -XX:+UseZGC -XX:+ZGenerational -version >/dev/null 2>&1; then
+    GC_OPTS=("-XX:+UseZGC" "-XX:+ZGenerational")
+fi
+
+# Port 8080 conflict detection
+if ss -tlnH 'sport = :8080' 2>/dev/null | grep -q '8080'; then
+    if [ -t 1 ]; then
+        echo "[!] Warning: Port 8080 is already in use by another process." >&2
+        echo "    Burp Suite default proxy listener may conflict. Close the conflicting app or reconfigure listeners." >&2
+    elif command -v notify-send &>/dev/null; then
+        notify-send -u normal -i burpsuitepro "Burp Suite Port Conflict" "Port 8080 is already in use. Burp's default proxy listener may fail to bind." 2>/dev/null || true
+    fi
+fi
+
+cd "\$REPO_DIR"
+
+JAVA_OPTS=(
+    --add-opens=java.desktop/javax.swing=ALL-UNNAMED
+    --add-opens=java.base/java.lang=ALL-UNNAMED
+    --add-opens=java.base/java.util=ALL-UNNAMED
+    --add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED
+    --add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED
+    --add-opens=java.base/jdk.internal.org.objectweb.asm.Opcodes=ALL-UNNAMED
+    "\${MEM_OPTS[@]}"
+    "\${GC_OPTS[@]}"
+    -Dawt.useSystemAAFontSettings=on
+    -Dswing.aatext=true
+    -Dsun.java2d.uiScale=auto
+    -Dawt.toolkit=sun.awt.X11.XToolkit
+    -javaagent:"\$REPO_DIR/loader.jar"
+    -jar "\$REPO_DIR/\$JAR_NAME"
+)
+
+if [ -t 1 ]; then
+    exec "\$JAVA_BIN" "\${JAVA_OPTS[@]}" "\${BURP_ARGS[@]}"
+else
+    LOG_FILE="/tmp/burpsuitepro-\${UID:-\$USER}.log"
+    "\$JAVA_BIN" "\${JAVA_OPTS[@]}" "\${BURP_ARGS[@]}" 2>"\$LOG_FILE"
+    EXIT_CODE=\$?
+    if [ \$EXIT_CODE -ne 0 ]; then
+        ERR_MSG=\$(tail -n 10 "\$LOG_FILE" 2>/dev/null)
+        [ -z "\$ERR_MSG" ] && ERR_MSG="Process exited with status \$EXIT_CODE. See \$LOG_FILE for details."
+        NOTIFY_BODY=\$(printf "Burp Suite exited with code %s:\n%s" "\$EXIT_CODE" "\$ERR_MSG")
+        if command -v notify-send &>/dev/null; then
+            notify-send -u critical -i burpsuitepro "Burp Suite Error" "\$NOTIFY_BODY" 2>/dev/null || true
+        elif command -v kdialog &>/dev/null; then
+            kdialog --error "\$NOTIFY_BODY" 2>/dev/null || true
+        fi
+        exit \$EXIT_CODE
+    fi
+fi
 EOF
     chmod +x "$launcher_path"
 
     if [[ -w /usr/local/bin ]]; then
         ln -sf "$launcher_path" /usr/local/bin/burpsuitepro 2>/dev/null || true
-    elif command -v sudo &>/dev/null; then
-        sudo -n ln -sf "$launcher_path" /usr/local/bin/burpsuitepro 2>/dev/null || sudo ln -sf "$launcher_path" /usr/local/bin/burpsuitepro 2>/dev/null || true
+    elif command -v sudo &>/dev/null && sudo -n true 2>/dev/null; then
+        sudo -n ln -sf "$launcher_path" /usr/local/bin/burpsuitepro 2>/dev/null || true
     fi
 
     # 7. Create desktop shortcut
@@ -635,14 +865,27 @@ EOF
 [Desktop Entry]
 Name=Burp Suite Professional
 Comment=Burp Suite Professional - Web Application Security Testing
-Exec=$launcher_path
-Icon=$REPO_DIR/burp_suite_pro_icon.svg
+Exec=$launcher_path %F
+Icon=burpsuitepro
 Terminal=false
 Type=Application
-Categories=Network;Security;
+StartupNotify=true
+StartupWMClass=burp-StartBurp
+MimeType=application/x-burp-project;
+Categories=Network;Security;Development;WebDevelopment;03-web-application-analysis;03-05-web-vulnerability-scanners;
 Keywords=burp;suite;pro;web;security;scanner;
 Path=$REPO_DIR
-StartupWMClass=burp-StartBurp
+Actions=Keygen;TrustCA;
+
+[Desktop Action Keygen]
+Name=Burp Suite Pro Keygen / Loader
+Exec=$launcher_path -k
+Icon=burpsuitepro
+
+[Desktop Action TrustCA]
+Name=Trust Burp CA Certificate
+Exec=$launcher_path --trust-ca
+Icon=burpsuitepro
 EOF
 
     cat <<EOF >"$desktop_dir/burpsuitepro-keygen.desktop"
@@ -650,20 +893,44 @@ EOF
 Name=Burp Suite Pro Keygen / Loader
 Comment=Burp Suite Professional - Keygen and Loader Utility
 Exec=$launcher_path -k
-Icon=$REPO_DIR/burp_suite_pro_icon.svg
+Icon=burpsuitepro
 Terminal=false
 Type=Application
+StartupNotify=true
 Categories=Network;Security;
 Keywords=burp;suite;pro;keygen;loader;license;
 Path=$REPO_DIR
 StartupWMClass=com-h3110w0r1d-burploaderkeygen-KeygenForm
 EOF
     update-desktop-database "$desktop_dir" 2>/dev/null || true
+    kbuildsycoca6 --noincremental 2>/dev/null || kbuildsycoca6 2>/dev/null || kbuildsycoca5 2>/dev/null || true
+
+    # System desktop shortcut if writable or passwordless sudo
+    local sys_desktop_dir="/usr/local/share/applications"
+    if [[ -w "$sys_desktop_dir" ]]; then
+        cp -f "$desktop_file" "$sys_desktop_dir/burpsuitepro.desktop" 2>/dev/null || true
+        cp -f "$desktop_dir/burpsuitepro-keygen.desktop" "$sys_desktop_dir/burpsuitepro-keygen.desktop" 2>/dev/null || true
+        update-desktop-database "$sys_desktop_dir" 2>/dev/null || true
+    elif command -v sudo &>/dev/null && sudo -n true 2>/dev/null; then
+        sudo -n mkdir -p "$sys_desktop_dir" 2>/dev/null || true
+        sudo -n cp -f "$desktop_file" "$sys_desktop_dir/burpsuitepro.desktop" 2>/dev/null || true
+        sudo -n cp -f "$desktop_dir/burpsuitepro-keygen.desktop" "$sys_desktop_dir/burpsuitepro-keygen.desktop" 2>/dev/null || true
+        sudo -n update-desktop-database "$sys_desktop_dir" 2>/dev/null || true
+    fi
 
     # 8. Start Key Loader & Burp Suite Pro if not skipped
     if [[ "$skip_launch" == false ]]; then
         if [ -z "${DISPLAY:-}" ]; then
-            if [ -n "${WAYLAND_DISPLAY:-}" ] || [ -e /tmp/.X11-unix/X0 ]; then
+            for sock in /tmp/.X11-unix/X*; do
+                if [ -S "$sock" ] || [ -e "$sock" ]; then
+                    disp_num="${sock##*/X}"
+                    if [[ "$disp_num" =~ ^[0-9]+$ ]]; then
+                        export DISPLAY=":${disp_num}"
+                        break
+                    fi
+                fi
+            done
+            if [ -z "${DISPLAY:-}" ] && [ -n "${WAYLAND_DISPLAY:-}" ]; then
                 export DISPLAY=:0
             fi
         fi

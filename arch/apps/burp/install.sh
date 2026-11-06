@@ -21,20 +21,30 @@ distro_install_deps() {
         sudo pacman -S --noconfirm --needed jdk21-openjdk
     fi
 
-    # 2. Always set Java 21 as default JVM
+    # 2. Set Java 21 as default JVM if not already default
     if command -v archlinux-java &>/dev/null; then
-        echo "Setting Java 21 as default JVM..."
-        sudo archlinux-java set java-21-openjdk 2>/dev/null || true
+        local current_java
+        current_java="$(archlinux-java get 2>/dev/null || true)"
+        if [[ "$current_java" != "java-21-openjdk" ]]; then
+            echo "Setting Java 21 as default JVM..."
+            if [[ $EUID -eq 0 ]]; then
+                archlinux-java set java-21-openjdk 2>/dev/null || true
+            elif command -v sudo &>/dev/null; then
+                sudo -n archlinux-java set java-21-openjdk 2>/dev/null || sudo archlinux-java set java-21-openjdk 2>/dev/null || true
+            fi
+        fi
     fi
 
-    # 3. Ensure required network and SSL tools
+    # 3. Ensure required network, SSL, and desktop integration tools
     local missing_tools=()
-    for tool in wget curl aria2c openssl certutil; do
+    for tool in wget curl aria2c openssl certutil rsvg-convert update-desktop-database; do
         if ! command -v "$tool" &>/dev/null; then
             case "$tool" in
-                aria2c) missing_tools+=(aria2) ;;
-                certutil) missing_tools+=(nss) ;;
-                *) missing_tools+=("$tool") ;;
+            aria2c) missing_tools+=(aria2) ;;
+            certutil) missing_tools+=(nss) ;;
+            rsvg-convert) missing_tools+=(librsvg) ;;
+            update-desktop-database) missing_tools+=(desktop-file-utils) ;;
+            *) missing_tools+=("$tool") ;;
             esac
         fi
     done

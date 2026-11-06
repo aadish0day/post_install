@@ -41,12 +41,14 @@ distro_install_deps() {
         sudo update-alternatives --set java /usr/lib/jvm/java-21-openjdk-amd64/bin/java 2>/dev/null || true
     fi
 
-    # 3. Ensure required network and SSL tools
+    # 3. Ensure required network, SSL, and desktop integration tools
     local missing_tools=()
     command -v wget &>/dev/null || missing_tools+=(wget)
     command -v curl &>/dev/null || missing_tools+=(curl)
     command -v aria2c &>/dev/null || missing_tools+=(aria2)
     command -v certutil &>/dev/null || missing_tools+=(libnss3-tools)
+    command -v rsvg-convert &>/dev/null || missing_tools+=(librsvg2-bin)
+    command -v update-desktop-database &>/dev/null || missing_tools+=(desktop-file-utils)
 
     if [ ${#missing_tools[@]} -gt 0 ]; then
         if [ "$installer" = "nala" ]; then

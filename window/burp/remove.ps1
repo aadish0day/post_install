@@ -4,10 +4,11 @@
 .DESCRIPTION
     Completely removes Burp Suite Professional from Windows:
     - Terminates running Burp Suite and key loader processes.
-    - Removes Desktop and Start Menu shortcuts.
+    - Removes Desktop and Start Menu shortcuts (Burp Suite Pro and Keygen).
     - Unregisters CLI command and cleans User PATH.
     - Deletes installation directory and JAR files.
-    - Cleans BurpSuite AppData, .BurpSuite cache, and registry preferences.
+    - Unregisters file associations (.burp, .burpstate).
+    - Cleans BurpSuite AppData, .BurpSuite cache, temporary downloads, and registry preferences.
     - Flushes Windows Shell and icon cache.
 #>
 
@@ -121,7 +122,12 @@ if (-not $terminatedAny) {
 # ------------------------------------------------------------------------------
 Write-Host "`n(2/6) Removing Windows shortcuts..." -ForegroundColor Cyan
 
-$shortcutNames = @("Burp Suite Professional.lnk", "Burp Suite Pro.lnk")
+$shortcutNames = @(
+    "Burp Suite Professional.lnk",
+    "Burp Suite Pro.lnk",
+    "Burp Suite Keygen.lnk",
+    "Burp Keygen.lnk"
+)
 $shortcutLocations = @(
     [Environment]::GetFolderPath("Desktop"),
     [Environment]::GetFolderPath("CommonDesktopDirectory"),
@@ -214,9 +220,43 @@ if ((Test-Path $parentDir) -and ((Get-ChildItem -Path $parentDir -Force | Measur
 }
 
 # ------------------------------------------------------------------------------
-# 5. Clean Application Data, Caches & Registry Preferences
+# 5. Clean Application Data, Caches, File Associations & Registry
 # ------------------------------------------------------------------------------
-Write-Host "`n(5/6) Cleaning cache, user data & registry..." -ForegroundColor Cyan
+Write-Host "`n(5/6) Cleaning cache, user data, file associations & registry..." -ForegroundColor Cyan
+
+# Unregister Windows file associations (.burp, .burpstate)
+$fileAssocPaths = @(
+    "HKCU:\Software\Classes\.burp",
+    "HKCU:\Software\Classes\.burpstate",
+    "HKCU:\Software\Classes\BurpSuite.Project"
+)
+
+$assocRemoved = 0
+foreach ($fap in $fileAssocPaths) {
+    if (Test-Path $fap) {
+        try {
+            Remove-Item -Path $fap -Recurse -Force -ErrorAction SilentlyContinue
+            Write-Host "      [OK] Removed file association: $fap" -ForegroundColor Green
+            $assocRemoved++
+        } catch {
+            Write-Warning "Could not remove file association $fap: $($_.Exception.Message)"
+        }
+    }
+}
+
+if ($assocRemoved -gt 0) {
+    try {
+        $type = [System.Type]::GetType("Win32.ShellNotifyRemove")
+        if (-not $type) {
+            $shellNotifyCode = '[System.Runtime.InteropServices.DllImport("shell32.dll")] public static extern void SHChangeNotify(int wEventId, int uFlags, IntPtr dwItem1, IntPtr dwItem2);'
+            Add-Type -MemberDefinition $shellNotifyCode -Name "ShellNotifyRemove" -Namespace "Win32" -ErrorAction SilentlyContinue | Out-Null
+        }
+        [Win32.ShellNotifyRemove]::SHChangeNotify(0x08000000, 0, [IntPtr]::Zero, [IntPtr]::Zero)
+        Write-Host "      [OK] Windows Shell notified of file association change." -ForegroundColor DarkGray
+    } catch {}
+} else {
+    Write-Host "      [OK] No file associations found to remove." -ForegroundColor Green
+}
 
 if (-not $KeepData) {
     $dataPaths = @(
@@ -237,7 +277,7 @@ if (-not $KeepData) {
     }
 
     # Clean temporary downloaded files
-    $tempMatches = @("burpsuite*", "openjdk21_installer.msi", "jython*")
+    $tempMatches = @("burpsuite*", "openjdk21_installer.msi", "jython*", "jruby*")
     foreach ($tm in $tempMatches) {
         Get-ChildItem -Path $env:TEMP -Filter $tm -ErrorAction SilentlyContinue | ForEach-Object {
             Remove-Item -Path $_.FullName -Recurse -Force -ErrorAction SilentlyContinue
@@ -270,11 +310,12 @@ if (-not $KeepData) {
 Write-Host "`n(6/6) Refreshing Windows Shell and search index..." -ForegroundColor Cyan
 
 try {
-    $shellNotifyCode = '[System.Runtime.InteropServices.DllImport("shell32.dll")] public static extern void SHChangeNotify(int wEventId, int uFlags, IntPtr dwItem1, IntPtr dwItem2);'
-    $shellNotify = Add-Type -MemberDefinition $shellNotifyCode -Name "ShellNotifyRemove" -Namespace "Win32" -PassThru -ErrorAction SilentlyContinue
-    if ($shellNotify) {
-        [Win32.ShellNotifyRemove]::SHChangeNotify(0x08000000, 0, [IntPtr]::Zero, [IntPtr]::Zero)
+    $type = [System.Type]::GetType("Win32.ShellNotifyRemove")
+    if (-not $type) {
+        $shellNotifyCode = '[System.Runtime.InteropServices.DllImport("shell32.dll")] public static extern void SHChangeNotify(int wEventId, int uFlags, IntPtr dwItem1, IntPtr dwItem2);'
+        Add-Type -MemberDefinition $shellNotifyCode -Name "ShellNotifyRemove" -Namespace "Win32" -ErrorAction SilentlyContinue | Out-Null
     }
+    [Win32.ShellNotifyRemove]::SHChangeNotify(0x08000000, 0, [IntPtr]::Zero, [IntPtr]::Zero)
     Write-Host "      [OK] Windows Shell notified and icon cache flushed." -ForegroundColor Green
 } catch {
     Write-Host "      [OK] Completed." -ForegroundColor Green

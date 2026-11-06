@@ -12,13 +12,14 @@
       console is attached it defaults to tested stable without prompting, so
       automation never blocks.
     - Dynamically queries PortSwigger release API for the latest Pro JAR.
-    - Smart caching: skips downloading loader.jar, Jython 2.7.4, and Burp Suite Pro JAR if valid and matching/newer versions exist.
-    - Built-in Jython 2.7.4 Standalone: automatically downloads and configures UserConfigPro.json for out-of-the-box Python BApp support.
+    - Smart caching: skips downloading loader.jar, Jython 2.7.4, JRuby 9.4.9.0, and Burp Suite Pro JAR if valid and matching/newer versions exist.
+    - Built-in Jython 2.7.4 & JRuby 9.4.9.0 Standalone: automatically downloads and configures UserConfigPro.json & UserConfig.json for Python & Ruby BApps.
     - Non-destructive updates: backs up older Burp Suite Pro JARs with .bk extension (never deletes them).
     - Pre-seeds JRE warning suppression flags in Windows Java Preferences registry.
     - Auto-trust Burp CA Certificate flag (--trust-ca / -t) for Windows Root Store and Firefox forks (Zen, LibreWolf, Floorp, Waterfox).
-    - Generates optimized launchers (Burp.bat & Burp-Suite-Pro.vbs) with G1GC, 50% RAM, HiDPI scaling, and CLI helper flags.
-    - Creates Desktop & Start Menu shortcuts with the official .ico icon pointing to the active JAR.
+    - Generates optimized launchers (Burp.bat, burpsuitepro.cmd & Burp-Suite-Pro.vbs) with dynamic Generational ZGC (G1GC fallback), configurable RAM (BURP_MAX_RAM / 50%), HiDPI scaling, port 8080 conflict guard, and crash catcher.
+    - Windows file associations (.burp and .burpstate) registered in HKCU:\Software\Classes with official icon and context menu.
+    - Creates Desktop & Start Menu shortcuts for Burp Suite Professional and dedicated Burp Suite Keygen.
     - Registers CLI command in User PATH for terminal access.
     - Auto-starts key loader and Burp Suite Pro.
 #>
@@ -1046,7 +1047,7 @@ if ($olderJars) {
 # ------------------------------------------------------------------------------
 # 6. Deploy Assets, Built-in Jython 2.7.4 & User Configuration
 # ------------------------------------------------------------------------------
-Write-Host "`n(6/8) Deploying assets, Jython 2.7.4 & preferences..." -ForegroundColor Cyan
+Write-Host "`n(6/8) Deploying assets, Jython 2.7.4, JRuby 9.4.9.0 & preferences..." -ForegroundColor Cyan
 
 # 6A. Deploy Assets (.config.ini & burp_suite_pro.ico)
 $LocalConfig = Join-Path $ScriptDir ".config.ini"
@@ -1121,58 +1122,110 @@ if ((Test-Path $TargetJython) -and ((Get-Item $TargetJython).Length -gt 20MB) -a
     }
 }
 
-# Automatically configure Burp User Config (UserConfigPro.json) in User Profile and AppData
-if (Test-Path $TargetJython) {
-    $configTargets = [System.Collections.Generic.List[string]]::new()
-    if ($env:USERPROFILE) {
-        $configTargets.Add((Join-Path $env:USERPROFILE ".BurpSuite\UserConfigPro.json"))
-    }
-    if ($env:APPDATA) {
-        $configTargets.Add((Join-Path $env:APPDATA "BurpSuite\UserConfigPro.json"))
-    }
+# 6C. Built-in JRuby Standalone 9.4.9.0 Support
+Write-Host "      Configuring JRuby Standalone 9.4.9.0 (Ruby BApps support)..." -ForegroundColor DarkCyan
+$TargetJruby = Join-Path $InstallDir "jruby-complete-9.4.9.0.jar"
+$jrubySources = @(
+    "https://repo1.maven.org/maven2/org/jruby/jruby-complete/9.4.9.0/jruby-complete-9.4.9.0.jar",
+    "https://search.maven.org/remotecontent?filepath=org/jruby/jruby-complete/9.4.9.0/jruby-complete-9.4.9.0.jar",
+    "https://repo.maven.apache.org/maven2/org/jruby/jruby-complete/9.4.9.0/jruby-complete-9.4.9.0.jar"
+)
 
-    foreach ($cfgPath in $configTargets) {
+$jrubyReady = $false
+if ((Test-Path $TargetJruby) -and ((Get-Item $TargetJruby).Length -gt 30MB) -and -not $ForceDownload) {
+    $rMb = [math]::Round((Get-Item $TargetJruby).Length / 1MB, 1)
+    Write-Host "      [OK] Valid jruby-complete-9.4.9.0.jar already exists in $InstallDir ($rMb MB). Skipping download." -ForegroundColor Green
+    $jrubyReady = $true
+} else {
+    if ($ForceDownload -and (Test-Path $TargetJruby)) {
+        Write-Host "      [*] -ForceDownload specified. Re-downloading JRuby 9.4.9.0..." -ForegroundColor Yellow
+    }
+    $tempJruby = "$TargetJruby.tmp"
+    foreach ($url in $jrubySources) {
         try {
-            $cfgDir = Split-Path -Parent $cfgPath
-            if (-not (Test-Path $cfgDir)) {
-                New-Item -ItemType Directory -Path $cfgDir -Force | Out-Null
-            }
-
-            $cfgObj = $null
-            if (Test-Path $cfgPath) {
-                try {
-                    $rawText = Get-Content -Path $cfgPath -Raw -ErrorAction Stop
-                    if (-not [string]::IsNullOrWhiteSpace($rawText)) {
-                        $cfgObj = $rawText | ConvertFrom-Json -ErrorAction Stop
-                    }
-                } catch {
-                    Write-Warning "Could not parse existing $cfgPath as JSON. Creating backup."
-                    Copy-Item -Path $cfgPath -Destination "$cfgPath.bk" -Force -ErrorAction SilentlyContinue
-                    $cfgObj = $null
+            Write-Host "      Downloading JRuby 9.4.9.0 from $url (~32MB)..." -ForegroundColor Yellow
+            Download-FileWithProgress -Url $url -OutputFile $tempJruby -Description "Downloading JRuby Standalone 9.4.9.0"
+            if ((Test-Path $tempJruby) -and ((Get-Item $tempJruby).Length -gt 30MB)) {
+                Move-Item -Path $tempJruby -Destination $TargetJruby -Force
+                $rMb = [math]::Round((Get-Item $TargetJruby).Length / 1MB, 1)
+                Write-Host "      [OK] Downloaded and verified jruby-complete-9.4.9.0.jar ($rMb MB)." -ForegroundColor Green
+                $jrubyReady = $true
+                break
+            } else {
+                if (Test-Path $tempJruby) {
+                    Remove-Item -Path $tempJruby -Force -ErrorAction SilentlyContinue
                 }
             }
+        } catch {
+            if (Test-Path $tempJruby) {
+                Remove-Item -Path $tempJruby -Force -ErrorAction SilentlyContinue
+            }
+            Write-Warning "Download from $url failed: $($_.Exception.Message)"
+        }
+    }
+}
 
-            if ($null -eq $cfgObj) {
-                $cfgObj = [PSCustomObject]@{
-                    user_options = [PSCustomObject]@{
-                        extender = [PSCustomObject]@{
-                            python = [PSCustomObject]@{
-                                location_of_jython_standalone_jar_file = $TargetJython
-                            }
+# 6D. Automatically configure Burp User Config (UserConfigPro.json and UserConfig.json) in User Profile and AppData
+Write-Host "      Configuring BApp extender paths in Burp user configuration..." -ForegroundColor DarkCyan
+$configTargets = [System.Collections.Generic.List[string]]::new()
+if ($env:USERPROFILE) {
+    $configTargets.Add((Join-Path $env:USERPROFILE ".BurpSuite\UserConfigPro.json"))
+    $configTargets.Add((Join-Path $env:USERPROFILE ".BurpSuite\UserConfig.json"))
+}
+if ($env:APPDATA) {
+    $configTargets.Add((Join-Path $env:APPDATA "BurpSuite\UserConfigPro.json"))
+    $configTargets.Add((Join-Path $env:APPDATA "BurpSuite\UserConfig.json"))
+}
+
+foreach ($cfgPath in $configTargets) {
+    try {
+        $cfgDir = Split-Path -Parent $cfgPath
+        if (-not (Test-Path $cfgDir)) {
+            New-Item -ItemType Directory -Path $cfgDir -Force | Out-Null
+        }
+
+        $cfgObj = $null
+        if (Test-Path $cfgPath) {
+            try {
+                $rawText = Get-Content -Path $cfgPath -Raw -ErrorAction Stop
+                if (-not [string]::IsNullOrWhiteSpace($rawText)) {
+                    $cfgObj = $rawText | ConvertFrom-Json -ErrorAction Stop
+                }
+            } catch {
+                Write-Warning "Could not parse existing $cfgPath as JSON. Creating backup."
+                Copy-Item -Path $cfgPath -Destination "$cfgPath.bk" -Force -ErrorAction SilentlyContinue
+                $cfgObj = $null
+            }
+        }
+
+        if ($null -eq $cfgObj) {
+            $cfgObj = [PSCustomObject]@{
+                user_options = [PSCustomObject]@{
+                    extender = [PSCustomObject]@{
+                        python = [PSCustomObject]@{
+                            location_of_jython_standalone_jar_file = if (Test-Path $TargetJython) { $TargetJython } else { "" }
+                        }
+                        ruby = [PSCustomObject]@{
+                            location_of_jruby_jar_file = if (Test-Path $TargetJruby) { $TargetJruby } else { "" }
                         }
                     }
                 }
-            } else {
-                if (-not ($cfgObj.PSObject.Properties['user_options']) -or ($null -eq $cfgObj.user_options)) {
-                    $cfgObj | Add-Member -NotePropertyName "user_options" -NotePropertyValue ([PSCustomObject]@{}) -Force
-                }
-                if (-not ($cfgObj.user_options.PSObject.Properties['extender']) -or ($null -eq $cfgObj.user_options.extender)) {
-                    $cfgObj.user_options | Add-Member -NotePropertyName "extender" -NotePropertyValue ([PSCustomObject]@{}) -Force
-                }
-                if (-not ($cfgObj.user_options.extender.PSObject.Properties['python']) -or ($null -eq $cfgObj.user_options.extender.python)) {
-                    $cfgObj.user_options.extender | Add-Member -NotePropertyName "python" -NotePropertyValue ([PSCustomObject]@{}) -Force
-                }
+            }
+        } else {
+            if (-not ($cfgObj.PSObject.Properties['user_options']) -or ($null -eq $cfgObj.user_options)) {
+                $cfgObj | Add-Member -NotePropertyName "user_options" -NotePropertyValue ([PSCustomObject]@{}) -Force
+            }
+            if (-not ($cfgObj.user_options.PSObject.Properties['extender']) -or ($null -eq $cfgObj.user_options.extender)) {
+                $cfgObj.user_options | Add-Member -NotePropertyName "extender" -NotePropertyValue ([PSCustomObject]@{}) -Force
+            }
+            if (-not ($cfgObj.user_options.extender.PSObject.Properties['python']) -or ($null -eq $cfgObj.user_options.extender.python)) {
+                $cfgObj.user_options.extender | Add-Member -NotePropertyName "python" -NotePropertyValue ([PSCustomObject]@{}) -Force
+            }
+            if (-not ($cfgObj.user_options.extender.PSObject.Properties['ruby']) -or ($null -eq $cfgObj.user_options.extender.ruby)) {
+                $cfgObj.user_options.extender | Add-Member -NotePropertyName "ruby" -NotePropertyValue ([PSCustomObject]@{}) -Force
+            }
 
+            if (Test-Path $TargetJython) {
                 if ($cfgObj.user_options.extender.python.PSObject.Properties['location_of_jython_standalone_jar_file']) {
                     $cfgObj.user_options.extender.python.location_of_jython_standalone_jar_file = $TargetJython
                 } else {
@@ -1180,19 +1233,25 @@ if (Test-Path $TargetJython) {
                 }
             }
 
-            $jsonOut = $cfgObj | ConvertTo-Json -Depth 32
-            $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-            [System.IO.File]::WriteAllText($cfgPath, $jsonOut, $utf8NoBom)
-            Write-Host "      [OK] Configured Jython path in: $cfgPath" -ForegroundColor Green
-        } catch {
-            Write-Warning "Could not configure Jython path in $cfgPath: $($_.Exception.Message)"
+            if (Test-Path $TargetJruby) {
+                if ($cfgObj.user_options.extender.ruby.PSObject.Properties['location_of_jruby_jar_file']) {
+                    $cfgObj.user_options.extender.ruby.location_of_jruby_jar_file = $TargetJruby
+                } else {
+                    $cfgObj.user_options.extender.ruby | Add-Member -NotePropertyName "location_of_jruby_jar_file" -NotePropertyValue $TargetJruby -Force
+                }
+            }
         }
+
+        $jsonOut = $cfgObj | ConvertTo-Json -Depth 32
+        $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+        [System.IO.File]::WriteAllText($cfgPath, $jsonOut, $utf8NoBom)
+        Write-Host "      [OK] Configured Jython & JRuby paths in: $cfgPath" -ForegroundColor Green
+    } catch {
+        Write-Warning "Could not configure extender paths in $cfgPath: $($_.Exception.Message)"
     }
-} else {
-    Write-Warning "Jython 2.7.4 JAR was not found at $TargetJython. Python BApps will require manual configuration."
 }
 
-# 6C. Pre-seed JRE Warning Suppression in Windows Java Preferences
+# 6E. Pre-seed JRE Warning Suppression in Windows Java Preferences
 function Set-BurpJreWarningSuppression {
     Write-Host "      Configuring JRE warning suppression in Windows Java Preferences registry..." -ForegroundColor DarkCyan
     try {
@@ -1225,7 +1284,7 @@ Set-BurpJreWarningSuppression
 # ------------------------------------------------------------------------------
 Write-Host "`n(7/8) Creating launchers and Windows shortcuts..." -ForegroundColor Cyan
 
-# 7A. Burp.bat (Direct / CLI launcher with High-RAM, G1GC, HiDPI, --trust-ca and CLI helper flags)
+# 7A. Burp.bat (Direct / CLI launcher with Generational ZGC, High-RAM, HiDPI, Port 8080 Guard, and Crash Catcher)
 $BatPath = Join-Path $InstallDir "Burp.bat"
 $BatLines = @(
     "@echo off",
@@ -1246,7 +1305,9 @@ $BatLines = @(
     "goto launch",
     "",
     ":keygen",
-    "if exist `"%JAVA_HOME%\bin\java.exe`" (",
+    "if exist `"$($validJava.Path)`" (",
+    "    start `"`" `"$($validJava.Path)`" -jar `"%~dp0loader.jar`"",
+    ") else if exist `"%JAVA_HOME%\bin\java.exe`" (",
     "    start `"`" `"%JAVA_HOME%\bin\java.exe`" -jar `"%~dp0loader.jar`"",
     ") else (",
     "    start `"`" java -jar `"%~dp0loader.jar`"",
@@ -1258,7 +1319,7 @@ $BatLines = @(
     "if exist `"%~dp0trust-ca.ps1`" (",
     "    powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"%~dp0trust-ca.ps1`"",
     ") else (",
-    "    powershell.exe -NoProfile -ExecutionPolicy Bypass -Command `"$u='http://127.0.0.1:8080/cert'; $c=Join-Path $env:TEMP 'burpsuite-ca.cer'; try { $req=[System.Net.HttpWebRequest][System.Net.WebRequest]::Create($u); $req.Timeout=4000; $resp=$req.GetResponse(); $s=$resp.GetResponseStream(); $fs=[System.IO.File]::Create($c); $s.CopyTo($fs); $fs.Close(); $resp.Close(); } catch { Write-Host 'Burp proxy not detected on http://127.0.0.1:8080. Start Burp Suite first, then re-run ''burpsuitepro --trust-ca''' -ForegroundColor Yellow; exit 1 }; if ((Test-Path $c) -and ((Get-Item $c).Length -gt 0)) { try { Import-Certificate -FilePath $c -CertStoreLocation Cert:\CurrentUser\Root -ErrorAction Stop | Out-Null } catch { certutil.exe -addstore -f Root $c | Out-Null }; Write-Host '[OK] Burp Suite CA Certificate successfully imported into Windows Root Certificate Store (CurrentUser).' -ForegroundColor Green; Remove-Item $c -Force -ErrorAction SilentlyContinue; exit 0 } else { Write-Host 'Burp proxy not detected on http://127.0.0.1:8080. Start Burp Suite first, then re-run ''burpsuitepro --trust-ca''' -ForegroundColor Yellow; exit 1 }`"",
+    "    powershell.exe -NoProfile -ExecutionPolicy Bypass -Command `"`$u='http://127.0.0.1:8080/cert'; `$c=Join-Path `$env:TEMP 'burpsuite-ca.cer'; try { `$req=[System.Net.HttpWebRequest][System.Net.WebRequest]::Create(`$u); `$req.Timeout=4000; `$resp=`$req.GetResponse(); `$s=`$resp.GetResponseStream(); `$fs=[System.IO.File]::Create(`$c); `$s.CopyTo(`$fs); `$fs.Close(); `$resp.Close(); } catch { Write-Host 'Burp proxy not detected on http://127.0.0.1:8080. Start Burp Suite first, then re-run ''burpsuitepro --trust-ca''' -ForegroundColor Yellow; exit 1 }; if ((Test-Path `$c) -and ((Get-Item `$c).Length -gt 0)) { try { Import-Certificate -FilePath `$c -CertStoreLocation Cert:\CurrentUser\Root -ErrorAction Stop | Out-Null } catch { certutil.exe -addstore -f Root `$c | Out-Null }; Write-Host '[OK] Burp Suite CA Certificate successfully imported into Windows Root Certificate Store (CurrentUser).' -ForegroundColor Green; Remove-Item `$c -Force -ErrorAction SilentlyContinue; exit 0 } else { Write-Host 'Burp proxy not detected on http://127.0.0.1:8080. Start Burp Suite first, then re-run ''burpsuitepro --trust-ca''' -ForegroundColor Yellow; exit 1 }`"",
     ")",
     "endlocal",
     "exit /b %ERRORLEVEL%",
@@ -1282,7 +1343,7 @@ $BatLines = @(
     "echo.",
     "echo Options:",
     "echo   -k, --keygen    Launch the key loader GUI (loader.jar)",
-    "echo   -t, --trust-ca  Import and trust Burp CA certificate in Windows & browsers",
+    "echo   -t, --trust-ca  Import and trust Burp CA certificate in Windows ^& browsers",
     "echo   -v, --version   Print current version and JAR name",
     "echo   -p, --path      Print installation directory path",
     "echo   -h, --help      Show quick usage help",
@@ -1292,23 +1353,83 @@ $BatLines = @(
     "exit /b 0",
     "",
     ":launch",
-    "if exist `"%JAVA_HOME%\bin\javaw.exe`" (",
-    "    set `"JAVA_BIN=%JAVA_HOME%\bin\javaw.exe`"",
+    "rem 1. Resolve Java 21+ binary",
+    "if exist `"$($validJava.Path)`" (",
+    "    set `"JAVA_BIN=$($validJava.Path)`"",
+    ") else if exist `"%JAVA_HOME%\bin\java.exe`" (",
+    "    set `"JAVA_BIN=%JAVA_HOME%\bin\java.exe`"",
     ") else (",
-    "    set `"JAVA_BIN=javaw`"",
+    "    set `"JAVA_BIN=java.exe`"",
     ")",
-    "start `"`" `"%JAVA_BIN%`" -XX:+UseG1GC -XX:MaxRAMPercentage=50 -Dsun.java2d.uiScale=auto -Dawt.useSystemAAFontSettings=on -Dswing.aatext=true --add-opens=java.desktop/javax.swing=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm.Opcodes=ALL-UNNAMED -javaagent:`"%~dp0loader.jar`" -jar `"%~dp0$JarName`" %*",
+    "",
+    "rem 2. Dynamic Memory Sizing: BURP_MAX_RAM, BURP_RAM, BURP_MEMORY or default to 50% RAM",
+    "set `"MEM_OPTS=-XX:MaxRAMPercentage=50`"",
+    "set `"BURP_MEM_VAL=`"",
+    "if defined BURP_MAX_RAM set `"BURP_MEM_VAL=%BURP_MAX_RAM%`"",
+    "if not defined BURP_MEM_VAL if defined BURP_RAM set `"BURP_MEM_VAL=%BURP_RAM%`"",
+    "if not defined BURP_MEM_VAL if defined BURP_MEMORY set `"BURP_MEM_VAL=%BURP_MEMORY%`"",
+    "if defined BURP_MEM_VAL (",
+    "    echo %BURP_MEM_VAL% | findstr /i `"^-Xmx`" >nul",
+    "    if errorlevel 1 (",
+    "        set `"MEM_OPTS=-Xmx%BURP_MEM_VAL%`"",
+    "    ) else (",
+    "        set `"MEM_OPTS=%BURP_MEM_VAL%`"",
+    "    )",
+    ")",
+    "",
+    "rem 3. Advanced JVM Garbage Collector: Generational ZGC check with G1GC fallback",
+    "set `"GC_OPTS=-XX:+UseG1GC`"",
+    "`"%JAVA_BIN%`" -XX:+UseZGC -XX:+ZGenerational -version >nul 2>&1",
+    "if %ERRORLEVEL% equ 0 (",
+    "    set `"GC_OPTS=-XX:+UseZGC -XX:+ZGenerational`"",
+    ")",
+    "",
+    "rem 4. Port 8080 Conflict Guard",
+    "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command `"if (Get-NetTCPConnection -LocalPort 8080 -State Listen -ErrorAction SilentlyContinue) { exit 10 }`" >nul 2>&1",
+    "if %ERRORLEVEL% equ 10 (",
+    "    powershell.exe -NoProfile -ExecutionPolicy Bypass -Command `"Write-Host '[!] Warning: Port 8080 is already occupied by another process. Burp proxy may encounter a bind collision.' -ForegroundColor Yellow`"",
+    "    start `"`" powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command `"Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('Warning: Port 8080 is already occupied by another process. Burp proxy may encounter a bind collision.', 'Burp Suite Port Warning', 0, 48)`"",
+    ")",
+    "",
+    "rem 5. HiDPI & Antialiasing Flags",
+    "set `"UI_OPTS=-Dsun.java2d.uiScale=auto -Dawt.useSystemAAFontSettings=on -Dswing.aatext=true`"",
+    "",
+    "rem 6. Module Access Options",
+    "set `"MODULE_OPTS=--add-opens=java.desktop/javax.swing=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm.Opcodes=ALL-UNNAMED`"",
+    "",
+    "rem 7. Execute Burp Suite Professional and trap exit code",
+    "`"%JAVA_BIN%`" %GC_OPTS% %MEM_OPTS% %UI_OPTS% %MODULE_OPTS% -javaagent:`"%~dp0loader.jar`" -jar `"%~dp0$JarName`" %*",
+    "set `"BURP_EXIT_CODE=%ERRORLEVEL%`"",
+    "",
+    "rem 8. Crash Catcher & Error Dialog",
+    "if %BURP_EXIT_CODE% neq 0 (",
+    "    echo [!] Burp Suite Pro exited with error code %BURP_EXIT_CODE%.",
+    "    powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command `"Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('Burp Suite Professional exited with error code ' + `$env:BURP_EXIT_CODE + '. Please check Java runtime and configuration.', 'Burp Suite Error', 0, 16)`"",
+    ")",
+    "",
     "endlocal",
-    "exit /b 0",
+    "exit /b %BURP_EXIT_CODE%",
     ""
 )
 $BatContent = $BatLines -join "`r`n"
 [System.IO.File]::WriteAllText($BatPath, $BatContent, [System.Text.Encoding]::ASCII)
 Write-Host "      [OK] Generated $BatPath" -ForegroundColor Green
 
-# 7B. Burp-Suite-Pro.vbs (Completely silent execution without console window)
+# 7B. Burp-Suite-Pro.vbs (Silent launcher forwarding arguments to Burp.bat without console window)
 $VbsPath = Join-Path $InstallDir "Burp-Suite-Pro.vbs"
-$VbsContent = "Set WshShell = CreateObject(`"WScript.Shell`")`r`nWshShell.Run `"cmd /c `"`"`" & CreateObject(`"Scripting.FileSystemObject`").GetParentFolderName(WScript.ScriptFullName) & `"\Burp.bat`"`"`", 0, False`r`nSet WshShell = Nothing`r`n"
+$VbsLines = @(
+    "Set WshShell = CreateObject(`"WScript.Shell`")",
+    "Set fso = CreateObject(`"Scripting.FileSystemObject`")",
+    "batPath = fso.GetParentFolderName(WScript.ScriptFullName) & `"\Burp.bat`"",
+    "args = `"`"",
+    "For Each arg In WScript.Arguments",
+    "    args = args & `" `" & Chr(34) & Replace(arg, Chr(34), Chr(34) & Chr(34)) & Chr(34)",
+    "Next",
+    "WshShell.Run Chr(34) & batPath & Chr(34) & args, 0, False",
+    "Set WshShell = Nothing",
+    "Set fso = Nothing"
+)
+$VbsContent = ($VbsLines -join "`r`n") + "`r`n"
 [System.IO.File]::WriteAllText($VbsPath, $VbsContent, [System.Text.Encoding]::ASCII)
 Write-Host "      [OK] Generated $VbsPath" -ForegroundColor Green
 
@@ -1526,13 +1647,17 @@ $CliCmdLines = @(
     "if /i `"%~1`"==`"-p`" goto path",
     "if /i `"%~1`"==`"--help`" goto help",
     "if /i `"%~1`"==`"-h`" goto help",
-    "",
-    "call `"%~dp0Burp.bat`" %*",
-    "endlocal",
-    "exit /b %ERRORLEVEL%",
+    "goto launch",
     "",
     ":keygen",
-    "if exist `"%JAVA_HOME%\bin\java.exe`" (",
+    "if exist `"%~dp0Burp.bat`" (",
+    "    call `"%~dp0Burp.bat`" --keygen",
+    "    endlocal",
+    "    exit /b %ERRORLEVEL%",
+    ")",
+    "if exist `"$($validJava.Path)`" (",
+    "    start `"`" `"$($validJava.Path)`" -jar `"%~dp0loader.jar`"",
+    ") else if exist `"%JAVA_HOME%\bin\java.exe`" (",
     "    start `"`" `"%JAVA_HOME%\bin\java.exe`" -jar `"%~dp0loader.jar`"",
     ") else (",
     "    start `"`" java -jar `"%~dp0loader.jar`"",
@@ -1541,7 +1666,14 @@ $CliCmdLines = @(
     "exit /b 0",
     "",
     ":trust_ca",
-    "call `"%~dp0Burp.bat`" --trust-ca",
+    "if exist `"%~dp0Burp.bat`" (",
+    "    call `"%~dp0Burp.bat`" --trust-ca",
+    "    endlocal",
+    "    exit /b %ERRORLEVEL%",
+    ")",
+    "if exist `"%~dp0trust-ca.ps1`" (",
+    "    powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"%~dp0trust-ca.ps1`"",
+    ")",
     "endlocal",
     "exit /b %ERRORLEVEL%",
     "",
@@ -1563,7 +1695,7 @@ $CliCmdLines = @(
     "echo.",
     "echo Options:",
     "echo   -k, --keygen    Launch the key loader GUI (loader.jar)",
-    "echo   -t, --trust-ca  Import and trust Burp CA certificate in Windows & browsers",
+    "echo   -t, --trust-ca  Import and trust Burp CA certificate in Windows ^& browsers",
     "echo   -v, --version   Print current version and JAR name",
     "echo   -p, --path      Print installation directory path",
     "echo   -h, --help      Show quick usage help",
@@ -1571,6 +1703,67 @@ $CliCmdLines = @(
     "echo All other arguments are passed directly to Burp Suite Pro.",
     "endlocal",
     "exit /b 0",
+    "",
+    ":launch",
+    "if exist `"%~dp0Burp.bat`" (",
+    "    call `"%~dp0Burp.bat`" %*",
+    "    endlocal",
+    "    exit /b %ERRORLEVEL%",
+    ")",
+    "",
+    "rem Standalone fallback if Burp.bat is not found",
+    "if exist `"$($validJava.Path)`" (",
+    "    set `"JAVA_BIN=$($validJava.Path)`"",
+    ") else if exist `"%JAVA_HOME%\bin\java.exe`" (",
+    "    set `"JAVA_BIN=%JAVA_HOME%\bin\java.exe`"",
+    ") else (",
+    "    set `"JAVA_BIN=java.exe`"",
+    ")",
+    "",
+    "rem Dynamic Memory Sizing: BURP_MAX_RAM, BURP_RAM, BURP_MEMORY or default to 50% RAM",
+    "set `"MEM_OPTS=-XX:MaxRAMPercentage=50`"",
+    "set `"BURP_MEM_VAL=`"",
+    "if defined BURP_MAX_RAM set `"BURP_MEM_VAL=%BURP_MAX_RAM%`"",
+    "if not defined BURP_MEM_VAL if defined BURP_RAM set `"BURP_MEM_VAL=%BURP_RAM%`"",
+    "if not defined BURP_MEM_VAL if defined BURP_MEMORY set `"BURP_MEM_VAL=%BURP_MEMORY%`"",
+    "if defined BURP_MEM_VAL (",
+    "    echo %BURP_MEM_VAL% | findstr /i `"^-Xmx`" >nul",
+    "    if errorlevel 1 (",
+    "        set `"MEM_OPTS=-Xmx%BURP_MEM_VAL%`"",
+    "    ) else (",
+    "        set `"MEM_OPTS=%BURP_MEM_VAL%`"",
+    "    )",
+    ")",
+    "",
+    "rem Advanced JVM Garbage Collector: Generational ZGC check with G1GC fallback",
+    "set `"GC_OPTS=-XX:+UseG1GC`"",
+    "`"%JAVA_BIN%`" -XX:+UseZGC -XX:+ZGenerational -version >nul 2>&1",
+    "if %ERRORLEVEL% equ 0 (",
+    "    set `"GC_OPTS=-XX:+UseZGC -XX:+ZGenerational`"",
+    ")",
+    "",
+    "rem Port 8080 Conflict Guard",
+    "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command `"if (Get-NetTCPConnection -LocalPort 8080 -State Listen -ErrorAction SilentlyContinue) { exit 10 }`" >nul 2>&1",
+    "if %ERRORLEVEL% equ 10 (",
+    "    powershell.exe -NoProfile -ExecutionPolicy Bypass -Command `"Write-Host '[!] Warning: Port 8080 is already occupied by another process. Burp proxy may encounter a bind collision.' -ForegroundColor Yellow`"",
+    "    start `"`" powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command `"Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('Warning: Port 8080 is already occupied by another process. Burp proxy may encounter a bind collision.', 'Burp Suite Port Warning', 0, 48)`"",
+    ")",
+    "",
+    "rem HiDPI & Antialiasing Flags",
+    "set `"UI_OPTS=-Dsun.java2d.uiScale=auto -Dawt.useSystemAAFontSettings=on -Dswing.aatext=true`"",
+    "",
+    "rem Module Access Options",
+    "set `"MODULE_OPTS=--add-opens=java.desktop/javax.swing=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm.Opcodes=ALL-UNNAMED`"",
+    "",
+    "rem Execute Burp Suite Professional and trap exit code",
+    "`"%JAVA_BIN%`" %GC_OPTS% %MEM_OPTS% %UI_OPTS% %MODULE_OPTS% -javaagent:`"%~dp0loader.jar`" -jar `"%~dp0$JarName`" %*",
+    "set `"BURP_EXIT_CODE=%ERRORLEVEL%`"",
+    "if %BURP_EXIT_CODE% neq 0 (",
+    "    echo [!] Burp Suite Pro exited with error code %BURP_EXIT_CODE%.",
+    "    powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command `"Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('Burp Suite Professional exited with error code ' + `$env:BURP_EXIT_CODE + '. Please check Java runtime and configuration.', 'Burp Suite Error', 0, 16)`"",
+    ")",
+    "endlocal",
+    "exit /b %BURP_EXIT_CODE%",
     ""
 )
 $CliCmdContent = $CliCmdLines -join "`r`n"
@@ -1583,7 +1776,75 @@ if ($currentUserPath -notlike "*$InstallDir*") {
     Write-Host "      [OK] Added $InstallDir to User PATH (run 'burpsuitepro' in any terminal)." -ForegroundColor Green
 }
 
-# 7D. Windows Desktop and Start Menu Shortcuts with official .ico
+# 7E. Register Windows File Associations (.burp and .burpstate) in HKCU:\Software\Classes
+Write-Host "      Registering Windows file associations (.burp and .burpstate)..." -ForegroundColor DarkCyan
+try {
+    $progId = "BurpSuite.Project"
+    $fileDesc = "Burp Suite Professional Project"
+    $openCmd = "`"$BatPath`" `"%1`""
+
+    # Register ProgID root
+    $progIdKey = "HKCU:\Software\Classes\$progId"
+    if (-not (Test-Path $progIdKey)) {
+        New-Item -Path $progIdKey -Force | Out-Null
+    }
+    Set-Item -Path $progIdKey -Value $fileDesc -Force
+    Set-ItemProperty -Path $progIdKey -Name "FriendlyTypeName" -Value $fileDesc -Force
+
+    # DefaultIcon: $TargetIcon,0
+    $iconKey = Join-Path $progIdKey "DefaultIcon"
+    if (-not (Test-Path $iconKey)) {
+        New-Item -Path $iconKey -Force | Out-Null
+    }
+    Set-Item -Path $iconKey -Value "$TargetIcon,0" -Force
+
+    # Shell open verb: launch via Burp.bat passing "%1"
+    $shellOpenKey = Join-Path $progIdKey "shell\open"
+    if (-not (Test-Path $shellOpenKey)) {
+        New-Item -Path $shellOpenKey -Force | Out-Null
+    }
+    Set-ItemProperty -Path $shellOpenKey -Name "MUIVerb" -Value "Open with Burp Suite Professional" -Force
+    if (Test-Path $TargetIcon) {
+        Set-ItemProperty -Path $shellOpenKey -Name "Icon" -Value "$TargetIcon,0" -Force
+    }
+
+    $shellOpenCmdKey = Join-Path $shellOpenKey "command"
+    if (-not (Test-Path $shellOpenCmdKey)) {
+        New-Item -Path $shellOpenCmdKey -Force | Out-Null
+    }
+    Set-Item -Path $shellOpenCmdKey -Value $openCmd -Force
+
+    # Custom context menu verb "Open with Burp Suite Professional"
+    $customVerbCmdKey = Join-Path $progIdKey "shell\OpenWithBurp\command"
+    if (-not (Test-Path $customVerbCmdKey)) {
+        New-Item -Path $customVerbCmdKey -Force | Out-Null
+    }
+    Set-Item -Path (Split-Path -Parent $customVerbCmdKey) -Value "Open with Burp Suite Professional" -Force
+    Set-ItemProperty -Path (Split-Path -Parent $customVerbCmdKey) -Name "Icon" -Value "$TargetIcon,0" -Force
+    Set-Item -Path $customVerbCmdKey -Value $openCmd -Force
+
+    # Associate file extensions: .burp and .burpstate
+    $extensions = @(".burp", ".burpstate")
+    foreach ($ext in $extensions) {
+        $extKey = "HKCU:\Software\Classes\$ext"
+        if (-not (Test-Path $extKey)) {
+            New-Item -Path $extKey -Force | Out-Null
+        }
+        Set-Item -Path $extKey -Value $progId -Force
+
+        $owpKey = Join-Path $extKey "OpenWithProgids"
+        if (-not (Test-Path $owpKey)) {
+            New-Item -Path $owpKey -Force | Out-Null
+        }
+        Set-ItemProperty -Path $owpKey -Name $progId -Value ([byte[]]@()) -Force
+    }
+
+    Write-Host "      [OK] Registered file associations (.burp, .burpstate) -> $progId" -ForegroundColor Green
+} catch {
+    Write-Warning "Could not register file associations: $($_.Exception.Message)"
+}
+
+# 7F. Windows Desktop and Start Menu Shortcuts with official .ico & dedicated Keygen shortcut
 Write-Host "      Configuring Windows Start Menu Search & Desktop shortcuts..." -ForegroundColor DarkCyan
 try {
     $WshShell = New-Object -ComObject WScript.Shell
@@ -1602,51 +1863,70 @@ try {
         }
     }
 
-    $shortcutTarget = "wscript.exe"
-    $shortcutArgs = "`"$VbsPath`""
+    # Main Burp Suite Launcher target
+    # Uses wscript.exe targeting Burp-Suite-Pro.vbs to ensure completely silent GUI launch
+    # while running Burp.bat with dynamic ZGC, memory sizing, port 8080 guard, and crash handling
+    $wscriptExe = Join-Path $env:SystemRoot "System32\wscript.exe"
+    $burpShortcutTarget = if (Test-Path $wscriptExe) { $wscriptExe } else { "wscript.exe" }
+    $burpShortcutArgs = "`"$VbsPath`""
 
-    if ($javawPath) {
-        $shortcutTarget = $javawPath
-        $shortcutArgs = "-XX:+UseG1GC -XX:MaxRAMPercentage=50 -Dsun.java2d.uiScale=auto -Dawt.useSystemAAFontSettings=on -Dswing.aatext=true --add-opens=java.desktop/javax.swing=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED --add-opens=java.base/jdk.internal.org.objectweb.asm.Opcodes=ALL-UNNAMED -javaagent:`"$TargetLoader`" -jar `"$TargetJar`""
-    }
+    # Dedicated Keygen Shortcut target
+    $keygenTarget = if ($javawPath) { $javawPath }
+                    elseif ($validJava -and (Test-Path $validJava.Path)) { $validJava.Path }
+                    else { "java.exe" }
+    $keygenArgs = "-jar `"$TargetLoader`""
+    $keygenDesc = "Burp Suite Professional - Keygen and Loader Utility"
 
     function Create-AppShortcut {
         param (
             [string]$Directory,
             [string]$Name,
-            [string]$Description
+            [string]$Description,
+            [string]$CustomTarget = $null,
+            [string]$CustomArgs = $null,
+            [string]$CustomIcon = $null
         )
         if (-not (Test-Path $Directory)) { return }
         $lnkPath = Join-Path $Directory "$Name.lnk"
         $sc = $WshShell.CreateShortcut($lnkPath)
-        $sc.TargetPath = $shortcutTarget
-        $sc.Arguments = $shortcutArgs
+        $sc.TargetPath = if ($CustomTarget) { $CustomTarget } else { $burpShortcutTarget }
+        $sc.Arguments = if ($null -ne $CustomArgs) { $CustomArgs } else { $burpShortcutArgs }
         $sc.WorkingDirectory = $InstallDir
         $sc.Description = $Description
         $sc.WindowStyle = 1
-        if (Test-Path $TargetIcon) {
-            $sc.IconLocation = "$TargetIcon,0"
+        $iconToUse = if ($CustomIcon) { $CustomIcon } else { $TargetIcon }
+        if (Test-Path $iconToUse) {
+            $sc.IconLocation = "$iconToUse,0"
         }
         $sc.Save()
         Write-Host "      [OK] Shortcut ready: $lnkPath" -ForegroundColor Green
     }
 
-    # Desktop Shortcut
     $DesktopFolder = [Environment]::GetFolderPath("Desktop")
-    Create-AppShortcut -Directory $DesktopFolder -Name "Burp Suite Professional" -Description "Burp Suite Professional - Web Application Security Testing"
-
-    # Start Menu Programs (Enables Windows Key -> Search "Burp Suite Pro" / "Burp Suite Professional")
     $ProgramsFolder = [Environment]::GetFolderPath("Programs")
+    $CommonPrograms = [Environment]::GetFolderPath("CommonPrograms")
+
+    # Main Application Shortcuts
+    Create-AppShortcut -Directory $DesktopFolder -Name "Burp Suite Professional" -Description "Burp Suite Professional - Web Application Security Testing"
     Create-AppShortcut -Directory $ProgramsFolder -Name "Burp Suite Professional" -Description "Burp Suite Professional - Web Application Security Testing"
     Create-AppShortcut -Directory $ProgramsFolder -Name "Burp Suite Pro" -Description "Burp Suite Professional - Web Application Security Testing"
 
-    $CommonPrograms = [Environment]::GetFolderPath("CommonPrograms")
     if (Test-Path $CommonPrograms) {
         Create-AppShortcut -Directory $CommonPrograms -Name "Burp Suite Professional" -Description "Burp Suite Professional - Web Application Security Testing"
         Create-AppShortcut -Directory $CommonPrograms -Name "Burp Suite Pro" -Description "Burp Suite Professional - Web Application Security Testing"
     }
 
-    # Refresh Windows Shell & Icon Cache so Search indexes it immediately
+    # Dedicated Keygen Shortcuts
+    Create-AppShortcut -Directory $DesktopFolder -Name "Burp Suite Keygen" -Description $keygenDesc -CustomTarget $keygenTarget -CustomArgs $keygenArgs -CustomIcon $TargetIcon
+    Create-AppShortcut -Directory $ProgramsFolder -Name "Burp Suite Keygen" -Description $keygenDesc -CustomTarget $keygenTarget -CustomArgs $keygenArgs -CustomIcon $TargetIcon
+    Create-AppShortcut -Directory $ProgramsFolder -Name "Burp Keygen" -Description $keygenDesc -CustomTarget $keygenTarget -CustomArgs $keygenArgs -CustomIcon $TargetIcon
+
+    if (Test-Path $CommonPrograms) {
+        Create-AppShortcut -Directory $CommonPrograms -Name "Burp Suite Keygen" -Description $keygenDesc -CustomTarget $keygenTarget -CustomArgs $keygenArgs -CustomIcon $TargetIcon
+        Create-AppShortcut -Directory $CommonPrograms -Name "Burp Keygen" -Description $keygenDesc -CustomTarget $keygenTarget -CustomArgs $keygenArgs -CustomIcon $TargetIcon
+    }
+
+    # Refresh Windows Shell & Icon Cache so Search and File Associations update immediately
     try {
         $shellNotifyCode = '[System.Runtime.InteropServices.DllImport("shell32.dll")] public static extern void SHChangeNotify(int wEventId, int uFlags, IntPtr dwItem1, IntPtr dwItem2);'
         $shellNotify = Add-Type -MemberDefinition $shellNotifyCode -Name "ShellNotify" -Namespace "Win32" -PassThru -ErrorAction SilentlyContinue
@@ -1683,6 +1963,8 @@ Write-Host "===============================================================" -Fo
 Write-Host "Directory:   $InstallDir"
 Write-Host "Active JAR:  $JarName"
 Write-Host "Jython 2.7:  $TargetJython"
-Write-Host "Shortcut:    Desktop & Start Menu ('Burp Suite Professional')"
+Write-Host "JRuby 9.4:   $TargetJruby"
+Write-Host "Shortcut:    Desktop & Start Menu ('Burp Suite Professional' & 'Burp Suite Keygen')"
+Write-Host "File Assoc:  .burp & .burpstate (BurpSuite.Project)"
 Write-Host "CLI Command: burpsuitepro (supports --keygen, --trust-ca, --version, --path, --help)"
 Write-Host "===============================================================" -ForegroundColor Green

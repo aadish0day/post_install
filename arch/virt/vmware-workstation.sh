@@ -78,4 +78,28 @@ fi
 log "Loading VMware kernel modules..."
 sudo modprobe -a vmw_vmci vmmon vmnet 2>/dev/null || true
 
+# 5. Wayland Compatibility
+log "Configuring Wayland compatibility..."
+if [ -f /etc/conf.d/vmware ]; then
+    if ! grep -q "GDK_BACKEND=x11" /etc/conf.d/vmware; then
+        echo "export GDK_BACKEND=x11" | sudo tee -a /etc/conf.d/vmware >/dev/null
+    fi
+fi
+
+# Ensure user-level wrappers and desktop files force X11
+mkdir -p "$HOME/.local/bin" "$HOME/.local/share/applications"
+cat <<EOF > "$HOME/.local/bin/vmware"
+#!/usr/bin/env bash
+export GDK_BACKEND=x11
+exec /usr/bin/vmware "\$@"
+EOF
+chmod +x "$HOME/.local/bin/vmware"
+
+if [ -f /usr/share/applications/vmware-workstation.desktop ]; then
+    sed 's|^Exec=/usr/bin/vmware|Exec=env GDK_BACKEND=x11 /usr/bin/vmware|' \
+        /usr/share/applications/vmware-workstation.desktop > "$HOME/.local/share/applications/vmware-workstation.desktop"
+fi
+
+update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
+
 log "VMware Workstation installation and configuration complete!"
