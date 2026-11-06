@@ -263,7 +263,7 @@ Hardware auto-detection overrides profile defaults dynamically (e.g. `CFG_AMD_GP
 ## Supported Distributions & Capabilities
 
 ### 1. Arch Linux
-- **Mirrors**: Automated ranking via `reflector` with rate sorting and 30s timeout protection.
+- **Mirrors**: Automated ranking via `reflector` with regional prioritization (India, Singapore), global failover, and 60s timeout protection.
 - **Kernel Headers**: Dynamically selects `linux-headers`, `linux-lts-headers`, `linux-zen-headers`, or `linux-hardened-headers` based on `uname -r`.
 - **Base Packages**: Clean package manifest in `arch/packages.txt` verified against official Arch Linux repositories.
 - **AUR Helper**: Installs `paru` (or `yay`) with automated compilation fallback and inter-helper failover (`paru` falls back to `yay`, and vice versa).

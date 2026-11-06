@@ -49,13 +49,71 @@ step_arch_aur_helper() {
 
 step_arch_mirrors() {
     if [ "${DRY_RUN_MODE:-false}" = true ]; then return 0; fi
+
+    if [ -f /etc/pacman.d/mirrorlist ]; then
+        log "Backing up current mirrorlist to /etc/pacman.d/mirrorlist.bak..."
+        sudo cp -f /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.bak 2>/dev/null || true
+        # Clean known dead/timing out mirrors to prevent hanging transactions
+        sudo sed -i '/ftp.myrveln.se/d' /etc/pacman.d/mirrorlist 2>/dev/null || true
+    fi
+
+    if ! command -v reflector &>/dev/null; then
+        log "Reflector not found, attempting installation..."
+        sudo pacman -S --needed reflector --noconfirm 2>/dev/null || {
+            warn "Could not install reflector via pacman; falling back to direct mirrorlist retrieval."
+        }
+    fi
+
+    local ranked=false
+    if command -v reflector &>/dev/null; then
+        log "Ranking fastest regional HTTPS mirrors (India, Singapore) via reflector..."
+        if timeout 60s sudo reflector --latest 20 --fastest 5 --protocol https \
+            --connection-timeout 5 --download-timeout 5 --threads 8 \
+            --country India,Singapore --sort rate --save /etc/pacman.d/mirrorlist 2>/dev/null; then
+            if [ -s /etc/pacman.d/mirrorlist ] && grep -q "^Server" /etc/pacman.d/mirrorlist; then
+                log "Successfully ranked regional mirrors."
+                ranked=true
+            fi
+        fi
+
+        if [ "$ranked" = false ]; then
+            warn "Regional reflector search timed out or returned no mirrors; falling back to global fastest mirrors..."
+            if timeout 60s sudo reflector --latest 20 --fastest 5 --protocol https \
+                --connection-timeout 5 --download-timeout 5 --threads 8 \
+                --sort rate --save /etc/pacman.d/mirrorlist 2>/dev/null; then
+                if [ -s /etc/pacman.d/mirrorlist ] && grep -q "^Server" /etc/pacman.d/mirrorlist; then
+                    log "Successfully ranked global mirrors."
+                    ranked=true
+                fi
+            fi
+        fi
+    fi
+
+    if [ "$ranked" = false ]; then
+        warn "Reflector unavailable or failed; fetching verified active mirrors from archlinux.org..."
+        local tmp_mirrorlist
+        tmp_mirrorlist="$(mktemp 2>/dev/null || echo "/tmp/mirrorlist.$$")"
+        if curl -fsSL "https://archlinux.org/mirrorlist/?country=IN&country=SG&protocol=https&ip_version=4&use_mirror_status=on" > "$tmp_mirrorlist" 2>/dev/null && grep -q "^#Server" "$tmp_mirrorlist"; then
+            sed -i 's/^#Server/Server/' "$tmp_mirrorlist"
+            sudo cp -f "$tmp_mirrorlist" /etc/pacman.d/mirrorlist
+            ranked=true
+        elif curl -fsSL "https://archlinux.org/mirrorlist/?country=all&protocol=https&ip_version=4&use_mirror_status=on" > "$tmp_mirrorlist" 2>/dev/null && grep -q "^#Server" "$tmp_mirrorlist"; then
+            sed -i 's/^#Server/Server/' "$tmp_mirrorlist"
+            head -n 30 "$tmp_mirrorlist" | sudo tee /etc/pacman.d/mirrorlist >/dev/null
+            ranked=true
+        fi
+        rm -f "$tmp_mirrorlist" 2>/dev/null || true
+    fi
+
+    if [ "$ranked" = false ]; then
+        warn "Mirrorlist update failed; restoring previous mirrorlist."
+        if [ -f /etc/pacman.d/mirrorlist.bak ]; then
+            sudo cp -f /etc/pacman.d/mirrorlist.bak /etc/pacman.d/mirrorlist
+        fi
+    fi
+
     arch_ensure_multilib
-    sudo pacman -Syu --noconfirm
-    sudo pacman -S --needed reflector --noconfirm
-    timeout 30s sudo reflector --latest 10 --fastest 5 --protocol https \
-        --connection-timeout 5 --download-timeout 5 --threads 8 \
-        --country India --sort rate --save /etc/pacman.d/mirrorlist ||
-        echo "Reflector timed out or failed; keeping existing mirrorlist."
+    log "Synchronizing package databases with updated mirrors..."
     sudo pacman -Syu --noconfirm
 }
 
@@ -232,7 +290,7 @@ build_plan_arch() {
     plan_managed_app "craft"
 
     if [ "${CFG_MIRRORS:-false}" = true ]; then
-        plan_add "Optimize Mirrorlist (Reflector India)" step_arch_mirrors
+        plan_add "Optimize Mirrorlist (Reflector)" step_arch_mirrors
     fi
 
     plan_add "Install Arch Base Packages & Utilities" step_arch_base_pkgs

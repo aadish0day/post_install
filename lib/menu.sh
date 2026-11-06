@@ -23,7 +23,7 @@ MENU_ROWS=(
     "prod|@prod|multi|CFG_PROD_APPS|arch debian fedora|menu_badge_prod"
     "craft|ArtCraft Suite (AppMan & 5 Apps)|toggle|CFG_CRAFT|arch debian fedora kali|menu_badge_craft"
     "aur|AUR Helper Selection|choice|CFG_AUR|arch|menu_badge_aur"
-    "mirrors|Mirror Optimization (Reflector India)|toggle|CFG_MIRRORS|arch|menu_badge_mirrors"
+    "mirrors|Mirror Optimization (Reflector)|toggle|CFG_MIRRORS|arch|menu_badge_mirrors"
     "kali_meta|Kali Metapackages|choice|CFG_KALI_META|kali|menu_badge_kali_meta"
     "wifi|Realtek WiFi Driver (RTL8821AU)|toggle|CFG_KALI_WIFI|kali|menu_badge_wifi"
     "advcpmv|Advanced Copy (advcpmv progress bar)|toggle|CFG_ADVCPMV|kali|menu_badge_advcpmv"
@@ -388,7 +388,7 @@ menu_badge_aur() {
 }
 
 menu_badge_mirrors() {
-    if [ "$CFG_MIRRORS" = true ]; then printf '[Yes (India)]'; else printf '[No]'; fi
+    if [ "$CFG_MIRRORS" = true ]; then printf '[Yes (Reflector)]'; else printf '[No]'; fi
 }
 
 menu_badge_kali_meta() {
