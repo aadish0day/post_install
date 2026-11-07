@@ -31,11 +31,17 @@ CHECK=0
 DO_APK=1
 for arg in "$@"; do
     case "$arg" in
-        --force) FORCE=1 ;;
-        --check) CHECK=1 ;;
-        --no-apk) DO_APK=0 ;;
-        -h|--help) sed -n '4,17p' "$0"; exit 0 ;;
-        *) echo "Unknown option: $arg"; exit 1 ;;
+    --force) FORCE=1 ;;
+    --check) CHECK=1 ;;
+    --no-apk) DO_APK=0 ;;
+    -h | --help)
+        sed -n '4,17p' "$0"
+        exit 0
+        ;;
+    *)
+        echo "Unknown option: $arg"
+        exit 1
+        ;;
     esac
 done
 
@@ -79,11 +85,11 @@ detect_kernel_headers() {
     local kver
     kver="$(uname -r)"
     case "$kver" in
-        *zen*) echo "linux-zen-headers" ;;
-        *lts*) echo "linux-lts-headers" ;;
-        *hardened*) echo "linux-hardened-headers" ;;
-        *cachyos*) echo "linux-cachyos-headers" ;;
-        *) echo "linux-headers" ;;
+    *zen*) echo "linux-zen-headers" ;;
+    *lts*) echo "linux-lts-headers" ;;
+    *hardened*) echo "linux-hardened-headers" ;;
+    *cachyos*) echo "linux-cachyos-headers" ;;
+    *) echo "linux-headers" ;;
     esac
 }
 
@@ -93,8 +99,8 @@ detect_kernel_headers() {
 # a > b ? (strips leading v)
 ver_gt() {
     local a="${1#v}" b="${2#v}"
-    [ -n "$a" ] && [ -n "$b" ] && [ "$a" != "$b" ] \
-        && [ "$(printf '%s\n%s\n' "$a" "$b" | sort -V | tail -n1)" = "$a" ]
+    [ -n "$a" ] && [ -n "$b" ] && [ "$a" != "$b" ] &&
+        [ "$(printf '%s\n%s\n' "$a" "$b" | sort -V | tail -n1)" = "$a" ]
 }
 
 # Installed Arch-side version, parsed from `uscreen --version` (e.g. "uscreen 1.2.8")
@@ -113,16 +119,16 @@ ready_serials() {
     adb devices 2>/dev/null | awk 'NR>1 && $2=="device"{print $1}'
 }
 
-tablet_pkg() {  # $1=serial -> installed uscreen package name (empty if none)
+tablet_pkg() { # $1=serial -> installed uscreen package name (empty if none)
     local pkg
     pkg="$(adb -s "$1" shell pm list packages --user 0 2>/dev/null | tr -d '\r' | sed 's/^package://' | grep -i uscreen | head -n1 || true)"
     [ -z "$pkg" ] && pkg="$(adb -s "$1" shell pm list packages 2>/dev/null | tr -d '\r' | sed 's/^package://' | grep -i uscreen | head -n1 || true)"
     echo "$pkg"
 }
 
-tablet_version() {  # $1=serial $2=package -> versionName
-    adb -s "$1" shell dumpsys package "$2" 2>/dev/null | tr -d '\r' \
-        | awk -F= '/versionName=/{print $2; exit}' || true
+tablet_version() { # $1=serial $2=package -> versionName
+    adb -s "$1" shell dumpsys package "$2" 2>/dev/null | tr -d '\r' |
+        awk -F= '/versionName=/{print $2; exit}' || true
 }
 
 # ----------------------------------------------------------------------------
@@ -249,7 +255,7 @@ configure_evdi() {
 
     # Set initial_device_count=2 and initial_loglevel=2 (ERROR level only).
     # This silences the continuous 4Hz grabpix/update_request warning spam.
-    cat << 'EOF' | sudo tee /etc/modprobe.d/uscreen-evdi.conf >/dev/null
+    cat <<'EOF' | sudo tee /etc/modprobe.d/uscreen-evdi.conf >/dev/null
 # Configured for UScreen
 # Log levels: 1=FATAL, 2=ERROR, 3=WARN, 4=INFO (default), 5=DEBUG, 6=VERBOSE
 options evdi initial_device_count=2 initial_loglevel=2
@@ -285,7 +291,7 @@ configure_uinput() {
     log "Configuring uinput permissions for tablet pen and touch input..."
 
     sudo mkdir -p /etc/udev/rules.d
-    cat << 'EOF' | sudo tee /etc/udev/rules.d/60-uscreen-uinput.rules >/dev/null
+    cat <<'EOF' | sudo tee /etc/udev/rules.d/60-uscreen-uinput.rules >/dev/null
 KERNEL=="uinput", SUBSYSTEM=="misc", TAG+="uaccess", OPTIONS+="static_node=uinput"
 EOF
 
@@ -376,7 +382,7 @@ install_uscreen_binaries() {
 
         # Install desktop launcher with explicit full path
         if [ -f "$extracted_dir/scripts/uscreen.desktop" ]; then
-            sed "s|^Exec=.*|Exec=$bin_dir/uscreen-gui|" "$extracted_dir/scripts/uscreen.desktop" > "$app_dir/uscreen.desktop"
+            sed "s|^Exec=.*|Exec=$bin_dir/uscreen-gui|" "$extracted_dir/scripts/uscreen.desktop" >"$app_dir/uscreen.desktop"
         fi
 
         # Install systemd user service
@@ -390,7 +396,7 @@ install_uscreen_binaries() {
             cp -f "$extracted_dir/packaging/icons/"*.svg "$icon_dir/" 2>/dev/null || true
         fi
 
-        [ -n "$LATEST_TAG" ] && echo "$LATEST_TAG" > "$STATE_DIR/installed-version"
+        [ -n "$LATEST_TAG" ] && echo "$LATEST_TAG" >"$STATE_DIR/installed-version"
 
         if [ "$was_active" -eq 1 ]; then
             log "Restarting uscreen user service..."
@@ -493,8 +499,8 @@ update_tablet_apk() {
             [ -d "$setup_dir" ] && cp -f "$apk_tmp" "$setup_dir/uscreen.apk" 2>/dev/null || true
         else
             warn "[$serial] Streamed install failed, trying fallback adb push..."
-            if adb -s "$serial" push "$apk_tmp" /data/local/tmp/uscreen.apk 2>/dev/null && \
-               adb -s "$serial" shell pm install -r -d /data/local/tmp/uscreen.apk 2>/dev/null; then
+            if adb -s "$serial" push "$apk_tmp" /data/local/tmp/uscreen.apk 2>/dev/null &&
+                adb -s "$serial" shell pm install -r -d /data/local/tmp/uscreen.apk 2>/dev/null; then
                 adb -s "$serial" shell rm -f /data/local/tmp/uscreen.apk 2>/dev/null || true
                 log "[$serial] Tablet APK installed successfully via fallback push!"
             else
@@ -502,7 +508,7 @@ update_tablet_apk() {
                 warn "[$serial] Manual install: $APK_URL"
             fi
         fi
-    done <<< "$serials"
+    done <<<"$serials"
 }
 
 # ADB reverse ports (runtime config, cheap; runs every time a tablet is attached)

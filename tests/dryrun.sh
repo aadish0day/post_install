@@ -9,12 +9,12 @@ trap 'rm -rf "$STUB_DIR"' EXIT
 
 FORBIDDEN_CMDS=(sudo pacman apt apt-get nala dnf git curl wget rm systemctl)
 for cmd in "${FORBIDDEN_CMDS[@]}"; do
-    cat <<STUB > "$STUB_DIR/$cmd"
+    cat <<STUB >"$STUB_DIR/$cmd"
 #!/usr/bin/env bash
 echo "FORBIDDEN: $cmd called with: \$*" >&2
 exit 99
 STUB
-chmod +x "$STUB_DIR/$cmd"
+    chmod +x "$STUB_DIR/$cmd"
 done
 
 DISTROS=(arch debian fedora kali termux)
@@ -23,7 +23,7 @@ FAILED=0
 for d in "${DISTROS[@]}"; do
     echo "[TEST] Running dry-run for distro: $d"
     OUTPUT_FILE="$(mktemp)"
-    if ! PATH="$STUB_DIR:$PATH" ./install.sh --dry-run --distro "$d" > "$OUTPUT_FILE" 2>&1; then
+    if ! PATH="$STUB_DIR:$PATH" ./install.sh --dry-run --distro "$d" >"$OUTPUT_FILE" 2>&1; then
         echo "[FAIL] Distro $d failed with non-zero exit code"
         cat "$OUTPUT_FILE"
         FAILED=1

@@ -13,7 +13,10 @@ usage() {
 ARCHIVE="$1"
 DEST="${2:-$HOME}"
 
-[ -f "$ARCHIVE" ] || { echo "error: $ARCHIVE not found"; exit 1; }
+[ -f "$ARCHIVE" ] || {
+    echo "error: $ARCHIVE not found"
+    exit 1
+}
 
 mkdir -p "$DEST"
 unzip -o "$ARCHIVE" -d "$DEST"

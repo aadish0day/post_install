@@ -35,9 +35,9 @@ pacman_install_safe() {
         db_stale=true
     else
         local db_age
-        db_age=$(( $(date +%s) - $(stat -c %Y "$sync_db" 2>/dev/null || echo 0) ))
+        db_age=$(($(date +%s) - $(stat -c %Y "$sync_db" 2>/dev/null || echo 0)))
         # If older than 7 days (604800s) on Arch rolling release, mirrors likely pruned packages
-        if (( db_age > 604800 )); then
+        if ((db_age > 604800)); then
             db_stale=true
         fi
     fi

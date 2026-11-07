@@ -58,7 +58,7 @@ build_plan_kali() {
 
     local -a burp_args=(--skip-launch)
     case "${CFG_BURP_CHANNEL:-}" in
-        stable|latest) burp_args+=(--channel "$CFG_BURP_CHANNEL") ;;
+    stable | latest) burp_args+=(--channel "$CFG_BURP_CHANNEL") ;;
     esac
     if [ "${CFG_SECURITY_BURP:-false}" = true ] && [ -f "$distro_dir/apps/burp/install.sh" ]; then
         plan_add "Setup Burp Suite Professional (kali/apps/burp/install.sh)" run_module "kali/apps/burp/install.sh" "${burp_args[@]}"

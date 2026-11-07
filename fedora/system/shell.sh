@@ -24,7 +24,7 @@ elif is_simulate; then
     log "[simulate] would change default shell to $ZSH_PATH"
 elif [ ! -t 0 ]; then
     log "Changing default shell to zsh (non-interactive)..."
-    $SUDO usermod -s "$ZSH_PATH" "$(id -un)" 2>/dev/null || chsh -s "$ZSH_PATH" < /dev/null 2>/dev/null || warn "Could not change shell; run: chsh -s $ZSH_PATH"
+    $SUDO usermod -s "$ZSH_PATH" "$(id -un)" 2>/dev/null || chsh -s "$ZSH_PATH" </dev/null 2>/dev/null || warn "Could not change shell; run: chsh -s $ZSH_PATH"
 else
     log "Changing default shell to zsh..."
     $SUDO usermod -s "$ZSH_PATH" "$(id -un)" 2>/dev/null || chsh -s "$ZSH_PATH" || warn "chsh failed; run: chsh -s $ZSH_PATH"

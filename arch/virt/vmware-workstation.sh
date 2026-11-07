@@ -14,9 +14,9 @@ log "Starting VMware Workstation setup on Arch Linux..."
 log "Installing linux headers and essential build dependencies..."
 kheaders="linux-headers"
 case "$(uname -r 2>/dev/null)" in
-    *-lts*)      kheaders="linux-lts-headers" ;;
-    *-zen*)      kheaders="linux-zen-headers" ;;
-    *-hardened*) kheaders="linux-hardened-headers" ;;
+*-lts*) kheaders="linux-lts-headers" ;;
+*-zen*) kheaders="linux-zen-headers" ;;
+*-hardened*) kheaders="linux-hardened-headers" ;;
 esac
 sudo pacman -S --needed --noconfirm "$kheaders" base-devel dkms fuse2 gtkmm3 pcsclite libcanberra
 
@@ -88,7 +88,7 @@ fi
 
 # Ensure user-level wrappers and desktop files force X11
 mkdir -p "$HOME/.local/bin" "$HOME/.local/share/applications"
-cat <<EOF > "$HOME/.local/bin/vmware"
+cat <<EOF >"$HOME/.local/bin/vmware"
 #!/usr/bin/env bash
 export GDK_BACKEND=x11
 exec /usr/bin/vmware "\$@"
@@ -97,7 +97,7 @@ chmod +x "$HOME/.local/bin/vmware"
 
 if [ -f /usr/share/applications/vmware-workstation.desktop ]; then
     sed 's|^Exec=/usr/bin/vmware|Exec=env GDK_BACKEND=x11 /usr/bin/vmware|' \
-        /usr/share/applications/vmware-workstation.desktop > "$HOME/.local/share/applications/vmware-workstation.desktop"
+        /usr/share/applications/vmware-workstation.desktop >"$HOME/.local/share/applications/vmware-workstation.desktop"
 fi
 
 update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true

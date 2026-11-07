@@ -9,7 +9,7 @@ step_debian_productivity() {
 
 debian_needs_pacstall() {
     case "${CFG_DESKTOP:-none}" in
-        kde | i3 | bspwm | tiling | both) return 0 ;;
+    kde | i3 | bspwm | tiling | both) return 0 ;;
     esac
 
     [ "${CFG_GAMING:-false}" = true ] && return 0
@@ -18,7 +18,7 @@ debian_needs_pacstall() {
         local tool
         for tool in ${CFG_CODING_TOOLS[@]+"${CFG_CODING_TOOLS[@]}"}; do
             case "$tool" in
-                vscode | android_studio) return 0 ;;
+            vscode | android_studio) return 0 ;;
             esac
         done
     fi
@@ -27,7 +27,7 @@ debian_needs_pacstall() {
         local app
         for app in ${CFG_PROD_APPS[@]+"${CFG_PROD_APPS[@]}"}; do
             case "$app" in
-                ani_cli | anydesk | thorium | zen | vesktop | obsidian) return 0 ;;
+            ani_cli | anydesk | thorium | zen | vesktop | obsidian) return 0 ;;
             esac
         done
     fi
@@ -49,7 +49,7 @@ debian_needs_flatpak() {
         local app
         for app in ${CFG_PROD_APPS[@]+"${CFG_PROD_APPS[@]}"}; do
             case "$app" in
-                zen | obsidian | localsend) return 0 ;;
+            zen | obsidian | localsend) return 0 ;;
             esac
         done
     fi
@@ -143,7 +143,7 @@ build_plan_debian() {
 
     local -a burp_args=(--skip-launch)
     case "${CFG_BURP_CHANNEL:-}" in
-        stable|latest) burp_args+=(--channel "$CFG_BURP_CHANNEL") ;;
+    stable | latest) burp_args+=(--channel "$CFG_BURP_CHANNEL") ;;
     esac
     if [ "${CFG_SECURITY_BURP:-false}" = true ] && [ -f "$distro_dir/apps/burp/install.sh" ]; then
         plan_add "Setup Burp Suite Professional (debian/apps/burp/install.sh)" run_module "debian/apps/burp/install.sh" "${burp_args[@]}"

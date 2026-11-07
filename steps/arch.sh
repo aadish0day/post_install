@@ -5,10 +5,10 @@ arch_kernel_headers() {
     local kver
     kver="$(uname -r 2>/dev/null || echo "")"
     case "$kver" in
-        *-lts*) echo "linux-lts-headers" ;;
-        *-zen*) echo "linux-zen-headers" ;;
-        *-hardened*) echo "linux-hardened-headers" ;;
-        *) echo "linux-headers" ;;
+    *-lts*) echo "linux-lts-headers" ;;
+    *-zen*) echo "linux-zen-headers" ;;
+    *-hardened*) echo "linux-hardened-headers" ;;
+    *) echo "linux-headers" ;;
     esac
 }
 
@@ -93,11 +93,11 @@ step_arch_mirrors() {
         warn "Reflector unavailable or failed; fetching verified active mirrors from archlinux.org..."
         local tmp_mirrorlist
         tmp_mirrorlist="$(mktemp 2>/dev/null || echo "/tmp/mirrorlist.$$")"
-        if curl -fsSL "https://archlinux.org/mirrorlist/?country=IN&country=SG&protocol=https&ip_version=4&use_mirror_status=on" > "$tmp_mirrorlist" 2>/dev/null && grep -q "^#Server" "$tmp_mirrorlist"; then
+        if curl -fsSL "https://archlinux.org/mirrorlist/?country=IN&country=SG&protocol=https&ip_version=4&use_mirror_status=on" >"$tmp_mirrorlist" 2>/dev/null && grep -q "^#Server" "$tmp_mirrorlist"; then
             sed -i 's/^#Server/Server/' "$tmp_mirrorlist"
             sudo cp -f "$tmp_mirrorlist" /etc/pacman.d/mirrorlist
             ranked=true
-        elif curl -fsSL "https://archlinux.org/mirrorlist/?country=all&protocol=https&ip_version=4&use_mirror_status=on" > "$tmp_mirrorlist" 2>/dev/null && grep -q "^#Server" "$tmp_mirrorlist"; then
+        elif curl -fsSL "https://archlinux.org/mirrorlist/?country=all&protocol=https&ip_version=4&use_mirror_status=on" >"$tmp_mirrorlist" 2>/dev/null && grep -q "^#Server" "$tmp_mirrorlist"; then
             sed -i 's/^#Server/Server/' "$tmp_mirrorlist"
             head -n 30 "$tmp_mirrorlist" | sudo tee /etc/pacman.d/mirrorlist >/dev/null
             ranked=true
@@ -156,16 +156,16 @@ step_arch_coding() {
     local t
     for t in "${coding_tools[@]}"; do
         case "$t" in
-            neovim) pacman_pkgs+=("neovim") ;;
-            vscode) pkgs+=("visual-studio-code-bin") ;;
-            cursor) pkgs+=("cursor-bin") ;;
-            claude_code) pkgs+=("claude-code") ;;
-            android_studio) pkgs+=("android-studio") ;;
-            flutter)
-                pkgs+=("flutter-bin")
-                run_flutter=true
-                ;;
-            antigravity) pkgs+=("antigravity-cli" "antigravity-ide") ;;
+        neovim) pacman_pkgs+=("neovim") ;;
+        vscode) pkgs+=("visual-studio-code-bin") ;;
+        cursor) pkgs+=("cursor-bin") ;;
+        claude_code) pkgs+=("claude-code") ;;
+        android_studio) pkgs+=("android-studio") ;;
+        flutter)
+            pkgs+=("flutter-bin")
+            run_flutter=true
+            ;;
+        antigravity) pkgs+=("antigravity-cli" "antigravity-ide") ;;
         esac
     done
 
@@ -213,17 +213,17 @@ step_arch_prod_apps() {
     local p
     for p in "${prod_apps[@]}"; do
         case "$p" in
-            thorium) need_thorium=true ;;
-            zen) prod_pkgs+=("zen-browser-bin") ;;
-            vesktop) prod_pkgs+=("vesktop-bin") ;;
-            localsend) prod_pkgs+=("localsend-bin") ;;
-            anydesk) prod_pkgs+=("anydesk-bin") ;;
-            obsidian) prod_pkgs+=("obsidian") ;;
-            markitdown) prod_pkgs+=("markitdown-bin") ;;
-            gallery_dl) prod_pkgs+=("gallery-dl-bin") ;;
-            ani_cli) prod_pkgs+=("ani-cli") ;;
-            advcpmv) prod_pkgs+=("advcpmv") ;;
-            libreoffice) prod_pkgs+=("libreoffice-fresh") ;;
+        thorium) need_thorium=true ;;
+        zen) prod_pkgs+=("zen-browser-bin") ;;
+        vesktop) prod_pkgs+=("vesktop-bin") ;;
+        localsend) prod_pkgs+=("localsend-bin") ;;
+        anydesk) prod_pkgs+=("anydesk-bin") ;;
+        obsidian) prod_pkgs+=("obsidian") ;;
+        markitdown) prod_pkgs+=("markitdown-bin") ;;
+        gallery_dl) prod_pkgs+=("gallery-dl-bin") ;;
+        ani_cli) prod_pkgs+=("ani-cli") ;;
+        advcpmv) prod_pkgs+=("advcpmv") ;;
+        libreoffice) prod_pkgs+=("libreoffice-fresh") ;;
         esac
     done
 
@@ -252,7 +252,7 @@ step_arch_services_shell() {
     current_shell="$(getent passwd "$target_user" 2>/dev/null | cut -d: -f7)"
     if [ -n "$zsh_bin" ] && [ -n "$target_user" ] && [ "$current_shell" != "$zsh_bin" ]; then
         if [ "$(realpath "$current_shell" 2>/dev/null)" != "$(realpath "$zsh_bin" 2>/dev/null)" ]; then
-            sudo usermod -s "$zsh_bin" "$target_user" 2>/dev/null || chsh -s "$zsh_bin" "$target_user" < /dev/null 2>/dev/null || true
+            sudo usermod -s "$zsh_bin" "$target_user" 2>/dev/null || chsh -s "$zsh_bin" "$target_user" </dev/null 2>/dev/null || true
         fi
     fi
 }
@@ -263,7 +263,7 @@ arch_needs_aur() {
         local tool
         for tool in "${CFG_CODING_TOOLS[@]}"; do
             case "$tool" in
-                vscode | cursor | claude_code | android_studio | flutter | antigravity) return 0 ;;
+            vscode | cursor | claude_code | android_studio | flutter | antigravity) return 0 ;;
             esac
         done
     fi

@@ -19,9 +19,9 @@ ALL_TOOLS=(neovim vscode cursor claude_code android_studio flutter antigravity)
 TOOLS=("$@")
 [ ${#TOOLS[@]} -eq 0 ] && TOOLS=("${ALL_TOOLS[@]}")
 
-    install_neovim() {
-        dnf_install neovim python3-neovim
-    }
+install_neovim() {
+    dnf_install neovim python3-neovim
+}
 
 install_vscode() {
     if rpm -q code &>/dev/null; then
@@ -139,11 +139,11 @@ install_claude_code() {
 
 for tool in "${TOOLS[@]}"; do
     case "$tool" in
-        neovim | vscode | cursor | claude_code | android_studio | flutter | antigravity)
-            log "=== $tool ==="
-            "install_$tool"
-            ;;
-        *) warn "Unknown tool '$tool' (valid: ${ALL_TOOLS[*]})" ;;
+    neovim | vscode | cursor | claude_code | android_studio | flutter | antigravity)
+        log "=== $tool ==="
+        "install_$tool"
+        ;;
+    *) warn "Unknown tool '$tool' (valid: ${ALL_TOOLS[*]})" ;;
     esac
 done
 

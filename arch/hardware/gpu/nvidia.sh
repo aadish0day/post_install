@@ -52,9 +52,9 @@ install_drivers() {
     fi
     local kheaders="linux-headers"
     case "$(uname -r 2>/dev/null)" in
-        *-lts*)      kheaders="linux-lts-headers" ;;
-        *-zen*)      kheaders="linux-zen-headers" ;;
-        *-hardened*) kheaders="linux-hardened-headers" ;;
+    *-lts*) kheaders="linux-lts-headers" ;;
+    *-zen*) kheaders="linux-zen-headers" ;;
+    *-hardened*) kheaders="linux-hardened-headers" ;;
     esac
     pacman -S --noconfirm --needed \
         linux-firmware "$kheaders" "$dkms_pkg" nvidia-utils lib32-nvidia-utils \

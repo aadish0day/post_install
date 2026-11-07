@@ -15,10 +15,10 @@ BLUE='\033[0;34m'
 BOLD='\033[1m'
 NC='\033[0m'
 
-log_info()    { echo -e "${BLUE}[*]${NC} $*"; }
+log_info() { echo -e "${BLUE}[*]${NC} $*"; }
 log_success() { echo -e "${GREEN}[✔]${NC} $*"; }
-log_warn()    { echo -e "${YELLOW}[!]${NC} $*"; }
-log_error()   { echo -e "${RED}[✘]${NC} $*"; }
+log_warn() { echo -e "${YELLOW}[!]${NC} $*"; }
+log_error() { echo -e "${RED}[✘]${NC} $*"; }
 
 # ----------------------------------------------------------------------------
 # 1. Elevation check: if not root, escalate using 'su'
@@ -74,7 +74,7 @@ export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${PATH
 PATH_FIX_FILE="/etc/profile.d/00-default-paths.sh"
 if [ ! -f "$PATH_FIX_FILE" ]; then
     log_info "Ensuring /usr/sbin and /sbin are in default system PATH..."
-    cat << 'EOF' > "$PATH_FIX_FILE"
+    cat <<'EOF' >"$PATH_FIX_FILE"
 # Ensure administrative binaries are in user PATH
 case ":$PATH:" in
     *:/usr/local/sbin:*) ;;
@@ -119,7 +119,7 @@ log_info "Setting up sudoers configuration in $SUDOERS_FILE..."
 
 # Safe creation: standard sudo privileges for the target user
 TMP_FILE="$(mktemp)"
-cat << EOF > "$TMP_FILE"
+cat <<EOF >"$TMP_FILE"
 # Sudo privileges for ${TARGET_USER} configured by post_install
 ${TARGET_USER} ALL=(ALL:ALL) ALL
 EOF

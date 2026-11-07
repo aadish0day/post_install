@@ -42,7 +42,7 @@ else
     die "Failed to download Liquorix GPG key."
 fi
 
-echo "deb [arch=${arch} signed-by=${keyring}] https://liquorix.net/debian ${suite} main" | \
+echo "deb [arch=${arch} signed-by=${keyring}] https://liquorix.net/debian ${suite} main" |
     $SUDO tee /etc/apt/sources.list.d/liquorix.list >/dev/null
 
 apt_force_update

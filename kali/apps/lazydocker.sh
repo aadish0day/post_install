@@ -45,25 +45,25 @@ fi
 # 2. Detect Architecture
 RAW_ARCH=$(uname -m)
 case "$RAW_ARCH" in
-    x86_64|amd64)
-        ARCH="x86_64"
-        ;;
-    aarch64|arm64)
-        ARCH="arm64"
-        ;;
-    armv7*|armhf)
-        ARCH="armv7"
-        ;;
-    armv6*)
-        ARCH="armv6"
-        ;;
-    i386|i686)
-        ARCH="x86"
-        ;;
-    *)
-        error "Unsupported architecture: $RAW_ARCH"
-        exit 1
-        ;;
+x86_64 | amd64)
+    ARCH="x86_64"
+    ;;
+aarch64 | arm64)
+    ARCH="arm64"
+    ;;
+armv7* | armhf)
+    ARCH="armv7"
+    ;;
+armv6*)
+    ARCH="armv6"
+    ;;
+i386 | i686)
+    ARCH="x86"
+    ;;
+*)
+    error "Unsupported architecture: $RAW_ARCH"
+    exit 1
+    ;;
 esac
 log "Detected architecture: $ARCH ($RAW_ARCH)"
 
@@ -134,9 +134,9 @@ fi
 for rcfile in "${RC_FILES[@]}"; do
     if [ -f "$rcfile" ]; then
         if ! grep -q "alias lzd=" "$rcfile"; then
-            echo "" >> "$rcfile"
-            echo "# Lazydocker CLI alias" >> "$rcfile"
-            echo "alias lzd='lazydocker'" >> "$rcfile"
+            echo "" >>"$rcfile"
+            echo "# Lazydocker CLI alias" >>"$rcfile"
+            echo "alias lzd='lazydocker'" >>"$rcfile"
             log "Added 'lzd' alias to $rcfile"
         fi
     fi

@@ -52,9 +52,9 @@ stanza_len = 0
 is_security = 0
 }
 }
-' /etc/apt/sources.list.d/debian.sources > "$tmp_sources"
-$SUDO cp "$tmp_sources" /etc/apt/sources.list.d/debian.sources
-rm -f "$tmp_sources"
+' /etc/apt/sources.list.d/debian.sources >"$tmp_sources"
+        $SUDO cp "$tmp_sources" /etc/apt/sources.list.d/debian.sources
+        rm -f "$tmp_sources"
     fi
 
     if [ -f /etc/apt/sources.list ] && grep -qE '^deb .*debian' /etc/apt/sources.list; then

@@ -138,29 +138,29 @@ detect_system() {
         . /etc/os-release
         DISTRO_NAME="${PRETTY_NAME:-${NAME:-Linux}}"
         case "${ID:-}" in
-            kali) DETECTED_DISTRO="kali" ;;
-            arch | manjaro | endeavouros | garuda | artix | cachyos) DETECTED_DISTRO="arch" ;;
-            fedora | rhel | centos | rocky | almalinux | nobara) DETECTED_DISTRO="fedora" ;;
-            debian | ubuntu | pop | linuxmint | elementary | raspbian) DETECTED_DISTRO="debian" ;;
-            *)
-                DETECTED_DISTRO="unknown"
-                for like in ${ID_LIKE:-}; do
-                    case "$like" in
-                        arch)
-                            DETECTED_DISTRO="arch"
-                            break
-                            ;;
-                        fedora | rhel)
-                            DETECTED_DISTRO="fedora"
-                            break
-                            ;;
-                        debian | ubuntu)
-                            DETECTED_DISTRO="debian"
-                            break
-                            ;;
-                    esac
-                done
-                ;;
+        kali) DETECTED_DISTRO="kali" ;;
+        arch | manjaro | endeavouros | garuda | artix | cachyos) DETECTED_DISTRO="arch" ;;
+        fedora | rhel | centos | rocky | almalinux | nobara) DETECTED_DISTRO="fedora" ;;
+        debian | ubuntu | pop | linuxmint | elementary | raspbian) DETECTED_DISTRO="debian" ;;
+        *)
+            DETECTED_DISTRO="unknown"
+            for like in ${ID_LIKE:-}; do
+                case "$like" in
+                arch)
+                    DETECTED_DISTRO="arch"
+                    break
+                    ;;
+                fedora | rhel)
+                    DETECTED_DISTRO="fedora"
+                    break
+                    ;;
+                debian | ubuntu)
+                    DETECTED_DISTRO="debian"
+                    break
+                    ;;
+                esac
+            done
+            ;;
         esac
     else
         DETECTED_DISTRO="unknown"
@@ -264,7 +264,6 @@ set_distro_defaults() {
 
 set_distro_defaults
 
-
 is_nvim_targeted() {
     # 1. Neovim is already installed on the host
     command -v nvim >/dev/null 2>&1 && return 0
@@ -286,11 +285,11 @@ build_plan() {
     plan_init
 
     case "$TARGET_DISTRO" in
-        arch) build_plan_arch ;;
-        kali) build_plan_kali ;;
-        debian) build_plan_debian ;;
-        fedora) build_plan_fedora ;;
-        termux) build_plan_termux ;;
+    arch) build_plan_arch ;;
+    kali) build_plan_kali ;;
+    debian) build_plan_debian ;;
+    fedora) build_plan_fedora ;;
+    termux) build_plan_termux ;;
     esac
 
     # Universal steps for all desktop distributions
@@ -319,148 +318,148 @@ run_execution_plan() {
     build_plan
 
     local total_steps=${#PLAN_TITLES[@]}
-        if [ "$total_steps" -eq 0 ]; then
-            log_warn "No steps planned for execution."
-            return 0
-        fi
+    if [ "$total_steps" -eq 0 ]; then
+        log_warn "No steps planned for execution."
+        return 0
+    fi
 
-        if [ "$TERM" != "dumb" ]; then clear 2>/dev/null || true; fi
-        echo -e "${BOLD}${CYAN}============================================================${NC}"
-        echo -e "${BOLD}${CYAN} POST-INSTALLATION SUITE - ARCHINSTALL PURE BASH RUNNER     ${NC}"
-        echo -e "${BOLD}${CYAN}============================================================${NC}"
-        echo -e " Target Distribution: ${BOLD}${DISTRO_NAME}${NC} (${TARGET_DISTRO})"
-        echo -e " Hostname / User:     ${SYS_HOSTNAME} (${SYS_USER})"
-        echo -e " CPU / GPU:           ${CPU_MODEL} | AMD:${HAS_AMD_GPU} NV:${HAS_NVIDIA_GPU} Intel:${HAS_INTEL_GPU}"
-        echo -e " Mode:                $([ "$dry_run" = true ] && echo -e "${YELLOW}DRY-RUN (Simulation)${NC}" || echo -e "${GREEN}LIVE EXECUTION${NC}")"
-        echo -e "${BOLD}${CYAN}============================================================${NC}"
-        echo ""
-        echo -e "${BOLD}Planned Steps (${total_steps} total):${NC}"
-        local i
-        for ((i = 0; i < total_steps; i++)); do
-            printf "  %2d. %s\n" "$((i + 1))" "${PLAN_TITLES[i]}"
-            if [ "$dry_run" = true ]; then
-                local step_fn="${PLAN_FNS[i]}"
-                local -a step_args=()
-                if [ -n "${PLAN_ARGS[i]}" ]; then
-                    IFS=$'\x1f' read -r -d '' -a step_args < <(printf "%s\0" "${PLAN_ARGS[i]}")
-                fi
-                if [ ${#step_args[@]} -gt 0 ]; then
-                    printf "      fn: %s %s\n" "$step_fn" "${step_args[*]}"
-                else
-                    printf "      fn: %s\n" "$step_fn"
-                fi
-            fi
-        done
-        echo ""
-
+    if [ "$TERM" != "dumb" ]; then clear 2>/dev/null || true; fi
+    echo -e "${BOLD}${CYAN}============================================================${NC}"
+    echo -e "${BOLD}${CYAN} POST-INSTALLATION SUITE - ARCHINSTALL PURE BASH RUNNER     ${NC}"
+    echo -e "${BOLD}${CYAN}============================================================${NC}"
+    echo -e " Target Distribution: ${BOLD}${DISTRO_NAME}${NC} (${TARGET_DISTRO})"
+    echo -e " Hostname / User:     ${SYS_HOSTNAME} (${SYS_USER})"
+    echo -e " CPU / GPU:           ${CPU_MODEL} | AMD:${HAS_AMD_GPU} NV:${HAS_NVIDIA_GPU} Intel:${HAS_INTEL_GPU}"
+    echo -e " Mode:                $([ "$dry_run" = true ] && echo -e "${YELLOW}DRY-RUN (Simulation)${NC}" || echo -e "${GREEN}LIVE EXECUTION${NC}")"
+    echo -e "${BOLD}${CYAN}============================================================${NC}"
+    echo ""
+    echo -e "${BOLD}Planned Steps (${total_steps} total):${NC}"
+    local i
+    for ((i = 0; i < total_steps; i++)); do
+        printf "  %2d. %s\n" "$((i + 1))" "${PLAN_TITLES[i]}"
         if [ "$dry_run" = true ]; then
-            log_success "Dry run complete! (0 commands executed)"
-            return 0
-        fi
-
-        # Keep sudo alive during the plan
-        local sudo_pid=""
-        if [ "$TARGET_DISTRO" != "termux" ]; then
-            if [ "$(id -u)" -ne 0 ]; then
-                log_info "Acquiring sudo credentials for installation..."
-                if ! sudo -v; then
-                    if [ "$TARGET_DISTRO" = "debian" ] && [ -f "$SCRIPT_DIR/debian/system/sudo.sh" ]; then
-                        log_warn "Sudo is not configured for user $USER. Launching debian/system/sudo.sh..."
-                        if "$SCRIPT_DIR/debian/system/sudo.sh" "$USER"; then
-                            log_info "Re-checking sudo credentials..."
-                            exec sudo bash "$0" "$@"
-                        fi
-                    fi
-                    log_error "Failed to acquire sudo credentials."
-                    return 1
-                fi
-            fi
-            keep_sudo_alive() {
-                while true; do
-                    sleep 50
-                    sudo -n true 2>/dev/null || true
-                done
-            }
-        keep_sudo_alive &
-        sudo_pid=$!
-        CLEANUP_PIDS+=("$sudo_pid")
-        fi
-
-        log_info "Starting execution..."
-        local start_total
-        start_total=$(date +%s)
-        local has_errors=false
-        local failed_steps=()
-
-        for ((i = 0; i < total_steps; i++)); do
-            local title="${PLAN_TITLES[i]}"
-            local fn="${PLAN_FNS[i]}"
+            local step_fn="${PLAN_FNS[i]}"
             local -a step_args=()
             if [ -n "${PLAN_ARGS[i]}" ]; then
                 IFS=$'\x1f' read -r -d '' -a step_args < <(printf "%s\0" "${PLAN_ARGS[i]}")
             fi
-            local cwd="${PLAN_CWDS[i]:-$SCRIPT_DIR}"
-            local step_num=$((i + 1))
+            if [ ${#step_args[@]} -gt 0 ]; then
+                printf "      fn: %s %s\n" "$step_fn" "${step_args[*]}"
+            else
+                printf "      fn: %s\n" "$step_fn"
+            fi
+        fi
+    done
+    echo ""
 
-            echo ""
-            log_step "[$step_num/$total_steps] $title"
-            local step_start
-            step_start=$(date +%s)
-            local exit_code=0
+    if [ "$dry_run" = true ]; then
+        log_success "Dry run complete! (0 commands executed)"
+        return 0
+    fi
 
-            (
-                cd "$cwd"
-                "$fn" "${step_args[@]}"
-                ) || exit_code=$?
-
-                local step_duration=$(($(date +%s) - step_start))
-
-                if [ "$exit_code" -eq 0 ]; then
-                    echo -e "    ${GREEN}✓ Success (${step_duration}s)${NC}"
-                else
-                    has_errors=true
-                    failed_steps+=("$title")
-                    echo -e "    ${RED}✖ FAILED: ${title} (Exit code: ${exit_code}, ${step_duration}s)${NC}"
-                    if [ "${STRICT_MODE:-false}" = true ]; then
-                        log_error "Aborting immediately on step failure (--strict mode enabled)."
-                        break
+    # Keep sudo alive during the plan
+    local sudo_pid=""
+    if [ "$TARGET_DISTRO" != "termux" ]; then
+        if [ "$(id -u)" -ne 0 ]; then
+            log_info "Acquiring sudo credentials for installation..."
+            if ! sudo -v; then
+                if [ "$TARGET_DISTRO" = "debian" ] && [ -f "$SCRIPT_DIR/debian/system/sudo.sh" ]; then
+                    log_warn "Sudo is not configured for user $USER. Launching debian/system/sudo.sh..."
+                    if "$SCRIPT_DIR/debian/system/sudo.sh" "$USER"; then
+                        log_info "Re-checking sudo credentials..."
+                        exec sudo bash "$0" "$@"
                     fi
                 fi
+                log_error "Failed to acquire sudo credentials."
+                return 1
+            fi
+        fi
+        keep_sudo_alive() {
+            while true; do
+                sleep 50
+                sudo -n true 2>/dev/null || true
             done
+        }
+        keep_sudo_alive &
+        sudo_pid=$!
+        CLEANUP_PIDS+=("$sudo_pid")
+    fi
 
-            if [ -n "$sudo_pid" ]; then
-                kill "$sudo_pid" 2>/dev/null || true
+    log_info "Starting execution..."
+    local start_total
+    start_total=$(date +%s)
+    local has_errors=false
+    local failed_steps=()
+
+    for ((i = 0; i < total_steps; i++)); do
+        local title="${PLAN_TITLES[i]}"
+        local fn="${PLAN_FNS[i]}"
+        local -a step_args=()
+        if [ -n "${PLAN_ARGS[i]}" ]; then
+            IFS=$'\x1f' read -r -d '' -a step_args < <(printf "%s\0" "${PLAN_ARGS[i]}")
+        fi
+        local cwd="${PLAN_CWDS[i]:-$SCRIPT_DIR}"
+        local step_num=$((i + 1))
+
+        echo ""
+        log_step "[$step_num/$total_steps] $title"
+        local step_start
+        step_start=$(date +%s)
+        local exit_code=0
+
+        (
+            cd "$cwd"
+            "$fn" "${step_args[@]}"
+        ) || exit_code=$?
+
+        local step_duration=$(($(date +%s) - step_start))
+
+        if [ "$exit_code" -eq 0 ]; then
+            echo -e "    ${GREEN}✓ Success (${step_duration}s)${NC}"
+        else
+            has_errors=true
+            failed_steps+=("$title")
+            echo -e "    ${RED}✖ FAILED: ${title} (Exit code: ${exit_code}, ${step_duration}s)${NC}"
+            if [ "${STRICT_MODE:-false}" = true ]; then
+                log_error "Aborting immediately on step failure (--strict mode enabled)."
+                break
             fi
+        fi
+    done
 
-            local total_time=$(($(date +%s) - start_total))
+    if [ -n "$sudo_pid" ]; then
+        kill "$sudo_pid" 2>/dev/null || true
+    fi
 
-            echo ""
-            echo -e "${BOLD}${CYAN}============================================================${NC}"
-            if [ "$has_errors" = true ]; then
-                echo -e "${RED}${BOLD} Installation finished with WARNINGS/ERRORS in ${total_time}s.${NC}"
-                echo -e " Failed steps (${#failed_steps[@]}):"
-                    local fstep
-                    for fstep in "${failed_steps[@]}"; do
-                        echo -e "   - ${RED}${fstep}${NC}"
-                    done
-                    echo -e " Check the session log for detailed diagnostics: ${LOG_FILE}"
-                else
-                    echo -e "${GREEN}${BOLD} Installation COMPLETED SUCCESSFULLY in ${total_time}s!${NC}"
-                    echo -e " Please restart your session or reboot for all changes to take effect."
-            fi
-            echo -e "${BOLD}${CYAN}============================================================${NC}"
+    local total_time=$(($(date +%s) - start_total))
 
-            if [ -c /dev/tty ] && [ "$FORCE_CLI" = false ]; then
-                local done_msg="Post-Installation has finished!\n\nTarget Distribution: ${DISTRO_NAME}\nElapsed Time: ${total_time} seconds\nFull Log: ${LOG_FILE}"
-                if [ "$has_errors" = true ]; then
-                    done_msg+="\n\nFailed Steps:\n"
-                    for fstep in "${failed_steps[@]}"; do
-                        done_msg+=" - ${fstep}\n"
-                    done
-                fi
-                done_msg+="\n\nPlease restart your session or reboot for all changes to take effect."
-                ui_msg "Installation Complete" "$done_msg"
-            fi
+    echo ""
+    echo -e "${BOLD}${CYAN}============================================================${NC}"
+    if [ "$has_errors" = true ]; then
+        echo -e "${RED}${BOLD} Installation finished with WARNINGS/ERRORS in ${total_time}s.${NC}"
+        echo -e " Failed steps (${#failed_steps[@]}):"
+        local fstep
+        for fstep in "${failed_steps[@]}"; do
+            echo -e "   - ${RED}${fstep}${NC}"
+        done
+        echo -e " Check the session log for detailed diagnostics: ${LOG_FILE}"
+    else
+        echo -e "${GREEN}${BOLD} Installation COMPLETED SUCCESSFULLY in ${total_time}s!${NC}"
+        echo -e " Please restart your session or reboot for all changes to take effect."
+    fi
+    echo -e "${BOLD}${CYAN}============================================================${NC}"
+
+    if [ -c /dev/tty ] && [ "$FORCE_CLI" = false ]; then
+        local done_msg="Post-Installation has finished!\n\nTarget Distribution: ${DISTRO_NAME}\nElapsed Time: ${total_time} seconds\nFull Log: ${LOG_FILE}"
+        if [ "$has_errors" = true ]; then
+            done_msg+="\n\nFailed Steps:\n"
+            for fstep in "${failed_steps[@]}"; do
+                done_msg+=" - ${fstep}\n"
+            done
+        fi
+        done_msg+="\n\nPlease restart your session or reboot for all changes to take effect."
+        ui_msg "Installation Complete" "$done_msg"
+    fi
 }
 
 show_help() {
@@ -514,56 +513,56 @@ done
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --tui)
-            FORCE_TUI=true
-            shift
-            ;;
-        --cli | --headless)
-            FORCE_CLI=true
-            shift
-            ;;
-        --dry-run | -d)
-            DRY_RUN=true
-            shift
-            ;;
-        --strict)
-            STRICT_MODE=true
-            shift
-            ;;
-        --distro)
-            shift 2
-            ;;
-        --desktop)
-            CFG_DESKTOP="$2"
-            shift 2
-            ;;
-        --craft)
-            CFG_CRAFT=true
-            shift
-            ;;
-        --burp)
-            CFG_SECURITY_BURP=true
-            if [ -z "${CFG_BURP_CHANNEL:-}" ] || [ "$CFG_BURP_CHANNEL" = "off" ]; then
-                CFG_BURP_CHANNEL="stable"
-            fi
-            shift
-            ;;
-        --channel)
-            if [ $# -lt 2 ]; then
-                log_err "--channel requires an argument (stable or latest)."
-                exit 1
-            fi
-            CFG_BURP_CHANNEL="$2"
-            shift 2
-            ;;
-        -h | --help)
-            show_help
-            exit 0
-            ;;
-        *)
-            log_warn "Unknown argument: $1"
-            shift
-            ;;
+    --tui)
+        FORCE_TUI=true
+        shift
+        ;;
+    --cli | --headless)
+        FORCE_CLI=true
+        shift
+        ;;
+    --dry-run | -d)
+        DRY_RUN=true
+        shift
+        ;;
+    --strict)
+        STRICT_MODE=true
+        shift
+        ;;
+    --distro)
+        shift 2
+        ;;
+    --desktop)
+        CFG_DESKTOP="$2"
+        shift 2
+        ;;
+    --craft)
+        CFG_CRAFT=true
+        shift
+        ;;
+    --burp)
+        CFG_SECURITY_BURP=true
+        if [ -z "${CFG_BURP_CHANNEL:-}" ] || [ "$CFG_BURP_CHANNEL" = "off" ]; then
+            CFG_BURP_CHANNEL="stable"
+        fi
+        shift
+        ;;
+    --channel)
+        if [ $# -lt 2 ]; then
+            log_err "--channel requires an argument (stable or latest)."
+            exit 1
+        fi
+        CFG_BURP_CHANNEL="$2"
+        shift 2
+        ;;
+    -h | --help)
+        show_help
+        exit 0
+        ;;
+    *)
+        log_warn "Unknown argument: $1"
+        shift
+        ;;
     esac
 done
 

@@ -26,7 +26,6 @@ sudo pacman -S --needed --noconfirm --overwrite '*' "${kde_plasma_packages[@]}"
 # 2. Service Configuration for KDE Plasma
 echo "Configuring KDE Plasma services..."
 
-
 # Enable Display Manager (SDDM) if present
 if systemctl list-unit-files | grep -q "sddm.service"; then
     sudo systemctl enable sddm.service 2>/dev/null || true

@@ -27,8 +27,8 @@ for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
 done
 add_path_line "$HOME/.local/bin"
 case ":$PATH:" in
-    *":$HOME/.local/bin:"*) ;;
-    *) export PATH="$HOME/.local/bin:$PATH" ;;
+*":$HOME/.local/bin:"*) ;;
+*) export PATH="$HOME/.local/bin:$PATH" ;;
 esac
 
 # Install AppMan if not already installed
@@ -43,7 +43,7 @@ fi
 if [ ! -f "$HOME/.config/appman/appman-config" ]; then
     log "Configuring AppMan installation directory..."
     mkdir -p "$HOME/.config/appman"
-    echo "$HOME/Applications" > "$HOME/.config/appman/appman-config"
+    echo "$HOME/Applications" >"$HOME/.config/appman/appman-config"
     mkdir -p "$HOME/Applications"
 fi
 

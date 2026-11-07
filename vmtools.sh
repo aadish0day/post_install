@@ -67,36 +67,36 @@ auto_detect() {
         . /etc/os-release
 
         case "$ID" in
-            arch|manjaro|endeavouros)
-                echo "Detected: Arch-based system ($PRETTY_NAME)"
+        arch | manjaro | endeavouros)
+            echo "Detected: Arch-based system ($PRETTY_NAME)"
+            install_arch
+            ;;
+        ubuntu | debian | linuxmint | pop | kali | raspbian)
+            echo "Detected: Debian-based system ($PRETTY_NAME)"
+            install_debian
+            ;;
+        fedora | rhel | centos | rocky | almalinux)
+            echo "Detected: Fedora-based system ($PRETTY_NAME)"
+            install_fedora
+            ;;
+        *)
+            case "${ID_LIKE:-}" in
+            *arch*)
                 install_arch
                 ;;
-            ubuntu|debian|linuxmint|pop|kali|raspbian)
-                echo "Detected: Debian-based system ($PRETTY_NAME)"
+            *debian*)
                 install_debian
                 ;;
-            fedora|rhel|centos|rocky|almalinux)
-                echo "Detected: Fedora-based system ($PRETTY_NAME)"
+            *fedora* | *rhel* | *centos*)
                 install_fedora
                 ;;
             *)
-                case "${ID_LIKE:-}" in
-                    *arch*)
-                        install_arch
-                        ;;
-                    *debian*)
-                        install_debian
-                        ;;
-                    *fedora*|*rhel*|*centos*)
-                        install_fedora
-                        ;;
-                    *)
-                        echo "Error: Could not auto-detect distribution: $PRETTY_NAME"
-                        echo "Please select manually."
-                        exit 1
-                        ;;
-                esac
+                echo "Error: Could not auto-detect distribution: $PRETTY_NAME"
+                echo "Please select manually."
+                exit 1
                 ;;
+            esac
+            ;;
         esac
     else
         echo "Error: Cannot detect OS. /etc/os-release not found."
@@ -105,22 +105,22 @@ auto_detect() {
 }
 
 case $choice in
-    1)
-        install_arch
-        ;;
-    2)
-        install_debian
-        ;;
-    3)
-        install_fedora
-        ;;
-    4)
-        auto_detect
-        ;;
-    *)
-        echo "Invalid choice. Exiting."
-        exit 1
-        ;;
+1)
+    install_arch
+    ;;
+2)
+    install_debian
+    ;;
+3)
+    install_fedora
+    ;;
+4)
+    auto_detect
+    ;;
+*)
+    echo "Invalid choice. Exiting."
+    exit 1
+    ;;
 esac
 
 echo ""

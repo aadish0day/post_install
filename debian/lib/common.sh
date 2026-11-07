@@ -145,33 +145,33 @@ apt_install() {
     fi
     [ "${#pkgs[@]}" -gt 0 ] || return 0
 
-        if is_simulate; then
-            local out
-            log "[simulate] apt-get install ${#pkgs[@]} packages: ${pkgs[*]}"
-                if ! command -v apt-get >/dev/null 2>&1; then
-                    return 0
-                fi
-                if ! out="$(apt-get -s install -y "${pkgs[@]}" 2>&1)"; then
-                    printf '%s\n' "$out" | tail -n 25 >&2
-                    err "apt-get simulation failed"
-                    return 1
-                fi
-                log "[simulate] OK: $(grep -c '^Inst ' <<<"$out" || true) packages would be installed"
-                return 0
+    if is_simulate; then
+        local out
+        log "[simulate] apt-get install ${#pkgs[@]} packages: ${pkgs[*]}"
+        if ! command -v apt-get >/dev/null 2>&1; then
+            return 0
         fi
+        if ! out="$(apt-get -s install -y "${pkgs[@]}" 2>&1)"; then
+            printf '%s\n' "$out" | tail -n 25 >&2
+            err "apt-get simulation failed"
+            return 1
+        fi
+        log "[simulate] OK: $(grep -c '^Inst ' <<<"$out" || true) packages would be installed"
+        return 0
+    fi
 
-        wait_for_apt_lock
-        if command -v nala >/dev/null 2>&1; then
-            log "Installing ${#pkgs[@]} packages with nala..."
-            if ! $SUDO nala install -y "${pkgs[@]}"; then
-                warn "nala install failed, falling back to apt-get..."
-                wait_for_apt_lock
-                $SUDO apt-get install -y "${pkgs[@]}"
-            fi
-        else
-            log "Installing ${#pkgs[@]} packages with apt..."
+    wait_for_apt_lock
+    if command -v nala >/dev/null 2>&1; then
+        log "Installing ${#pkgs[@]} packages with nala..."
+        if ! $SUDO nala install -y "${pkgs[@]}"; then
+            warn "nala install failed, falling back to apt-get..."
+            wait_for_apt_lock
             $SUDO apt-get install -y "${pkgs[@]}"
         fi
+    else
+        log "Installing ${#pkgs[@]} packages with apt..."
+        $SUDO apt-get install -y "${pkgs[@]}"
+    fi
 }
 
 # apt_remove PKG... : remove packages with nala when present, apt-get otherwise.
@@ -195,31 +195,31 @@ install_deb_url() {
         log "[simulate] would install $name from $url"
         url_ok "$url" >/dev/null || {
             err "URL not reachable: $url"
-                    return 1
+            return 1
         }
-    return 0
+        return 0
     fi
     tmp="$(mktemp -d)"
     log "Downloading $name..."
     download "$url" "$tmp/pkg.deb" || {
         rm -rf "$tmp"
-            return 1
+        return 1
     }
-chmod 644 "$tmp/pkg.deb"
-chmod 755 "$tmp"
-apt_update
-if command -v nala >/dev/null 2>&1; then
-    if ! $SUDO nala install -y "$tmp/pkg.deb"; then
-        rm -rf "$tmp"
-        return 1
+    chmod 644 "$tmp/pkg.deb"
+    chmod 755 "$tmp"
+    apt_update
+    if command -v nala >/dev/null 2>&1; then
+        if ! $SUDO nala install -y "$tmp/pkg.deb"; then
+            rm -rf "$tmp"
+            return 1
+        fi
+    else
+        if ! $SUDO apt-get install -y "$tmp/pkg.deb"; then
+            rm -rf "$tmp"
+            return 1
+        fi
     fi
-else
-    if ! $SUDO apt-get install -y "$tmp/pkg.deb"; then
-        rm -rf "$tmp"
-        return 1
-    fi
-fi
-rm -rf "$tmp"
+    rm -rf "$tmp"
 }
 
 # add_apt_repo NAME KEY_URL "deb [signed-by={keyring}] URL SUITE COMPONENTS"
@@ -233,22 +233,22 @@ add_apt_repo() {
     command -v gpg >/dev/null 2>&1 || {
         apt_install gnupg
     }
-$SUDO install -m 0755 -d /etc/apt/keyrings
-tmp="$(mktemp)"
-download "$key_url" "$tmp" || {
+    $SUDO install -m 0755 -d /etc/apt/keyrings
+    tmp="$(mktemp)"
+    download "$key_url" "$tmp" || {
+        rm -f "$tmp"
+        return 1
+    }
+    if grep -q "BEGIN PGP" "$tmp"; then
+        gpg --dearmor <"$tmp" | $SUDO tee "$keyring" >/dev/null
+    else
+        $SUDO install -m 0644 "$tmp" "$keyring"
+    fi
+    $SUDO chmod 0644 "$keyring"
     rm -f "$tmp"
-    return 1
-}
-if grep -q "BEGIN PGP" "$tmp"; then
-    gpg --dearmor <"$tmp" | $SUDO tee "$keyring" >/dev/null
-else
-    $SUDO install -m 0644 "$tmp" "$keyring"
-fi
-$SUDO chmod 0644 "$keyring"
-rm -f "$tmp"
-echo "${line//\{keyring\}/$keyring}" | $SUDO tee "/etc/apt/sources.list.d/${name}.list" >/dev/null
-log "Added apt repository: $name"
-_APT_UPDATED=0
+    echo "${line//\{keyring\}/$keyring}" | $SUDO tee "/etc/apt/sources.list.d/${name}.list" >/dev/null
+    log "Added apt repository: $name"
+    _APT_UPDATED=0
 }
 
 # ----------------------------------------------------------------------------
@@ -285,10 +285,10 @@ flatpak_install() {
             if command -v flatpak >/dev/null 2>&1; then
                 flatpak remote-info flathub "$app" >/dev/null || {
                     err "Flatpak $app not found on Flathub"
-                                    return 1
+                    return 1
                 }
-        else
-            url_ok "https://flathub.org/apps/$app" >/dev/null || return 1
+            else
+                url_ok "https://flathub.org/apps/$app" >/dev/null || return 1
             fi
             log "[simulate] would install flatpak $app"
             continue
@@ -345,15 +345,15 @@ pacstall_install() {
         fi
         ensure_pacstall || {
             warn "Pacstall is not available."
-                    return 1
+            return 1
         }
-    log "Installing $pkg with Pacstall..."
-    if ! pacstall -I "$pkg" -P </dev/null; then
-        warn "Pacstall failed to install $pkg"
-        rc=1
-    fi
-done
-return $rc
+        log "Installing $pkg with Pacstall..."
+        if ! pacstall -I "$pkg" -P </dev/null; then
+            warn "Pacstall failed to install $pkg"
+            rc=1
+        fi
+    done
+    return $rc
 }
 
 # ----------------------------------------------------------------------------
@@ -395,14 +395,14 @@ uv_tool_install() {
     local pkgs=()
     while [ $# -gt 0 ]; do
         case "$1" in
-            --with)
-                shift
-                [ $# -gt 0 ] || die "--with requires a package name"
-                with_args+=(--with "$1")
-                ;;
-            *)
-                pkgs+=("$1")
-                ;;
+        --with)
+            shift
+            [ $# -gt 0 ] || die "--with requires a package name"
+            with_args+=(--with "$1")
+            ;;
+        *)
+            pkgs+=("$1")
+            ;;
         esac
         shift
     done
@@ -413,10 +413,10 @@ uv_tool_install() {
         if is_simulate; then
             url_ok "https://pypi.org/pypi/$name/json" >/dev/null || {
                 err "PyPI package $name not found"
-                            return 1
-}
-log "[simulate] would install $pkg ${with_args[*]:-} with uv tool"
-continue
+                return 1
+            }
+            log "[simulate] would install $pkg ${with_args[*]:-} with uv tool"
+            continue
         fi
         if [ -x "${UV_TOOL_BIN_DIR:-$HOME/.local/bin}/$name" ] && "${UV_TOOL_BIN_DIR:-$HOME/.local/bin}/$name" --version >/dev/null 2>&1; then
             log "$pkg already installed with uv."
@@ -449,5 +449,3 @@ enable_service() {
     fi
     $SUDO systemctl enable "$@" "$unit" || warn "Could not enable $unit"
 }
-
-

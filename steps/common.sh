@@ -129,8 +129,8 @@ step_burp_trust_ca() {
     local burp_active=false
     if curl -sSL -f -m 2 http://127.0.0.1:8080/cert -o "$chk_tmp" 2>/dev/null && [ -s "$chk_tmp" ]; then
         local cert_subj
-        cert_subj="$(openssl x509 -inform DER -in "$chk_tmp" -noout -subject -issuer 2>/dev/null || \
-                     openssl x509 -inform PEM -in "$chk_tmp" -noout -subject -issuer 2>/dev/null || true)"
+        cert_subj="$(openssl x509 -inform DER -in "$chk_tmp" -noout -subject -issuer 2>/dev/null ||
+            openssl x509 -inform PEM -in "$chk_tmp" -noout -subject -issuer 2>/dev/null || true)"
         if [ -n "$cert_subj" ] && echo "$cert_subj" | grep -qi "PortSwigger"; then
             burp_active=true
         fi

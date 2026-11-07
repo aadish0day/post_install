@@ -28,15 +28,15 @@ version_codename="$(. /etc/os-release && echo "${VERSION_CODENAME:-}")"
 # If Debian testing/unstable ($VERSION_CODENAME is 'trixie' or 'sid'), fallback to 'bookworm'.
 if [ "$repo_distro" = "debian" ]; then
     case "${version_codename:-}" in
-        trixie | sid | forky)
-            log "Debian testing/unstable (${version_codename}) detected: falling back to 'bookworm' for official Docker repo."
-            codename="bookworm"
-            ;;
+    trixie | sid | forky)
+        log "Debian testing/unstable (${version_codename}) detected: falling back to 'bookworm' for official Docker repo."
+        codename="bookworm"
+        ;;
     esac
     case "${codename:-}" in
-        trixie | sid | forky)
-            codename="bookworm"
-            ;;
+    trixie | sid | forky)
+        codename="bookworm"
+        ;;
     esac
 fi
 arch="$(dpkg --print-architecture)"
