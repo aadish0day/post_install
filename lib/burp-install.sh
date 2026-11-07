@@ -31,9 +31,18 @@ LOADER_URLS=(
 # Helper function to find best Java 21 binary
 find_java_bin() {
     local j
+    if [ -n "${BURP_JAVA:-}" ] && [ -x "$BURP_JAVA" ]; then
+        echo "$BURP_JAVA"
+        return 0
+    fi
+    if [ -n "${JAVA_HOME:-}" ] && [ -x "$JAVA_HOME/bin/java" ]; then
+        echo "$JAVA_HOME/bin/java"
+        return 0
+    fi
     for j in \
         "/usr/lib/jvm/java-21-openjdk/bin/java" \
         "/usr/lib/jvm/java-21-openjdk-amd64/bin/java" \
+        "/usr/lib/jvm/java-21-openjdk-arm64/bin/java" \
         "/usr/lib/jvm/jre-21-openjdk/bin/java" \
         "/usr/lib/jvm/java-21/bin/java" \
         "/usr/lib/jvm/default-runtime/bin/java"; do
@@ -640,36 +649,52 @@ except Exception:
     echo "Creating launcher script at $launcher_path..."
     cat <<EOF >"$launcher_path"
 #!/bin/bash
+# ==============================================================================
+# Burp Suite Professional Advanced Launcher
+# Non-reparenting WM compatibility, dynamic memory, GC tuning, HiDPI scaling,
+# robust CLI path resolution, conflict detection, diagnostics & crash logging.
+# ==============================================================================
+
 # Non-reparenting WM compatibility: set only for tiling/non-reparenting window managers
-# (i3, sway, bspwm, dwm, hyprland, xmonad, etc.). Avoid setting on KDE (KWin) / GNOME (Mutter)
-# where _JAVA_AWT_WM_NONREPARENTING=1 causes blank popups and menu positioning glitches.
-if [ -z "\${_JAVA_AWT_WM_NONREPARENTING:-}" ]; then
-    desktop_env="\${XDG_CURRENT_DESKTOP:-}:\${DESKTOP_SESSION:-}"
-    desktop_env_lower="\$(echo "\$desktop_env" | tr '[:upper:]' '[:lower:]')"
-    if echo "\$desktop_env_lower" | grep -qE "i3|sway|bspwm|dwm|hyprland|xmonad|qtile|awesome"; then
-        export _JAVA_AWT_WM_NONREPARENTING=1
-    fi
+# (i3, sway, bspwm, dwm, hyprland, xmonad, river, niri, etc.).
+# Explicitly unset on KDE (KWin), GNOME (Mutter), XFCE, Cinnamon, and MATE where
+# _JAVA_AWT_WM_NONREPARENTING=1 causes blank popups, detached menus, and positioning glitches.
+desktop_env="\${XDG_CURRENT_DESKTOP:-}:\${DESKTOP_SESSION:-}"
+desktop_env_lower="\${desktop_env,,}"
+if echo "\$desktop_env_lower" | grep -qE "kde|plasma|gnome|xfce|cinnamon|mate"; then
+    unset _JAVA_AWT_WM_NONREPARENTING
+elif echo "\$desktop_env_lower" | grep -qE "i3|sway|bspwm|dwm|hyprland|xmonad|qtile|awesome|river|niri"; then
+    export _JAVA_AWT_WM_NONREPARENTING=1
 fi
 
-# Detect active X11 / XWayland display
+# Detect active X11 / XWayland display safely without destroying valid DISPLAY
 detect_x11_display() {
-    # If DISPLAY is already set in environment, test if an X server responds
     if [ -n "\${DISPLAY:-}" ]; then
-        if command -v xdpyinfo &>/dev/null && xdpyinfo -display "\$DISPLAY" >/dev/null 2>&1; then
-            return 0
+        if command -v xdpyinfo &>/dev/null; then
+            if xdpyinfo -display "\$DISPLAY" >/dev/null 2>&1; then
+                return 0
+            fi
+            unset DISPLAY
+        elif command -v xset &>/dev/null; then
+            if xset -display "\$DISPLAY" q >/dev/null 2>&1; then
+                return 0
+            fi
+            unset DISPLAY
+        else
+            # Neither probe tool available; trust DISPLAY if socket exists or assume valid
+            local disp_num="\${DISPLAY#*:}"
+            disp_num="\${disp_num%%.*}"
+            if [ -z "\$disp_num" ] || [ -S "/tmp/.X11-unix/X\${disp_num}" ] || [ -e "/tmp/.X11-unix/X\${disp_num}" ]; then
+                return 0
+            fi
         fi
-        if command -v xset &>/dev/null && xset -display "\$DISPLAY" q >/dev/null 2>&1; then
-            return 0
-        fi
-        # Provided DISPLAY is dead or invalid
-        unset DISPLAY
     fi
 
     # Probe /tmp/.X11-unix/X* sockets
     for sock in /tmp/.X11-unix/X*; do
         [ -e "\$sock" ] || [ -S "\$sock" ] || continue
         disp_num="\${sock##*/X}"
-        [[ "\$disp_num" =~ ^[0-9]+$ ]] || continue
+        [[ "\$disp_num" =~ ^[0-9]+\$ ]] || continue
         if command -v xdpyinfo &>/dev/null; then
             if xdpyinfo -display ":\$disp_num" >/dev/null 2>&1; then
                 export DISPLAY=":\${disp_num}"
@@ -693,9 +718,9 @@ detect_x11_display() {
             for sock in /tmp/.X11-unix/X*; do
                 [ -e "\$sock" ] || [ -S "\$sock" ] || continue
                 disp_num="\${sock##*/X}"
-                [[ "\$disp_num" =~ ^[0-9]+$ ]] || continue
-                if (command -v xdpyinfo &>/dev/null && xdpyinfo -display ":\$disp_num" >/dev/null 2>&1) || \
-                   (command -v xset &>/dev/null && xset -display ":\$disp_num" q >/dev/null 2>&1) || \
+                [[ "\$disp_num" =~ ^[0-9]+\$ ]] || continue
+                if (command -v xdpyinfo &>/dev/null && xdpyinfo -display ":\$disp_num" >/dev/null 2>&1) || \\
+                   (command -v xset &>/dev/null && xset -display ":\$disp_num" q >/dev/null 2>&1) || \\
                    [ -S "\$sock" ]; then
                     export DISPLAY=":\${disp_num}"
                     return 0
@@ -750,133 +775,432 @@ fi
 
 BURP_VERSION="\${BURP_VERSION:-}"
 if [ -z "\$BURP_VERSION" ]; then
-    if [[ "\$JAR_NAME" =~ burpsuite_pro_v(.*)\.jar$ ]]; then
+    if [[ "\$JAR_NAME" =~ burpsuite_pro_v(.*)\.jar\$ ]]; then
         BURP_VERSION="\${BASH_REMATCH[1]}"
     else
         BURP_VERSION="\$DEFAULT_BURP_VER"
     fi
 fi
 
-# Locate best Java 21+ binary
+# Locate best Java 21+ binary (respects BURP_JAVA or JAVA_HOME if provided)
 JAVA_BIN="java"
-for j in \
-    "/usr/lib/jvm/java-21-openjdk/bin/java" \
-    "/usr/lib/jvm/java-21-openjdk-amd64/bin/java" \
-    "/usr/lib/jvm/jre-21-openjdk/bin/java" \
-    "/usr/lib/jvm/java-21/bin/java" \
-    "/usr/lib/jvm/default-runtime/bin/java"; do
-    if [ -x "\$j" ]; then
-        JAVA_BIN="\$j"
-        break
-    fi
-done
-
-case "\${1:-}" in
-    -k|--keygen)
-        echo "Starting Burp Suite Keygen / Loader..."
-        exec "\$JAVA_BIN" -jar "\$REPO_DIR/loader.jar"
-        ;;
-    -v|--version)
-        echo "Burp Suite Professional v\$BURP_VERSION (\$JAR_NAME)"
-        exit 0
-        ;;
-    -p|--path)
-        echo "\$REPO_DIR"
-        exit 0
-        ;;
-    -t|--trust-ca)
-        shift
-        if [ -x "\$REPO_DIR/burp-trust-ca.sh" ]; then
-            exec "\$REPO_DIR/burp-trust-ca.sh" "\$@"
-        else
-            echo "ERROR: CA trust script not found at \$REPO_DIR/burp-trust-ca.sh" >&2
-            exit 1
+if [ -n "\${BURP_JAVA:-}" ] && [ -x "\$BURP_JAVA" ]; then
+    JAVA_BIN="\$BURP_JAVA"
+elif [ -n "\${JAVA_HOME:-}" ] && [ -x "\$JAVA_HOME/bin/java" ]; then
+    JAVA_BIN="\$JAVA_HOME/bin/java"
+else
+    for j in \\
+        "/usr/lib/jvm/java-21-openjdk/bin/java" \\
+        "/usr/lib/jvm/java-21-openjdk-amd64/bin/java" \\
+        "/usr/lib/jvm/java-21-openjdk-arm64/bin/java" \\
+        "/usr/lib/jvm/jre-21-openjdk/bin/java" \\
+        "/usr/lib/jvm/java-21/bin/java" \\
+        "/usr/lib/jvm/default-runtime/bin/java"; do
+        if [ -x "\$j" ]; then
+            JAVA_BIN="\$j"
+            break
         fi
-        ;;
-    -h|--help)
-        cat <<'HLP'
+    done
+fi
+
+# Safe background log file location (prefer private XDG_RUNTIME_DIR)
+LOG_DIR="\${XDG_RUNTIME_DIR:-/tmp}"
+LOG_FILE="\$LOG_DIR/burpsuitepro-\${UID:-\$USER}.log"
+
+# Port 8080 conflict detector with process inspection
+check_port_8080() {
+    local conflict=false
+    local proc_desc=""
+
+    if command -v ss >/dev/null 2>&1; then
+        local ss_out
+        ss_out=\$(ss -tlnpH 'sport = :8080' 2>/dev/null || true)
+        if [ -n "\$ss_out" ]; then
+            conflict=true
+            if [[ "\$ss_out" =~ users:\(\(\"([^\"]+)\",pid=([0-9]+) ]]; then
+                proc_desc="\${BASH_REMATCH[1]} (PID \${BASH_REMATCH[2]})"
+            fi
+        fi
+    elif command -v lsof >/dev/null 2>&1; then
+        local lsof_out
+        lsof_out=\$(lsof -iTCP:8080 -sTCP:LISTEN -Pn -Fp -Fc 2>/dev/null || true)
+        if [ -n "\$lsof_out" ]; then
+            conflict=true
+            local l_pid l_cmd
+            l_pid=\$(echo "\$lsof_out" | grep -m1 '^p' | cut -c2- || true)
+            l_cmd=\$(echo "\$lsof_out" | grep -m1 '^c' | cut -c2- || true)
+            [ -n "\$l_cmd" ] && proc_desc="\$l_cmd (PID \$l_pid)"
+        fi
+    fi
+
+    if [ "\$conflict" = true ]; then
+        local msg="Port 8080 is already in use by \${proc_desc:-another process}."
+        if [ -t 1 ]; then
+            echo "[!] Warning: \$msg" >&2
+            echo "    Burp Suite default proxy listener may conflict. Close the conflicting app or reconfigure listeners." >&2
+        elif command -v notify-send &>/dev/null; then
+            notify-send -u normal -i burpsuitepro "Burp Suite Port Conflict" "\$msg Burp's default proxy listener may fail to bind." 2>/dev/null || true
+        fi
+        return 1
+    fi
+    return 0
+}
+
+# Resolve relative paths before changing working directory
+resolve_abs_path() {
+    local target="\$1"
+    [ -z "\$target" ] && return
+    if command -v realpath >/dev/null 2>&1; then
+        realpath -m "\$target" 2>/dev/null && return
+    fi
+    if command -v readlink >/dev/null 2>&1; then
+        readlink -m "\$target" 2>/dev/null && return
+        readlink -f "\$target" 2>/dev/null && return
+    fi
+    if [[ "\$target" = /* ]]; then
+        echo "\$target"
+    else
+        echo "\$PWD/\$target"
+    fi
+}
+
+BURP_ARGS=()
+HAS_PROJECT_FILE=false
+FORCE_NEW=0
+DRY_RUN=0
+PRINT_CMD_ONLY=0
+DO_DIAG=false
+DO_BURP_DIAG=false
+DO_BURP_HELP=false
+DO_BURP_VERSION=false
+
+while [ \$# -gt 0 ]; do
+    case "\$1" in
+        -h|--help)
+            cat <<'HLP'
 Burp Suite Professional Launcher
 
 Usage: burpsuitepro [OPTIONS] [BURP_ARGUMENTS...]
+       burpsuitepro [PROJECT_FILE.burp]
 
-Options:
-  -k, --keygen    Launch the key loader / keygen
-  -v, --version   Display current Burp Suite version and JAR file
-  -p, --path      Display Burp Suite installation directory path
-  -t, --trust-ca  Auto-import Burp CA certificate into system & browsers
-  -h, --help      Show this help message
+Wrapper Options:
+  -k, --keygen             Launch the key loader / keygen (loader.jar)
+  -v, --version            Display Burp Suite & Java runtime version information
+      --burp-version       Query Burp Suite JAR directly for version details
+  -p, --path               Display Burp Suite installation directory path
+  -j, --jar                Display the resolved Burp Suite JAR path
+  -t, --trust-ca           Auto-import Burp CA certificate into system & browsers
+      --new-window         Launch a new instance even if Burp is already running
+  -n, --dry-run            Preview execution environment and Java command line without launching
+      --print-cmd          Print only the full executable Java command line without launching
+  -d, --diag,
+      --diagnostics        Display full launcher diagnostics and run native Burp diagnostics
+      --burp-diag          Run native Burp Suite diagnostics only
+      --log                View the background / GUI execution log
+  -h, --help               Show this help message
+      --burp-help          Query Burp Suite JAR directly for native CLI help
+
+Burp Suite Native Arguments:
+  --project-file <file>    Open or create specified project file (relative paths supported)
+  --config-file <file>     Load project configuration file(s) (can be repeated)
+  --user-config-file <file> Load user configuration file(s) (can be repeated)
+  --disable-extensions     Prevent loading of extensions on startup
+  --use-defaults           Start with default settings
+  --diagnostics            Print native diagnostic information and exit
+  --collaborator-server    Run in Collaborator server mode
+  --collaborator-config <file>
+                           Specify Collaborator server configuration file
+  --data-dir <dir>         Specify data directory
+  --auto-repair            Automatically repair a corrupted project file
+  --unpause-spider-and-scanner
+                           Do not pause Spider and Scanner when opening existing project
+  --disable-auto-update    Suppress auto-update checks
+  --developer-extension-class-name <name>
+                           Fully qualified name of locally-developed extension class
 
 Environment Variables:
-  BURP_JAR        Path or filename of Burp JAR to run (e.g. BURP_JAR=burpsuite_pro_v2026.11.jar)
-  BURP_MAX_RAM    Maximum Java heap memory (e.g. BURP_MAX_RAM=8g burpsuitepro)
-                  (Also respects BURP_MEMORY or BURP_RAM; defaults to 50% RAM)
-  BURP_SCALE      UI scaling factor (e.g. BURP_SCALE=1, BURP_SCALE=1.25, BURP_SCALE=2)
-                  Overrides -Dsun.java2d.uiScale. Under KDE Wayland with fractional
-                  scaling, set BURP_SCALE=1 if the UI looks blurry or wrongly sized.
-  BURP_TOOLKIT    Override AWT toolkit (defaults to sun.awt.X11.XToolkit for Wayland/X11)
+  BURP_JAR                 Path or filename of Burp JAR to run (e.g. BURP_JAR=burpsuite_pro_v2026.11.jar)
+  BURP_MAX_RAM             Maximum Java heap memory (e.g. 8g, 8192m, 60%, or -Xmx8g; defaults to 50% RAM)
+                           (Also respects BURP_MEMORY or BURP_RAM)
+  BURP_GC                  Garbage collector override: ZGC, G1, Parallel, Shenandoah, or none
+  BURP_JAVA_OPTS           Custom JVM flags appended to command line (preserves required opens)
+  JAVA_OPTS                Standard JVM flags (appended before BURP_JAVA_OPTS)
+  BURP_SCALE               UI scaling factor (e.g. BURP_SCALE=1, 1.25, 2; overrides -Dsun.java2d.uiScale)
+  BURP_TOOLKIT             Override AWT toolkit (defaults to sun.awt.X11.XToolkit for Wayland/X11)
+  BURP_JAVA                Path to explicit java binary
+  _JAVA_AWT_WM_NONREPARENTING
+                           Set to 1 for tiling window managers (auto-detected for i3, sway, hyprland, etc.)
 
-All other arguments are passed directly to Burp Suite.
+Note:
+  Positional project files (e.g. 'burpsuitepro project.burp') are automatically
+  resolved to absolute paths and mapped to '--project-file'.
 HLP
-        exit 0
-        ;;
-esac
+            exit 0
+            ;;
+        --burp-help)
+            DO_BURP_HELP=true
+            shift
+            ;;
+        -v|--version)
+            echo "Burp Suite Professional v\$BURP_VERSION (\$JAR_NAME)"
+            echo "Java Runtime: \$("\$JAVA_BIN" -version 2>&1 | head -n 1)"
+            exit 0
+            ;;
+        --burp-version)
+            DO_BURP_VERSION=true
+            shift
+            ;;
+        -k|--keygen)
+            echo "Starting Burp Suite Keygen / Loader..."
+            exec "\$JAVA_BIN" -jar "\$REPO_DIR/loader.jar"
+            ;;
+        -p|--path)
+            echo "\$REPO_DIR"
+            exit 0
+            ;;
+        -j|--jar)
+            echo "\$RESOLVED_JAR"
+            exit 0
+            ;;
+        -t|--trust-ca)
+            shift
+            if [ -x "\$REPO_DIR/burp-trust-ca.sh" ]; then
+                exec "\$REPO_DIR/burp-trust-ca.sh" "\$@"
+            else
+                echo "ERROR: CA trust script not found at \$REPO_DIR/burp-trust-ca.sh" >&2
+                exit 1
+            fi
+            ;;
+        --new-window|--new-instance|--force-new)
+            FORCE_NEW=1
+            shift
+            ;;
+        -n|--dry-run)
+            DRY_RUN=1
+            shift
+            ;;
+        --print-cmd)
+            PRINT_CMD_ONLY=1
+            shift
+            ;;
+        -d|--diag|--diagnostics)
+            DO_DIAG=true
+            shift
+            ;;
+        --burp-diag)
+            DO_BURP_DIAG=true
+            shift
+            ;;
+        --log)
+            echo "Log File: \$LOG_FILE"
+            if [ -f "\$LOG_FILE" ]; then
+                echo "--- Recent Log Output (last 50 lines) ---"
+                tail -n 50 "\$LOG_FILE"
+            else
+                echo "No background log file found yet."
+            fi
+            exit 0
+            ;;
+        --project-file)
+            HAS_PROJECT_FILE=true
+            if [ \$# -ge 2 ]; then
+                BURP_ARGS+=("--project-file" "\$(resolve_abs_path "\$2")")
+                shift 2
+            else
+                BURP_ARGS+=("\$1")
+                shift
+            fi
+            ;;
+        --project-file=*)
+            HAS_PROJECT_FILE=true
+            val="\${1#*=}"
+            BURP_ARGS+=("--project-file=\$(resolve_abs_path "\$val")")
+            shift
+            ;;
+        --config-file|--user-config-file|--collaborator-config|--data-dir)
+            flag="\$1"
+            if [ \$# -ge 2 ]; then
+                BURP_ARGS+=("\$flag" "\$(resolve_abs_path "\$2")")
+                shift 2
+            else
+                BURP_ARGS+=("\$flag")
+                shift
+            fi
+            ;;
+        --config-file=*|--user-config-file=*|--collaborator-config=*|--data-dir=*)
+            flag="\${1%%=*}"
+            val="\${1#*=}"
+            BURP_ARGS+=("\${flag}=\$(resolve_abs_path "\$val")")
+            shift
+            ;;
+        --developer-extension-class-name)
+            BURP_ARGS+=("\$1")
+            shift
+            if [ \$# -gt 0 ]; then
+                BURP_ARGS+=("\$1")
+                shift
+            fi
+            ;;
+        --developer-extension-class-name=*)
+            BURP_ARGS+=("\$1")
+            shift
+            ;;
+        -*)
+            BURP_ARGS+=("\$1")
+            shift
+            ;;
+        *)
+            if [[ "\$1" =~ \.(burp|burpstate)\$ ]] && [ "\$HAS_PROJECT_FILE" = false ]; then
+                HAS_PROJECT_FILE=true
+                BURP_ARGS+=("--project-file" "\$(resolve_abs_path "\$1")")
+            elif [ -e "\$1" ] || [[ "\$1" =~ / ]] || [[ "\$1" =~ \.(json|xml|config)\$ ]]; then
+                BURP_ARGS+=("\$(resolve_abs_path "\$1")")
+            else
+                BURP_ARGS+=("\$1")
+            fi
+            shift
+            ;;
+    esac
+done
 
-# Resolve file arguments to absolute paths before changing directory to REPO_DIR
-BURP_ARGS=()
-for arg in "\$@"; do
-    if [ -e "\$arg" ]; then
-        BURP_ARGS+=("\$(realpath "\$arg" 2>/dev/null || readlink -f "\$arg" 2>/dev/null || echo "\$arg")")
-    else
-        BURP_ARGS+=("\$arg")
+# If Burp is already running and no new window or project file requested, focus existing window
+if [ "\$FORCE_NEW" -eq 0 ] && [ "\$DRY_RUN" -eq 0 ] && [ "\$PRINT_CMD_ONLY" -eq 0 ] && [ "\$DO_DIAG" = false ] && [ "\$DO_BURP_DIAG" = false ] && [ "\$DO_BURP_HELP" = false ] && [ "\$DO_BURP_VERSION" = false ]; then
+    running_pid=\$(pgrep -f '(java|openjdk).*[b]urpsuite_pro_v.*\.jar' | head -n1 || true)
+    if [ -n "\$running_pid" ] && [ "\$HAS_PROJECT_FILE" = false ]; then
+        focused=0
+        if command -v xdotool &>/dev/null; then
+            for wid in \$(xdotool search --class "burp" 2>/dev/null || xdotool search --name "Burp Suite" 2>/dev/null); do
+                wname="\$(xdotool getwindowname "\$wid" 2>/dev/null || true)"
+                if [[ "\$wname" =~ "Burp Suite" ]]; then
+                    xdotool windowactivate "\$wid" 2>/dev/null || xdotool windowraise "\$wid" 2>/dev/null || true
+                    focused=1
+                    break
+                fi
+            done
+            if [ "\$focused" -eq 0 ]; then
+                first_wid=\$(xdotool search --class "burp" 2>/dev/null | tail -n1 || true)
+                if [ -n "\$first_wid" ]; then
+                    xdotool windowactivate "\$first_wid" 2>/dev/null || xdotool windowraise "\$first_wid" 2>/dev/null || true
+                    focused=1
+                fi
+            fi
+        fi
+
+        if [ -t 1 ]; then
+            echo "Burp Suite Professional is already running (PID \$running_pid). Focused existing window."
+            echo "Use 'burpsuitepro --new-window' if you need to open an additional instance."
+        elif command -v notify-send &>/dev/null; then
+            notify-send -u low -i burpsuitepro "Burp Suite Professional" "Focused existing instance (PID \$running_pid)." 2>/dev/null || true
+        fi
+        exit 0
+    fi
+fi
+
+# Parse user-supplied JVM options from JAVA_OPTS and BURP_JAVA_OPTS safely
+USER_OPTS=()
+if [ -n "\${JAVA_OPTS:-}" ]; then
+    read -r -a _STD_OPTS <<< "\$JAVA_OPTS"
+    USER_OPTS+=("\${_STD_OPTS[@]}")
+fi
+if [ -n "\${BURP_JAVA_OPTS:-}" ]; then
+    read -r -a _BURP_OPTS <<< "\$BURP_JAVA_OPTS"
+    USER_OPTS+=("\${_BURP_OPTS[@]}")
+fi
+
+user_has_gc=0
+user_has_mem=0
+for uopt in "\${USER_OPTS[@]}"; do
+    if [[ "\$uopt" =~ ^-XX:\+Use.*GC\$ ]]; then
+        user_has_gc=1
+    fi
+    if [[ "\$uopt" =~ ^(-Xmx|-XX:MaxRAMPercentage=) ]]; then
+        user_has_mem=1
     fi
 done
 
-# Dynamic memory sizing
-MEM_OPTS=("-XX:MaxRAMPercentage=50")
+# Dynamic memory sizing (defaults to 50% RAM; respects explicit percentages, sizes, or user flags)
 BURP_MEM_VAL="\${BURP_MAX_RAM:-\${BURP_MEMORY:-\${BURP_RAM:-}}}"
+MEM_OPTS=("-XX:MaxRAMPercentage=50")
 if [ -n "\$BURP_MEM_VAL" ]; then
-    if [[ "\$BURP_MEM_VAL" =~ ^-Xmx ]]; then
+    if [[ "\$BURP_MEM_VAL" =~ ^([0-9]+)%\$ ]]; then
+        MEM_OPTS=("-XX:MaxRAMPercentage=\${BASH_REMATCH[1]}")
+    elif [[ "\$BURP_MEM_VAL" =~ ^-Xmx ]]; then
         MEM_OPTS=("\$BURP_MEM_VAL")
+    elif [[ "\$BURP_MEM_VAL" =~ ^[0-9]+[gGmMkK]\$ ]]; then
+        MEM_OPTS=("-Xmx\$BURP_MEM_VAL")
+    elif [[ "\$BURP_MEM_VAL" =~ ^[0-9]+\$ ]]; then
+        if [ "\$BURP_MEM_VAL" -le 100 ]; then
+            MEM_OPTS=("-XX:MaxRAMPercentage=\$BURP_MEM_VAL")
+        else
+            MEM_OPTS=("-Xmx\${BURP_MEM_VAL}m")
+        fi
     else
         MEM_OPTS=("-Xmx\$BURP_MEM_VAL")
     fi
+elif [ "\$user_has_mem" -eq 1 ]; then
+    MEM_OPTS=()
 fi
 
-# Generational ZGC Garbage Collector with G1GC fallback
-GC_OPTS=("-XX:+UseG1GC")
-if "\$JAVA_BIN" -XX:+UseZGC -XX:+ZGenerational -version >/dev/null 2>&1; then
-    GC_OPTS=("-XX:+UseZGC" "-XX:+ZGenerational")
-elif "\$JAVA_BIN" -XX:+UseZGC -version >/dev/null 2>&1; then
-    GC_OPTS=("-XX:+UseZGC")
-fi
-
-# Port 8080 conflict detection
-if ss -tlnH 'sport = :8080' 2>/dev/null | grep -q '8080'; then
-    if [ -t 1 ]; then
-        echo "[!] Warning: Port 8080 is already in use by another process." >&2
-        echo "    Burp Suite default proxy listener may conflict. Close the conflicting app or reconfigure listeners." >&2
-    elif command -v notify-send &>/dev/null; then
-        notify-send -u normal -i burpsuitepro "Burp Suite Port Conflict" "Port 8080 is already in use. Burp's default proxy listener may fail to bind." 2>/dev/null || true
+# Garbage Collector configuration with Generational ZGC & G1GC fallback
+GC_OPTS=()
+if [ "\$user_has_gc" -eq 0 ]; then
+    if [ -n "\${BURP_GC:-}" ]; then
+        case "\${BURP_GC,,}" in
+            zgc)
+                if "\$JAVA_BIN" -XX:+UseZGC -XX:+ZGenerational -version >/dev/null 2>&1; then
+                    GC_OPTS=("-XX:+UseZGC" "-XX:+ZGenerational")
+                elif "\$JAVA_BIN" -XX:+UseZGC -version >/dev/null 2>&1; then
+                    GC_OPTS=("-XX:+UseZGC")
+                else
+                    echo "[!] Warning: ZGC requested via BURP_GC but unsupported by \$JAVA_BIN. Falling back to G1GC." >&2
+                    GC_OPTS=("-XX:+UseG1GC")
+                fi
+                ;;
+            g1|g1gc)
+                GC_OPTS=("-XX:+UseG1GC")
+                ;;
+            parallel)
+                GC_OPTS=("-XX:+UseParallelGC")
+                ;;
+            shenandoah)
+                GC_OPTS=("-XX:+UseShenandoahGC")
+                ;;
+            none)
+                GC_OPTS=()
+                ;;
+            *)
+                echo "[!] Warning: Unknown BURP_GC='\$BURP_GC'. Using auto-detected GC." >&2
+                if "\$JAVA_BIN" -XX:+UseZGC -XX:+ZGenerational -version >/dev/null 2>&1; then
+                    GC_OPTS=("-XX:+UseZGC" "-XX:+ZGenerational")
+                elif "\$JAVA_BIN" -XX:+UseZGC -version >/dev/null 2>&1; then
+                    GC_OPTS=("-XX:+UseZGC")
+                else
+                    GC_OPTS=("-XX:+UseG1GC")
+                fi
+                ;;
+        esac
+    else
+        GC_OPTS=("-XX:+UseG1GC")
+        if "\$JAVA_BIN" -XX:+UseZGC -XX:+ZGenerational -version >/dev/null 2>&1; then
+            GC_OPTS=("-XX:+UseZGC" "-XX:+ZGenerational")
+        elif "\$JAVA_BIN" -XX:+UseZGC -version >/dev/null 2>&1; then
+            GC_OPTS=("-XX:+UseZGC")
+        fi
     fi
 fi
 
 # UI Scaling (HiDPI / KDE Wayland Fractional Scaling)
-# Under KDE Wayland with fractional scaling (125%, 150%), -Dsun.java2d.uiScale=auto
-# can cause blurry fonts, misaligned Swing components, or double-scaling with KWin.
-# Allow explicit override via BURP_SCALE or BURP_UI_SCALE (e.g. BURP_SCALE=1, 1.25, 1.5, 2).
-BURP_SCALE_OPT=("-Dsun.java2d.uiScale=auto")
+BURP_SCALE_OPTS=()
 BURP_SCALE_VAL="\${BURP_SCALE:-\${BURP_UI_SCALE:-}}"
 if [ -n "\$BURP_SCALE_VAL" ]; then
-    BURP_SCALE_OPT=("-Dsun.java2d.uiScale=\$BURP_SCALE_VAL")
+    BURP_SCALE_OPTS=("-Dsun.java2d.uiScale=\$BURP_SCALE_VAL" "-Dflatlaf.uiScale=\$BURP_SCALE_VAL")
 else
-    # Auto-detect KDE Wayland fractional scaling environment
     if [ -n "\${WAYLAND_DISPLAY:-}" ] && [[ "\${XDG_CURRENT_DESKTOP:-}" =~ KDE|Plasma ]]; then
-        # Check if KWin scales legacy X11 apps by the system (Scale != 1)
-        kwin_xwayland_scale=\$(kreadconfig6 --file kwinrc --group Xwayland --key Scale 2>/dev/null \
+        kwin_xwayland_scale=\$(kreadconfig6 --file kwinrc --group Xwayland --key Scale 2>/dev/null \\
             || kreadconfig5 --file kwinrc --group Xwayland --key Scale 2>/dev/null || echo "")
         if [ "\$kwin_xwayland_scale" = "0" ] || [ "\$kwin_xwayland_scale" = "false" ]; then
-            # KWin scales the X11 surface: use 1.0 to avoid double-scaling blur
-            BURP_SCALE_OPT=("-Dsun.java2d.uiScale=1.0")
+            # System handles XWayland scaling; lock Burp to 1.0 to prevent double-scaling blur
+            BURP_SCALE_OPTS=("-Dsun.java2d.uiScale=1.0" "-Dflatlaf.uiScale=1.0")
         fi
     fi
 fi
@@ -888,35 +1212,180 @@ fi
 
 BURP_TOOLKIT_VAL="\${BURP_TOOLKIT:-sun.awt.X11.XToolkit}"
 
-cd "\$REPO_DIR" || exit 1
+if [ "\$DO_BURP_HELP" = true ]; then
+    exec "\$JAVA_BIN" -jar "\$RESOLVED_JAR" --help
+fi
 
-JAVA_OPTS=(
+if [ "\$DO_BURP_VERSION" = true ]; then
+    exec "\$JAVA_BIN" -jar "\$RESOLVED_JAR" --version
+fi
+
+JVM_OPTS=(
+    # Module openings declared in PortSwigger Burp Suite manifest & Swing internals
     --add-opens=java.desktop/javax.swing=ALL-UNNAMED
+    --add-opens=java.desktop/java.awt=ALL-UNNAMED
+    --add-opens=java.desktop/java.awt.color=ALL-UNNAMED
     --add-opens=java.base/java.lang=ALL-UNNAMED
     --add-opens=java.base/java.util=ALL-UNNAMED
+    --add-opens=java.base/javax.crypto=ALL-UNNAMED
+    --add-opens=jdk.crypto.cryptoki/sun.security.pkcs11=ALL-UNNAMED
+    # Module openings strictly required by loader.jar (ASM instrumentation)
     --add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED
     --add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED
-    --add-opens=java.base/jdk.internal.org.objectweb.asm.Opcodes=ALL-UNNAMED
+    # Memory and Garbage Collection options
     "\${MEM_OPTS[@]}"
     "\${GC_OPTS[@]}"
+    # Deduplicate repetitive HTTP header/string allocations in proxy history
+    -XX:+UseStringDeduplication
+    # Font and Desktop rendering
     -Dawt.useSystemAAFontSettings=lcd
-    -Dswing.aatext=true
-    "\${BURP_SCALE_OPT[@]}"
+    "\${BURP_SCALE_OPTS[@]}"
     -Dawt.toolkit="\$BURP_TOOLKIT_VAL"
+    # User-customized JVM options (BURP_JAVA_OPTS / JAVA_OPTS)
+    "\${USER_OPTS[@]}"
+    # Bytecode instrumentation agent & Target application JAR
     -javaagent:"\$REPO_DIR/loader.jar"
     -jar "\$RESOLVED_JAR"
 )
 
+if [ "\$PRINT_CMD_ONLY" -eq 1 ]; then
+    printf '%q ' "\$JAVA_BIN" "\${JVM_OPTS[@]}" "\${BURP_ARGS[@]}"
+    echo ""
+    exit 0
+fi
+
+if [ "\$DRY_RUN" -eq 1 ]; then
+    echo "=== Burp Suite Execution Preview (Dry Run) ==="
+    echo "Working Directory: \$REPO_DIR"
+    echo "Environment:"
+    echo "  DISPLAY=\${DISPLAY:-:0}"
+    [ -n "\${WAYLAND_DISPLAY:-}" ] && echo "  WAYLAND_DISPLAY=\$WAYLAND_DISPLAY"
+    [ -n "\${_JAVA_AWT_WM_NONREPARENTING:-}" ] && echo "  _JAVA_AWT_WM_NONREPARENTING=\$_JAVA_AWT_WM_NONREPARENTING"
+    echo "Command Line:"
+    printf "  %q" "\$JAVA_BIN"
+    for opt in "\${JVM_OPTS[@]}"; do
+        printf " %q" "\$opt"
+    done
+    for arg in "\${BURP_ARGS[@]}"; do
+        printf " %q" "\$arg"
+    done
+    echo
+    echo "==============================================="
+    exit 0
+fi
+
+if [ "\$DO_DIAG" = true ]; then
+    echo "================================================================================"
+    echo "                      Burp Suite Professional Diagnostics                       "
+    echo "================================================================================"
+    echo "Launcher Path:        \$0"
+    echo "Burp Repository:      \$REPO_DIR"
+    echo "Resolved JAR:         \$RESOLVED_JAR"
+    if [ -f "\$RESOLVED_JAR" ]; then
+        jar_sz=\$(stat -c%s "\$RESOLVED_JAR" 2>/dev/null || stat -f%z "\$RESOLVED_JAR" 2>/dev/null || echo 0)
+        echo "JAR Size:             \$(( jar_sz / 1024 / 1024 )) MB (\$jar_sz bytes)"
+    else
+        echo "JAR Status:           MISSING"
+    fi
+    echo "Burp Version:         \$BURP_VERSION"
+    echo "Key Loader JAR:       \$REPO_DIR/loader.jar \$([ -f "\$REPO_DIR/loader.jar" ] && echo '[Present]' || echo '[MISSING]')"
+    echo "Jython 2.7.4 JAR:     \$REPO_DIR/jython-standalone-2.7.4.jar \$([ -f "\$REPO_DIR/jython-standalone-2.7.4.jar" ] && echo '[Present]' || echo '[Not installed]')"
+    echo "JRuby Complete JAR:   \$REPO_DIR/jruby-complete-9.4.9.0.jar \$([ -f "\$REPO_DIR/jruby-complete-9.4.9.0.jar" ] && echo '[Present]' || echo '[Not installed]')"
+    echo "Burp Trust CA Script: \$REPO_DIR/burp-trust-ca.sh \$([ -x "\$REPO_DIR/burp-trust-ca.sh" ] && echo '[Present, Executable]' || echo '[MISSING]')"
+    echo
+    echo "--- Java Runtime ---"
+    echo "Java Binary:          \$JAVA_BIN"
+    j_ver=\$("\$JAVA_BIN" -version 2>&1 | head -n 1 || echo "unknown")
+    echo "Java Version:         \$j_ver"
+    echo "Heap Config:          \${MEM_OPTS[*]:-default}"
+    echo "Garbage Collector:    \${GC_OPTS[*]:-default}"
+    echo "AWT Toolkit:          \$BURP_TOOLKIT_VAL"
+    if [ \${#BURP_SCALE_OPTS[@]} -gt 0 ]; then
+        echo "UI Scaling:           \${BURP_SCALE_OPTS[*]}"
+    else
+        echo "UI Scaling:           Default (unscaled / automatic)"
+    fi
+    echo
+    echo "--- Display & Environment ---"
+    echo "Display Server:       \${DISPLAY:-not set}"
+    echo "Wayland Display:      \${WAYLAND_DISPLAY:-not set}"
+    echo "Desktop Environment:  \${XDG_CURRENT_DESKTOP:-not set} (\${DESKTOP_SESSION:-not set})"
+    echo "AWT Non-reparenting:  \${_JAVA_AWT_WM_NONREPARENTING:-0 (unset)}"
+    echo "Background Log File:  \${LOG_FILE}"
+    echo
+    echo "--- Network & Ports ---"
+    check_port_8080 || true
+    running_burps=\$(pgrep -f "(java|openjdk).*[b]urpsuite_pro_v.*\.jar" 2>/dev/null | tr '\n' ' ' | sed 's/ \$//' || true)
+    if [ -n "\$running_burps" ]; then
+        echo "[!] Active Burp Process: Detected running instance(s) with PID: \$running_burps"
+    else
+        echo "[OK] No other Burp Suite instances running"
+    fi
+    echo "================================================================================"
+    echo
+    echo "=== Running Native Burp Suite Diagnostics ==="
+    cd "\$REPO_DIR" || exit 1
+    coproc JAVA_PROC { "\$JAVA_BIN" "\${JVM_OPTS[@]}" --diagnostics 2>&1; }
+    while IFS= read -r line <&"\${JAVA_PROC[0]}"; do
+        echo "\$line"
+        if [[ "\$line" =~ superuser ]]; then
+            break
+        fi
+    done
+    kill "\${JAVA_PROC_PID}" 2>/dev/null || true
+    wait "\${JAVA_PROC_PID}" 2>/dev/null || true
+    exit 0
+fi
+
+if [ "\$DO_BURP_DIAG" = true ]; then
+    cd "\$REPO_DIR" || exit 1
+    coproc JAVA_PROC { "\$JAVA_BIN" "\${JVM_OPTS[@]}" --diagnostics 2>&1; }
+    while IFS= read -r line <&"\${JAVA_PROC[0]}"; do
+        echo "\$line"
+        if [[ "\$line" =~ superuser ]]; then
+            break
+        fi
+    done
+    kill "\${JAVA_PROC_PID}" 2>/dev/null || true
+    wait "\${JAVA_PROC_PID}" 2>/dev/null || true
+    exit 0
+fi
+
+# Conflict and instance warnings before launch
+check_port_8080 || true
+
 if [ -t 1 ]; then
-    exec "\$JAVA_BIN" "\${JAVA_OPTS[@]}" "\${BURP_ARGS[@]}"
+    running_pids=\$(pgrep -f "(java|openjdk).*[b]urpsuite_pro_v.*\.jar" 2>/dev/null | tr '\n' ' ' | sed 's/ \$//' || true)
+    if [ -n "\$running_pids" ]; then
+        echo "[!] Notice: Another Burp Suite instance is currently running (PID: \$running_pids)." >&2
+    fi
+fi
+
+cd "\$REPO_DIR" || exit 1
+
+if [ -t 1 ]; then
+    exec "\$JAVA_BIN" "\${JVM_OPTS[@]}" "\${BURP_ARGS[@]}"
 else
-    LOG_FILE="/tmp/burpsuitepro-\${UID:-\$USER}.log"
-    "\$JAVA_BIN" "\${JAVA_OPTS[@]}" "\${BURP_ARGS[@]}" 2>"\$LOG_FILE"
+    # Rotate previous session log
+    if [ -f "\$LOG_FILE" ]; then
+        mv -f "\$LOG_FILE" "\$LOG_FILE.old" 2>/dev/null || true
+    fi
+
+    "\$JAVA_BIN" "\${JVM_OPTS[@]}" "\${BURP_ARGS[@]}" >"\$LOG_FILE" 2>&1
     EXIT_CODE=\$?
-    if [ \$EXIT_CODE -ne 0 ]; then
-        ERR_MSG=\$(tail -n 10 "\$LOG_FILE" 2>/dev/null)
-        [ -z "\$ERR_MSG" ] && ERR_MSG="Process exited with status \$EXIT_CODE. See \$LOG_FILE for details."
-        NOTIFY_BODY=\$(printf "Burp Suite exited with code %s:\n%s" "\$EXIT_CODE" "\$ERR_MSG")
+
+    # Only notify on abnormal termination (exclude clean exit 0, SIGINT 130, SIGTERM 143)
+    if [ \$EXIT_CODE -ne 0 ] && [ \$EXIT_CODE -ne 130 ] && [ \$EXIT_CODE -ne 143 ]; then
+        exit_desc="Burp Suite process exited with error code \$EXIT_CODE"
+        case \$EXIT_CODE in
+            137) exit_desc="Burp Suite killed by OS / Out of Memory (SIGKILL). Consider increasing BURP_MAX_RAM." ;;
+            139) exit_desc="Burp Suite crashed with JVM Segmentation Fault (SIGSEGV)." ;;
+        esac
+
+        ERR_MSG=\$(tail -n 8 "\$LOG_FILE" 2>/dev/null | tr -d '\000-\011\013-\037')
+        [ -z "\$ERR_MSG" ] && ERR_MSG="\$exit_desc"
+        NOTIFY_BODY=\$(printf "%s:\n\n%s\n\nLog: %s" "\$exit_desc" "\$ERR_MSG" "\$LOG_FILE")
+
         if command -v notify-send &>/dev/null; then
             notify-send -u critical -i burpsuitepro "Burp Suite Error" "\$NOTIFY_BODY" 2>/dev/null || true
         elif command -v kdialog &>/dev/null; then

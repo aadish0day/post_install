@@ -127,8 +127,8 @@ verify_burp_cert_endpoint() {
     chk_tmp="$(mktemp "${TMPDIR:-/tmp}/burp-ca-chk-XXXXXX.tmp" 2>/dev/null || mktemp /tmp/burp-ca-chk-XXXXXX.tmp)"
     if curl -sSL -f -m 3 "$CERT_URL" -o "$chk_tmp" 2>/dev/null && [ -s "$chk_tmp" ]; then
         local cert_subj
-        cert_subj="$(openssl x509 -inform DER -in "$chk_tmp" -noout -subject -issuer 2>/dev/null || \
-                     openssl x509 -inform PEM -in "$chk_tmp" -noout -subject -issuer 2>/dev/null || true)"
+        cert_subj="$(openssl x509 -inform DER -in "$chk_tmp" -noout -subject -issuer 2>/dev/null ||
+            openssl x509 -inform PEM -in "$chk_tmp" -noout -subject -issuer 2>/dev/null || true)"
         if [ -n "$cert_subj" ] && echo "$cert_subj" | grep -qi "PortSwigger"; then
             rm -f "$chk_tmp"
             return 0
@@ -500,46 +500,46 @@ is_browser_installed() {
     local b_id="$1"
     case "$b_id" in
     firefox)
-        command -v firefox &>/dev/null || command -v firefox-esr &>/dev/null || \
-        command -v firefox-bin &>/dev/null || command -v firefox-developer-edition &>/dev/null || \
-        (command -v pacman &>/dev/null && (pacman -Qi firefox &>/dev/null || pacman -Qi firefox-esr-bin &>/dev/null || pacman -Qi firefox-developer-edition &>/dev/null)) || \
-        (command -v dpkg-query &>/dev/null && dpkg-query -W -f='${Status}' firefox 2>/dev/null | grep -q "ok installed") || \
-        (command -v rpm &>/dev/null && rpm -q firefox &>/dev/null) || \
-        (command -v flatpak &>/dev/null && flatpak info org.mozilla.firefox &>/dev/null) || \
-        (command -v snap &>/dev/null && snap list firefox &>/dev/null) || \
-        [ -x /usr/lib/firefox/firefox ] || [ -x /usr/lib/firefox-esr/firefox-esr ] || [ -x /opt/firefox/firefox ]
+        command -v firefox &>/dev/null || command -v firefox-esr &>/dev/null ||
+            command -v firefox-bin &>/dev/null || command -v firefox-developer-edition &>/dev/null ||
+            (command -v pacman &>/dev/null && (pacman -Qi firefox &>/dev/null || pacman -Qi firefox-esr-bin &>/dev/null || pacman -Qi firefox-developer-edition &>/dev/null) ) ||
+            (command -v dpkg-query &>/dev/null && dpkg-query -W -f='${Status}' firefox 2>/dev/null | grep -q "ok installed") ||
+            (command -v rpm &>/dev/null && rpm -q firefox &>/dev/null) ||
+            (command -v flatpak &>/dev/null && flatpak info org.mozilla.firefox &>/dev/null) ||
+            (command -v snap &>/dev/null && snap list firefox &>/dev/null) ||
+            [ -x /usr/lib/firefox/firefox ] || [ -x /usr/lib/firefox-esr/firefox-esr ] || [ -x /opt/firefox/firefox ]
         ;;
     librewolf)
-        command -v librewolf &>/dev/null || command -v librewolf-bin &>/dev/null || \
-        (command -v pacman &>/dev/null && (pacman -Qi librewolf &>/dev/null || pacman -Qi librewolf-bin &>/dev/null)) || \
-        (command -v dpkg-query &>/dev/null && dpkg-query -W -f='${Status}' librewolf 2>/dev/null | grep -q "ok installed") || \
-        (command -v rpm &>/dev/null && rpm -q librewolf &>/dev/null) || \
-        (command -v flatpak &>/dev/null && flatpak info io.gitlab.librewolf-community &>/dev/null) || \
-        [ -x /usr/lib/librewolf/librewolf ] || [ -x /opt/librewolf/librewolf ]
+        command -v librewolf &>/dev/null || command -v librewolf-bin &>/dev/null ||
+            (command -v pacman &>/dev/null && (pacman -Qi librewolf &>/dev/null || pacman -Qi librewolf-bin &>/dev/null) ) ||
+            (command -v dpkg-query &>/dev/null && dpkg-query -W -f='${Status}' librewolf 2>/dev/null | grep -q "ok installed") ||
+            (command -v rpm &>/dev/null && rpm -q librewolf &>/dev/null) ||
+            (command -v flatpak &>/dev/null && flatpak info io.gitlab.librewolf-community &>/dev/null) ||
+            [ -x /usr/lib/librewolf/librewolf ] || [ -x /opt/librewolf/librewolf ]
         ;;
     floorp)
-        command -v floorp &>/dev/null || command -v floorp-bin &>/dev/null || \
-        (command -v pacman &>/dev/null && (pacman -Qi floorp &>/dev/null || pacman -Qi floorp-bin &>/dev/null)) || \
-        (command -v dpkg-query &>/dev/null && dpkg-query -W -f='${Status}' floorp 2>/dev/null | grep -q "ok installed") || \
-        (command -v rpm &>/dev/null && rpm -q floorp &>/dev/null) || \
-        (command -v flatpak &>/dev/null && flatpak info one.ablaze.floorp &>/dev/null) || \
-        [ -x /usr/lib/floorp/floorp ] || [ -x /opt/floorp/floorp ]
+        command -v floorp &>/dev/null || command -v floorp-bin &>/dev/null ||
+            (command -v pacman &>/dev/null && (pacman -Qi floorp &>/dev/null || pacman -Qi floorp-bin &>/dev/null) ) ||
+            (command -v dpkg-query &>/dev/null && dpkg-query -W -f='${Status}' floorp 2>/dev/null | grep -q "ok installed") ||
+            (command -v rpm &>/dev/null && rpm -q floorp &>/dev/null) ||
+            (command -v flatpak &>/dev/null && flatpak info one.ablaze.floorp &>/dev/null) ||
+            [ -x /usr/lib/floorp/floorp ] || [ -x /opt/floorp/floorp ]
         ;;
     waterfox)
-        command -v waterfox &>/dev/null || command -v waterfox-bin &>/dev/null || command -v waterfox-g &>/dev/null || \
-        (command -v pacman &>/dev/null && (pacman -Qi waterfox-bin &>/dev/null || pacman -Qi waterfox-g-bin &>/dev/null)) || \
-        (command -v dpkg-query &>/dev/null && dpkg-query -W -f='${Status}' waterfox 2>/dev/null | grep -q "ok installed") || \
-        (command -v rpm &>/dev/null && rpm -q waterfox &>/dev/null) || \
-        (command -v flatpak &>/dev/null && flatpak info net.waterfox.waterfox &>/dev/null) || \
-        [ -x /usr/lib/waterfox/waterfox ] || [ -x /opt/waterfox/waterfox ]
+        command -v waterfox &>/dev/null || command -v waterfox-bin &>/dev/null || command -v waterfox-g &>/dev/null ||
+            (command -v pacman &>/dev/null && (pacman -Qi waterfox-bin &>/dev/null || pacman -Qi waterfox-g-bin &>/dev/null) ) ||
+            (command -v dpkg-query &>/dev/null && dpkg-query -W -f='${Status}' waterfox 2>/dev/null | grep -q "ok installed") ||
+            (command -v rpm &>/dev/null && rpm -q waterfox &>/dev/null) ||
+            (command -v flatpak &>/dev/null && flatpak info net.waterfox.waterfox &>/dev/null) ||
+            [ -x /usr/lib/waterfox/waterfox ] || [ -x /opt/waterfox/waterfox ]
         ;;
     zen)
-        command -v zen &>/dev/null || command -v zen-bin &>/dev/null || command -v zen-browser &>/dev/null || \
-        (command -v pacman &>/dev/null && (pacman -Qi zen-browser-bin &>/dev/null || pacman -Qi zen-browser &>/dev/null)) || \
-        (command -v dpkg-query &>/dev/null && dpkg-query -W -f='${Status}' zen-browser 2>/dev/null | grep -q "ok installed") || \
-        (command -v rpm &>/dev/null && rpm -q zen-browser &>/dev/null) || \
-        (command -v flatpak &>/dev/null && (flatpak info io.github.zen_browser.zen &>/dev/null || flatpak info app.zen_browser.zen &>/dev/null)) || \
-        [ -x /usr/lib/zen/zen ] || [ -x /opt/zen/zen ] || [ -x /opt/zen-browser/zen ]
+        command -v zen &>/dev/null || command -v zen-bin &>/dev/null || command -v zen-browser &>/dev/null ||
+            (command -v pacman &>/dev/null && (pacman -Qi zen-browser-bin &>/dev/null || pacman -Qi zen-browser &>/dev/null) ) ||
+            (command -v dpkg-query &>/dev/null && dpkg-query -W -f='${Status}' zen-browser 2>/dev/null | grep -q "ok installed") ||
+            (command -v rpm &>/dev/null && rpm -q zen-browser &>/dev/null) ||
+            (command -v flatpak &>/dev/null && (flatpak info io.github.zen_browser.zen &>/dev/null || flatpak info app.zen_browser.zen &>/dev/null) ) ||
+            [ -x /usr/lib/zen/zen ] || [ -x /opt/zen/zen ] || [ -x /opt/zen-browser/zen ]
         ;;
     *)
         return 1
@@ -671,15 +671,15 @@ echo "=================================================="
 
 echo "1. System CA Trust Store:"
 case "$SYS_TRUST_STATUS" in
-    SUCCESS*)
-        echo "   [✓] $SYS_TRUST_STATUS"
-        ;;
-    SKIPPED*)
-        echo "   [-] $SYS_TRUST_STATUS"
-        ;;
-    FAILED*|*)
-        echo "   [✗] $SYS_TRUST_STATUS"
-        ;;
+SUCCESS*)
+    echo "   [✓] $SYS_TRUST_STATUS"
+    ;;
+SKIPPED*)
+    echo "   [-] $SYS_TRUST_STATUS"
+    ;;
+FAILED* | *)
+    echo "   [✗] $SYS_TRUST_STATUS"
+    ;;
 esac
 echo "   Note: Chromium-based browsers (Chrome, Chromium, Brave, Edge, Vivaldi, Thorium)"
 if [[ "$SYS_TRUST_STATUS" == SUCCESS* ]]; then
@@ -730,8 +730,8 @@ TOTAL_SUCCESSES=0
 TOTAL_FAILURES=0
 
 case "$SYS_TRUST_STATUS" in
-    SUCCESS*) TOTAL_SUCCESSES=$((TOTAL_SUCCESSES + 1)) ;;
-    FAILED*) TOTAL_FAILURES=$((TOTAL_FAILURES + 1)) ;;
+SUCCESS*) TOTAL_SUCCESSES=$((TOTAL_SUCCESSES + 1)) ;;
+FAILED*) TOTAL_FAILURES=$((TOTAL_FAILURES + 1)) ;;
 esac
 
 TOTAL_SUCCESSES=$((TOTAL_SUCCESSES + ${#PROFILES_SUCCEEDED[@]} + ${#POLICIES_SUCCEEDED[@]}))

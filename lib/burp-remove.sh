@@ -602,15 +602,15 @@ if [[ -d "$REPO_DIR" ]]; then
         (
             shopt -s nullglob
             for f in "$REPO_DIR"/burpsuite_pro_v*.jar \
-                     "$REPO_DIR"/*.jar.bk \
-                     "$REPO_DIR"/loader.jar \
-                     "$REPO_DIR"/jython-standalone-*.jar \
-                     "$REPO_DIR"/jruby-complete-*.jar \
-                     "$REPO_DIR"/.config.ini \
-                     "$REPO_DIR"/burp_suite_pro_icon.svg \
-                     "$REPO_DIR"/burp-trust-ca.sh \
-                     "$REPO_DIR"/burp-common.sh \
-                     "$REPO_DIR"/burpsuitepro; do
+                "$REPO_DIR"/*.jar.bk \
+                "$REPO_DIR"/loader.jar \
+                "$REPO_DIR"/jython-standalone-*.jar \
+                "$REPO_DIR"/jruby-complete-*.jar \
+                "$REPO_DIR"/.config.ini \
+                "$REPO_DIR"/burp_suite_pro_icon.svg \
+                "$REPO_DIR"/burp-trust-ca.sh \
+                "$REPO_DIR"/burp-common.sh \
+                "$REPO_DIR"/burpsuitepro; do
                 if [[ -e "$f" || -L "$f" ]]; then
                     rm -f "$f"
                     echo "  [✓] Removed installed file: $f"

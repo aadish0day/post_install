@@ -89,7 +89,7 @@ distro_install_deps() {
 
     # 2. Check required network, SSL, and desktop integration tools
     local tool
-    for tool in wget curl aria2c openssl certutil rsvg-convert update-desktop-database update-mime-database notify-send ss unshare gtk-update-icon-cache; do
+    for tool in wget curl aria2c openssl certutil rsvg-convert update-desktop-database update-mime-database notify-send ss unshare gtk-update-icon-cache xdotool; do
         if ! command -v "$tool" &>/dev/null; then
             case "$tool" in
             aria2c) missing_pkgs+=(aria2) ;;
