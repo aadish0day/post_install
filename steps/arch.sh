@@ -366,9 +366,9 @@ build_plan_arch() {
     fi
 
     local -a burp_args=(--skip-launch)
-    case "${CFG_BURP_CHANNEL:-}" in
-        stable|latest) burp_args+=(--channel "$CFG_BURP_CHANNEL") ;;
-    esac
+    if [ -n "${CFG_BURP_CHANNEL:-}" ] && [ "$CFG_BURP_CHANNEL" != "off" ]; then
+        burp_args+=(--channel "$CFG_BURP_CHANNEL")
+    fi
     if [ "${CFG_SECURITY_BURP:-false}" = true ] && [ -f "$distro_dir/apps/burp/install.sh" ]; then
         plan_add "Setup Burp Suite Professional (arch/apps/burp/install.sh)" run_module "arch/apps/burp/install.sh" "${burp_args[@]}"
     fi

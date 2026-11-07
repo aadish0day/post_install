@@ -103,11 +103,44 @@ step_standard_dirs() {
 step_burp_trust_ca() {
     if [ "${DRY_RUN_MODE:-false}" = true ]; then return 0; fi
 
+    local script_dir
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+    if [ -f "$script_dir/lib/burp-common.sh" ]; then
+        # shellcheck source=/dev/null
+        source "$script_dir/lib/burp-common.sh"
+    fi
+
     local burp_bin=""
-    burp_bin="$(find_burp_bin 2>/dev/null || true)"
+    if command -v find_burp_bin &>/dev/null; then
+        burp_bin="$(find_burp_bin 2>/dev/null || true)"
+    fi
+    if [ -z "$burp_bin" ] && command -v burpsuitepro &>/dev/null; then
+        burp_bin="$(command -v burpsuitepro)"
+    fi
 
     if [ -z "$burp_bin" ]; then
         echo "Burp Suite launcher not found. Skipping CA trust step."
+        return 0
+    fi
+
+    # Verify if Burp Suite proxy is actively running and responding with a PortSwigger CA certificate
+    local chk_tmp
+    chk_tmp="$(mktemp "${TMPDIR:-/tmp}/burp-common-chk-XXXXXX.tmp" 2>/dev/null || mktemp /tmp/burp-common-chk-XXXXXX.tmp)"
+    local burp_active=false
+    if curl -sSL -f -m 2 http://127.0.0.1:8080/cert -o "$chk_tmp" 2>/dev/null && [ -s "$chk_tmp" ]; then
+        local cert_subj
+        cert_subj="$(openssl x509 -inform DER -in "$chk_tmp" -noout -subject -issuer 2>/dev/null || \
+                     openssl x509 -inform PEM -in "$chk_tmp" -noout -subject -issuer 2>/dev/null || true)"
+        if [ -n "$cert_subj" ] && echo "$cert_subj" | grep -qi "PortSwigger"; then
+            burp_active=true
+        fi
+    fi
+    rm -f "$chk_tmp"
+
+    if [ "$burp_active" = false ]; then
+        echo ""
+        echo "Burp Suite proxy is not currently active (installed with --skip-launch) or not serving a valid PortSwigger certificate."
+        echo "Skipping unattended CA trust. To trust Burp CA certificate across browsers once Burp is running, run: 'burpsuitepro --trust-ca'."
         return 0
     fi
 

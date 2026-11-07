@@ -549,6 +549,10 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --channel)
+            if [ $# -lt 2 ]; then
+                log_err "--channel requires an argument (stable or latest)."
+                exit 1
+            fi
             CFG_BURP_CHANNEL="$2"
             shift 2
             ;;

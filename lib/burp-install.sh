@@ -5,8 +5,17 @@
 
 set -euo pipefail
 
-BURP_STABLE_VERSION="2026.10.1"
-REPO_DIR="$HOME/Documents/Crack/Burpsuite-Professional"
+BURP_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$BURP_LIB_DIR/burp-common.sh" ]]; then
+    # shellcheck source=lib/burp-common.sh
+    source "$BURP_LIB_DIR/burp-common.sh"
+elif [[ -n "${ROOT_DIR:-}" && -f "$ROOT_DIR/lib/burp-common.sh" ]]; then
+    # shellcheck source=lib/burp-common.sh
+    source "$ROOT_DIR/lib/burp-common.sh"
+fi
+
+BURP_STABLE_VERSION="${DEFAULT_BURP_VER:-2026.10.1}"
+REPO_DIR="${REPO_DIR:-$HOME/Documents/Crack/Burpsuite-Professional}"
 JYTHON_URL="https://repo1.maven.org/maven2/org/python/jython-standalone/2.7.4/jython-standalone-2.7.4.jar"
 JYTHON_JAR="jython-standalone-2.7.4.jar"
 JYTHON_FILE="$REPO_DIR/$JYTHON_JAR"
@@ -25,6 +34,8 @@ find_java_bin() {
     for j in \
         "/usr/lib/jvm/java-21-openjdk/bin/java" \
         "/usr/lib/jvm/java-21-openjdk-amd64/bin/java" \
+        "/usr/lib/jvm/jre-21-openjdk/bin/java" \
+        "/usr/lib/jvm/java-21/bin/java" \
         "/usr/lib/jvm/default-runtime/bin/java"; do
         if [ -x "$j" ]; then
             echo "$j"
@@ -45,12 +56,16 @@ find_burp_bin() {
         return 0
     fi
     local b
-    for b in "$HOME/.local/bin/burpsuitepro" "/usr/local/bin/burpsuitepro" "$HOME/Documents/Crack/Burpsuite-Professional/burpsuitepro"; do
+    for b in "$HOME/.local/bin/burpsuitepro" "/usr/local/bin/burpsuitepro" "${REPO_DIR:-$HOME/Documents/Crack/Burpsuite-Professional}/burpsuitepro"; do
         if [ -x "$b" ]; then
             echo "$b"
             return 0
         fi
     done
+    if command -v burpsuitepro &>/dev/null; then
+        command -v burpsuitepro
+        return 0
+    fi
     return 1
 }
 
@@ -62,6 +77,31 @@ get_file_size() {
 # Helper function to compare version strings: returns 0 (true) if $1 >= $2
 version_ge() {
     [ "$(printf '%s\n%s' "$1" "$2" | sort -V | tail -n1)" = "$1" ]
+}
+
+# Helper function to verify that a file is a valid jar/zip archive
+is_valid_jar() {
+    local jar="$1"
+    local min_size="${2:-1048576}" # Default 1MB minimum size
+    if [[ ! -f "$jar" ]]; then
+        return 1
+    fi
+    local sz
+    sz="$(get_file_size "$jar")"
+    if [[ "$sz" -le "$min_size" ]]; then
+        return 1
+    fi
+    if command -v unzip &>/dev/null; then
+        unzip -tq "$jar" >/dev/null 2>&1
+        return $?
+    elif command -v python3 &>/dev/null; then
+        python3 -c "import zipfile, sys; sys.exit(0 if zipfile.is_zipfile(sys.argv[1]) else 1)" "$jar" 2>/dev/null
+        return $?
+    fi
+    # Fallback to checking PK zip magic header
+    local magic
+    magic="$(head -c 2 "$jar" 2>/dev/null || true)"
+    [[ "$magic" == "PK" ]]
 }
 
 # Pre-seed JRE Warning Suppression
@@ -80,42 +120,52 @@ suppress_jre_warnings() {
         "burp.suite.alertsdisabledforjre-413592390"
     )
 
-    if [[ ! -f "$prefs_file" || ! -s "$prefs_file" || $(grep -c "</map>" "$prefs_file" 2>/dev/null || echo 0) -eq 0 ]]; then
-        cat <<'EOF' >"$prefs_file"
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!DOCTYPE map SYSTEM "http://java.sun.com/dtd/preferences.dtd">
-<map MAP_XML_VERSION="1.0">
-  <entry key="suite.alertsdisabledforjre-3189538875" value="true"/>
-  <entry key="suite.alertsdisabledforjre-1115054815" value="true"/>
-  <entry key="burp.suite.alertsdisabledforjre-3189538875" value="true"/>
-  <entry key="burp.suite.alertsdisabledforjre-1115054815" value="true"/>
-  <entry key="burp.suite.alertsdisabledforjre-1872878544" value="true"/>
-  <entry key="burp.suite.alertsdisabledforjre-413592390" value="true"/>
-</map>
-EOF
-    else
-        for key in "${entries[@]}"; do
-            if ! grep -qF "key=\"$key\"" "$prefs_file"; then
-                sed -i "/<\/map>/i \  <entry key=\"$key\" value=\"true\"/>" "$prefs_file"
-            fi
-        done
-    fi
+    local key
+    for key in "${entries[@]}"; do
+        merge_pref_entry "$prefs_file" "$key" "true"
+    done
     echo "JRE warning suppression configured."
 }
 
-# Verify unprivileged user namespaces on Arch
+# Verify unprivileged user namespaces on Arch Linux
 burp_check_user_namespaces() {
     echo "Checking unprivileged user namespaces for embedded Chromium..."
+    local userns_sysctl="/proc/sys/user/max_user_namespaces"
+    local userns_clone="/proc/sys/kernel/unprivileged_userns_clone"
+
+    # Detect when user.max_user_namespaces is disabled (0) on Arch
+    if [[ -f "$userns_sysctl" ]] && [[ "$(cat "$userns_sysctl" 2>/dev/null || echo 1)" -eq 0 ]]; then
+        echo "Detected user.max_user_namespaces=0 (user namespaces disabled)."
+        echo "Attempting to enable unprivileged user namespaces..."
+        if [[ $EUID -eq 0 ]]; then
+            sysctl -w user.max_user_namespaces=10000 2>/dev/null || true
+            echo "user.max_user_namespaces=10000" >/etc/sysctl.d/99-burp-userns.conf 2>/dev/null || true
+        elif command -v sudo &>/dev/null; then
+            sudo sysctl -w user.max_user_namespaces=10000 2>/dev/null || true
+            echo "user.max_user_namespaces=10000" | sudo tee /etc/sysctl.d/99-burp-userns.conf >/dev/null 2>&1 || true
+        fi
+    fi
+
+    # Detect when kernel.unprivileged_userns_clone is 0 (e.g. linux-hardened)
+    if [[ -f "$userns_clone" ]] && [[ "$(cat "$userns_clone" 2>/dev/null || echo 1)" -eq 0 ]]; then
+        echo "Detected kernel.unprivileged_userns_clone=0."
+        echo "Attempting to enable unprivileged user namespaces..."
+        if [[ $EUID -eq 0 ]]; then
+            sysctl -w kernel.unprivileged_userns_clone=1 2>/dev/null || true
+            echo "kernel.unprivileged_userns_clone=1" >/etc/sysctl.d/99-burp-userns.conf 2>/dev/null || true
+        elif command -v sudo &>/dev/null; then
+            sudo sysctl -w kernel.unprivileged_userns_clone=1 2>/dev/null || true
+            echo "kernel.unprivileged_userns_clone=1" | sudo tee -a /etc/sysctl.d/99-burp-userns.conf >/dev/null 2>&1 || true
+        fi
+    fi
+
     local userns_ok=true
-
-    if [[ -f /proc/sys/kernel/unprivileged_userns_clone ]] && [[ "$(</proc/sys/kernel/unprivileged_userns_clone)" -eq 0 ]]; then
+    if [[ -f "$userns_sysctl" ]] && [[ "$(cat "$userns_sysctl" 2>/dev/null || echo 1)" -eq 0 ]]; then
         userns_ok=false
     fi
-
-    if [[ -f /proc/sys/user/max_user_namespaces ]] && [[ "$(</proc/sys/user/max_user_namespaces)" -eq 0 ]]; then
+    if [[ -f "$userns_clone" ]] && [[ "$(cat "$userns_clone" 2>/dev/null || echo 1)" -eq 0 ]]; then
         userns_ok=false
     fi
-
     if ! unshare --user true 2>/dev/null; then
         userns_ok=false
     fi
@@ -123,8 +173,13 @@ burp_check_user_namespaces() {
     if [[ "$userns_ok" == false ]]; then
         echo "[!] Warning: Unprivileged user namespaces appear disabled or restricted."
         echo "    Burp Suite's embedded Chromium browser requires user namespaces to sandbox."
-        echo "    Enable them with: sudo sysctl -w kernel.unprivileged_userns_clone=1"
-        echo "    Or persist via /etc/sysctl.d/00-local-userns.conf (kernel.unprivileged_userns_clone = 1)"
+        if [[ -f "$userns_clone" ]] && [[ "$(cat "$userns_clone" 2>/dev/null || echo 1)" -eq 0 ]]; then
+            echo "    Enable them with: sudo sysctl -w kernel.unprivileged_userns_clone=1"
+            echo "    Or persist via: echo 'kernel.unprivileged_userns_clone=1' | sudo tee /etc/sysctl.d/99-burp-userns.conf"
+        else
+            echo "    Enable them with: sudo sysctl -w user.max_user_namespaces=10000"
+            echo "    Or persist via: echo 'user.max_user_namespaces=10000' | sudo tee /etc/sysctl.d/99-burp-userns.conf"
+        fi
     else
         echo "Unprivileged user namespaces verified (embedded Chromium sandbox supported)."
     fi
@@ -179,32 +234,20 @@ install_burp_system_icons() {
         fi
     done
 
-    # System-wide installation if writable or passwordless sudo
-    local sys_icon_base="/usr/local/share/icons/hicolor"
-    local sys_pixmaps="/usr/share/pixmaps"
-
-    if [[ -w /usr/local/share && -w "$sys_pixmaps" ]]; then
-        mkdir -p "$sys_icon_base/scalable/apps" "$sys_pixmaps"
+    # System-wide installation only when explicitly running as root
+    if [[ $EUID -eq 0 ]]; then
+        local sys_icon_base="/usr/local/share/icons/hicolor"
+        local sys_pixmaps="/usr/share/pixmaps"
+        mkdir -p "$sys_icon_base/scalable/apps" "$sys_pixmaps" 2>/dev/null || true
         cp -f "$svg_source" "$sys_icon_base/scalable/apps/burpsuitepro.svg" 2>/dev/null || true
         cp -f "$svg_source" "$sys_pixmaps/burpsuitepro.svg" 2>/dev/null || true
         for s in "${sizes[@]}"; do
             if [[ -f "$user_icon_base/${s}x${s}/apps/burpsuitepro.png" ]]; then
-                mkdir -p "$sys_icon_base/${s}x${s}/apps"
+                mkdir -p "$sys_icon_base/${s}x${s}/apps" 2>/dev/null || true
                 cp -f "$user_icon_base/${s}x${s}/apps/burpsuitepro.png" "$sys_icon_base/${s}x${s}/apps/burpsuitepro.png" 2>/dev/null || true
             fi
         done
         gtk-update-icon-cache -f -q -t "$sys_icon_base" 2>/dev/null || true
-    elif command -v sudo &>/dev/null && sudo -n true 2>/dev/null; then
-        sudo -n mkdir -p "$sys_icon_base/scalable/apps" "$sys_pixmaps" 2>/dev/null || true
-        sudo -n cp -f "$svg_source" "$sys_icon_base/scalable/apps/burpsuitepro.svg" 2>/dev/null || true
-        sudo -n cp -f "$svg_source" "$sys_pixmaps/burpsuitepro.svg" 2>/dev/null || true
-        for s in "${sizes[@]}"; do
-            if [[ -f "$user_icon_base/${s}x${s}/apps/burpsuitepro.png" ]]; then
-                sudo -n mkdir -p "$sys_icon_base/${s}x${s}/apps" 2>/dev/null || true
-                sudo -n cp -f "$user_icon_base/${s}x${s}/apps/burpsuitepro.png" "$sys_icon_base/${s}x${s}/apps/burpsuitepro.png" 2>/dev/null || true
-            fi
-        done
-        sudo -n gtk-update-icon-cache -f -q -t "$sys_icon_base" 2>/dev/null || true
     fi
 
     # Rebuild user icon cache
@@ -235,16 +278,12 @@ EOF
         update-mime-database "$HOME/.local/share/mime" 2>/dev/null || true
     fi
 
-    # System-wide MIME installation if writable or passwordless sudo
-    local sys_mime_dir="/usr/local/share/mime/packages"
-    if [[ -w /usr/local/share/mime ]]; then
-        mkdir -p "$sys_mime_dir"
+    # System-wide MIME installation only when explicitly running as root
+    if [[ $EUID -eq 0 ]]; then
+        local sys_mime_dir="/usr/local/share/mime/packages"
+        mkdir -p "$sys_mime_dir" 2>/dev/null || true
         cp -f "$user_mime_dir/burpsuitepro.xml" "$sys_mime_dir/burpsuitepro.xml" 2>/dev/null || true
         update-mime-database /usr/local/share/mime 2>/dev/null || true
-    elif command -v sudo &>/dev/null && sudo -n true 2>/dev/null; then
-        sudo -n mkdir -p "$sys_mime_dir" 2>/dev/null || true
-        sudo -n cp -f "$user_mime_dir/burpsuitepro.xml" "$sys_mime_dir/burpsuitepro.xml" 2>/dev/null || true
-        sudo -n update-mime-database /usr/local/share/mime 2>/dev/null || true
     fi
 }
 
@@ -276,6 +315,7 @@ run_burp_installation() {
     local force_download=false
     local custom_version=""
     local channel=""
+    local explicit_version=false
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -286,10 +326,17 @@ run_burp_installation() {
         -v | --version)
             if [[ $# -lt 2 ]]; then
                 echo "ERROR: $1 requires a version argument." >&2
+                burp_usage
                 exit 1
             fi
             custom_version="$2"
+            explicit_version=true
             shift 2
+            ;;
+        --version=*)
+            custom_version="${1#*=}"
+            explicit_version=true
+            shift
             ;;
         --skip-launch)
             skip_launch=true
@@ -302,31 +349,63 @@ run_burp_installation() {
         --channel)
             if [[ $# -lt 2 ]]; then
                 echo "ERROR: $1 requires a channel argument (stable or latest)." >&2
+                burp_usage
                 exit 1
             fi
             channel="$2"
             shift 2
             ;;
+        --channel=*)
+            channel="${1#*=}"
+            shift
+            ;;
+        -*)
+            echo "ERROR: Unknown option: $1" >&2
+            burp_usage
+            exit 1
+            ;;
         *)
             if [[ -z "$custom_version" && "$1" =~ ^[0-9]+(\.[0-9]+)*$ ]]; then
                 custom_version="$1"
+                explicit_version=true
+                shift
+            else
+                echo "ERROR: Unknown option or argument: $1" >&2
+                burp_usage
+                exit 1
             fi
-            shift
             ;;
         esac
     done
+
+    # Validate channel argument if provided
+    if [[ -n "$channel" ]]; then
+        local channel_norm="${channel,,}"
+        if [[ "$channel_norm" != "stable" && "$channel_norm" != "latest" ]]; then
+            echo "ERROR: Invalid channel '$channel'. Allowed channels are: stable, latest" >&2
+            burp_usage
+            exit 1
+        fi
+        channel="$channel_norm"
+    fi
 
     # Version resolution
     local burp_ver=""
     if [[ -n "$custom_version" ]]; then
         burp_ver="$custom_version"
+        if [[ -n "$channel" ]]; then
+            echo "WARNING: Both --channel ($channel) and explicit version ($custom_version) specified. Explicit version takes precedence over --channel." >&2
+        fi
         echo "Using specified Burp Suite version: $burp_ver"
     elif [[ -n "${BURP_VERSION:-}" ]]; then
         burp_ver="$BURP_VERSION"
+        explicit_version=true
+        if [[ -n "$channel" ]]; then
+            echo "WARNING: Both --channel ($channel) and BURP_VERSION ($BURP_VERSION) specified. BURP_VERSION takes precedence over --channel." >&2
+        fi
         echo "Using environment BURP_VERSION: $burp_ver"
     else
         channel="${channel:-stable}"
-        channel="${channel,,}"
         if [[ "$channel" == "stable" ]]; then
             burp_ver="$BURP_STABLE_VERSION"
             echo "Using stable (tested) Burp Suite version: $burp_ver"
@@ -353,24 +432,8 @@ except Exception:
 " 2>/dev/null || true)"
 
             if [[ -z "$burp_ver" ]]; then
-                echo "PortSwigger API unavailable, checking GitHub release..."
-                burp_ver="$(curl -sSL --connect-timeout 10 --max-time 15 'https://api.github.com/repos/xiv3r/Burpsuite-Professional/releases/latest' 2>/dev/null | python3 -c "
-import json, sys
-try:
-    data = json.load(sys.stdin)
-    if isinstance(data, dict):
-        tag = data.get('tag_name')
-        if tag:
-            print(tag.lstrip('v'))
-            sys.exit(0)
-except Exception:
-    pass
-" 2>/dev/null || true)"
-            fi
-
-            if [[ -z "$burp_ver" ]]; then
                 burp_ver="$BURP_STABLE_VERSION"
-                echo "APIs unavailable. Falling back to stable version: $burp_ver"
+                echo "PortSwigger release API unavailable. Falling back to stable version: $burp_ver"
             else
                 echo "Latest version detected: $burp_ver"
             fi
@@ -386,7 +449,7 @@ except Exception:
     echo "=== Installing Burp Suite Professional ($distro_label) ==="
 
     # Check for active running instances
-    if pgrep -f 'burpsuite_pro_v.*\.jar' >/dev/null 2>&1; then
+    if pgrep -f "(java|openjdk).*[b]urpsuite_pro_v.*\.jar" >/dev/null 2>&1; then
         echo "[!] Warning: Burp Suite Professional is currently running."
         echo "Please close Burp Suite to avoid file lock issues."
         if [ -t 0 ]; then
@@ -407,8 +470,9 @@ except Exception:
 
     # Download loader.jar
     local loader_file="$REPO_DIR/loader.jar"
-    if [[ -f "$loader_file" && $(get_file_size "$loader_file") -gt 10240 && "$force_download" == false ]]; then
-        echo "Existing loader.jar verified (> 10KB). Skipping download."
+    local min_loader_size=10240
+    if [[ -f "$loader_file" ]] && is_valid_jar "$loader_file" "$min_loader_size" && [[ "$force_download" == false ]]; then
+        echo "Existing loader.jar verified (> 10KB valid archive). Skipping download."
     else
         echo "Downloading loader.jar..."
         local loader_downloaded=false
@@ -416,8 +480,8 @@ except Exception:
         for url in "${LOADER_URLS[@]}"; do
             echo "Attempting loader download from: $url"
             if curl -fL --connect-timeout 10 --max-time 60 --progress-bar -o "$loader_file.tmp" "$url" 2>/dev/null; then
-                if [[ $(get_file_size "$loader_file.tmp") -gt 10240 ]]; then
-                    mv "$loader_file.tmp" "$loader_file"
+                if is_valid_jar "$loader_file.tmp" "$min_loader_size"; then
+                    mv -f "$loader_file.tmp" "$loader_file"
                     echo "Successfully downloaded loader.jar"
                     loader_downloaded=true
                     break
@@ -427,48 +491,65 @@ except Exception:
             fi
         done
         if [[ "$loader_downloaded" == false ]]; then
-            if [[ -f "$loader_file" && $(get_file_size "$loader_file") -gt 10240 ]]; then
+            if [[ -f "$loader_file" ]] && is_valid_jar "$loader_file" "$min_loader_size"; then
                 echo "WARNING: Failed to re-download loader.jar, preserving existing valid file."
             else
-                echo "ERROR: Failed to download loader.jar from all mirrors." >&2
+                echo "ERROR: Failed to download valid loader.jar from all mirrors." >&2
                 exit 1
             fi
         fi
     fi
 
     # 3. Download Burp Suite Pro JAR
-    cd "$REPO_DIR"
+    cd "$REPO_DIR" || exit 1
     local skip_download=false
     local min_jar_size=10485760 # 10MB
     local target_jar="$REPO_DIR/$jar_name"
 
     if [[ "$force_download" == false ]]; then
-        local target_size
-        target_size="$(get_file_size "$target_jar")"
-        if [[ -f "$target_jar" && "$target_size" -gt $min_jar_size ]]; then
+        if [[ -f "$target_jar" ]] && is_valid_jar "$target_jar" "$min_jar_size"; then
+            local target_size
+            target_size="$(get_file_size "$target_jar")"
             echo "Burp Suite Professional v$burp_ver ($jar_name) already present and valid ($((target_size / 1024 / 1024))MB)."
+            skip_download=true
+        elif [[ -f "${target_jar}.bk" ]] && is_valid_jar "${target_jar}.bk" "$min_jar_size"; then
+            echo "Restoring previous backup of Burp Suite Professional v$burp_ver (${jar_name}.bk)..."
+            cp -f "${target_jar}.bk" "$target_jar"
             skip_download=true
         elif compgen -G "$REPO_DIR/burpsuite_pro_v*.jar" >/dev/null; then
             local latest_valid_jar=""
             local latest_valid_ver=""
             while IFS= read -r candidate; do
                 [[ -z "$candidate" || ! -f "$candidate" ]] && continue
-                local cand_size
-                cand_size="$(get_file_size "$candidate")"
-                if [[ "$cand_size" -gt $min_jar_size ]]; then
+                if is_valid_jar "$candidate" "$min_jar_size"; then
                     latest_valid_jar="$candidate"
                     latest_valid_ver="$(basename "$candidate" | sed -E 's/^burpsuite_pro_v(.*)\.jar$/\1/')"
                 fi
             done < <(find "$REPO_DIR" -maxdepth 1 -name 'burpsuite_pro_v*.jar' 2>/dev/null | sort -V)
 
             if [[ -n "$latest_valid_jar" ]]; then
-                if version_ge "$latest_valid_ver" "$burp_ver"; then
-                    echo "Found installed version $latest_valid_ver, which is >= requested $burp_ver. Skipping download."
-                    skip_download=true
-                    jar_name="$(basename "$latest_valid_jar")"
-                    burp_ver="$latest_valid_ver"
+                if [[ "$explicit_version" == true ]]; then
+                    if [[ "$latest_valid_ver" == "$burp_ver" ]]; then
+                        echo "Found requested version $burp_ver already installed ($latest_valid_jar). Skipping download."
+                        skip_download=true
+                        jar_name="$(basename "$latest_valid_jar")"
+                    elif version_ge "$latest_valid_ver" "$burp_ver"; then
+                        echo "Detected newer version installed ($latest_valid_ver), but requested explicit downgrade to $burp_ver."
+                        echo "Proceeding to download target version $burp_ver..."
+                        skip_download=false
+                    else
+                        echo "Found older version ($latest_valid_ver). Upgrading to requested $burp_ver..."
+                        skip_download=false
+                    fi
                 else
-                    echo "Found older version ($latest_valid_ver). Upgrading to $burp_ver..."
+                    if version_ge "$latest_valid_ver" "$burp_ver"; then
+                        echo "Found installed version $latest_valid_ver, which is >= requested $burp_ver. Skipping download."
+                        skip_download=true
+                        jar_name="$(basename "$latest_valid_jar")"
+                        burp_ver="$latest_valid_ver"
+                    else
+                        echo "Found older version ($latest_valid_ver). Upgrading to $burp_ver..."
+                    fi
                 fi
             fi
         fi
@@ -480,7 +561,7 @@ except Exception:
         if command -v aria2c &>/dev/null; then
             echo "Using aria2c accelerator (16 connections)..."
             if aria2c -x 16 -s 16 -j 16 -k 1M -c --file-allocation=none -d "$REPO_DIR" -o "$jar_name.tmp" "$download_url"; then
-                if [[ -f "$jar_name.tmp" && $(get_file_size "$jar_name.tmp") -gt $min_jar_size ]]; then
+                if is_valid_jar "$jar_name.tmp" "$min_jar_size"; then
                     jar_downloaded=true
                 fi
             fi
@@ -489,7 +570,7 @@ except Exception:
         if [[ "$jar_downloaded" == false ]] && command -v curl &>/dev/null; then
             echo "Using curl with auto-resume..."
             if curl -fLC - --connect-timeout 10 --retry 3 --retry-delay 2 --progress-bar -o "$jar_name.tmp" "$download_url"; then
-                if [[ -f "$jar_name.tmp" && $(get_file_size "$jar_name.tmp") -gt $min_jar_size ]]; then
+                if is_valid_jar "$jar_name.tmp" "$min_jar_size"; then
                     jar_downloaded=true
                 fi
             fi
@@ -497,26 +578,19 @@ except Exception:
         if [[ "$jar_downloaded" == false ]] && command -v wget &>/dev/null; then
             echo "Using wget fallback..."
             if wget -O "$jar_name.tmp" --quiet --show-progress "$download_url"; then
-                if [[ -f "$jar_name.tmp" && $(get_file_size "$jar_name.tmp") -gt $min_jar_size ]]; then
+                if is_valid_jar "$jar_name.tmp" "$min_jar_size"; then
                     jar_downloaded=true
                 fi
             fi
         fi
 
-        if [[ "$jar_downloaded" == false || ! -f "$jar_name.tmp" || $(get_file_size "$jar_name.tmp") -le $min_jar_size ]]; then
-            echo "ERROR: Failed to download valid Burp Suite JAR file." >&2
+        if [[ "$jar_downloaded" == false || ! -f "$jar_name.tmp" ]] || ! is_valid_jar "$jar_name.tmp" "$min_jar_size"; then
+            echo "ERROR: Failed to download valid Burp Suite JAR file (archive corrupted or truncated)." >&2
             rm -f "$jar_name.tmp" "$REPO_DIR/$jar_name.tmp.aria2" 2>/dev/null || true
             exit 1
         fi
 
         mv -f "$jar_name.tmp" "$jar_name"
-
-        # Backup older Burp JARs
-        for old_jar in "$REPO_DIR"/burpsuite_pro_v*.jar; do
-            if [[ -f "$old_jar" && "$(basename "$old_jar")" != "$jar_name" ]]; then
-                mv -f "$old_jar" "${old_jar}.bk"
-            fi
-        done
     fi
 
     # Display checksums
@@ -526,192 +600,162 @@ except Exception:
         echo "MD5:    $(md5sum "$jar_name" | cut -d' ' -f1)"
     fi
 
-    # 4. Copy local assets
-    local core_dir
-    core_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    echo "Copying shared configuration and icon..."
-    if [[ -f "$core_dir/burp/.config.ini" ]]; then
-        cp "$core_dir/burp/.config.ini" "$REPO_DIR/" 2>/dev/null || true
-    fi
-    if [[ -f "$core_dir/burp/burp_suite_pro_icon.svg" ]]; then
-        cp "$core_dir/burp/burp_suite_pro_icon.svg" "$REPO_DIR/" 2>/dev/null || true
-    fi
-    if [[ -f "$core_dir/burp-trust-ca.sh" ]]; then
-        cp "$core_dir/burp-trust-ca.sh" "$REPO_DIR/burp-trust-ca.sh"
-        chmod +x "$REPO_DIR/burp-trust-ca.sh"
-    fi
-
-    install_burp_system_icons "$REPO_DIR/burp_suite_pro_icon.svg"
-    install_burp_system_mime
-
-    suppress_jre_warnings
-
-    # 5. Jython & JRuby Standalone Extensions & User Config
-    echo "Configuring Jython Standalone 2.7.4..."
-    local min_jython_size=20971520 # 20MB
-    local jython_size
-    jython_size="$(get_file_size "$JYTHON_FILE")"
-    if [[ -f "$JYTHON_FILE" && "$jython_size" -gt $min_jython_size && "$force_download" == false ]]; then
-        echo "Existing Jython standalone verified ($((jython_size / 1024 / 1024))MB)."
-    else
-        echo "Downloading Jython Standalone 2.7.4..."
-        local download_ok=false
-        if command -v aria2c &>/dev/null; then
-            if aria2c -x 16 -s 16 -j 16 -k 1M -c --file-allocation=none -d "$REPO_DIR" -o "$JYTHON_JAR.tmp" "$JYTHON_URL" 2>/dev/null; then
-                if [[ -f "$JYTHON_FILE.tmp" && $(get_file_size "$JYTHON_FILE.tmp") -gt $min_jython_size ]]; then
-                    download_ok=true
-                fi
-            fi
-            rm -f "$JYTHON_FILE.tmp.aria2" 2>/dev/null || true
+    # Backup older Burp JARs only AFTER new jar has been fully verified and placed
+    for old_jar in "$REPO_DIR"/burpsuite_pro_v*.jar; do
+        if [[ -f "$old_jar" && "$(basename "$old_jar")" != "$jar_name" ]]; then
+            echo "Backing up previous version $(basename "$old_jar") to $(basename "$old_jar").bk"
+            mv -f "$old_jar" "${old_jar}.bk"
         fi
-        if [[ "$download_ok" == false ]] && command -v curl &>/dev/null; then
-            if curl -fLC - --connect-timeout 10 --retry 3 --retry-delay 2 --progress-bar -o "$JYTHON_FILE.tmp" "$JYTHON_URL"; then
-                if [[ -f "$JYTHON_FILE.tmp" && $(get_file_size "$JYTHON_FILE.tmp") -gt $min_jython_size ]]; then
-                    download_ok=true
-                fi
-            fi
-        fi
-        if [[ "$download_ok" == false ]] && command -v wget &>/dev/null; then
-            if wget -O "$JYTHON_FILE.tmp" --quiet --show-progress "$JYTHON_URL"; then
-                if [[ -f "$JYTHON_FILE.tmp" && $(get_file_size "$JYTHON_FILE.tmp") -gt $min_jython_size ]]; then
-                    download_ok=true
-                fi
-            fi
-        fi
+    done
 
-        if [[ "$download_ok" == true && -f "$JYTHON_FILE.tmp" && $(get_file_size "$JYTHON_FILE.tmp") -gt $min_jython_size ]]; then
-            mv -f "$JYTHON_FILE.tmp" "$JYTHON_FILE"
-            echo "Successfully downloaded $JYTHON_JAR."
-        else
-            rm -f "$JYTHON_FILE.tmp" 2>/dev/null || true
+    # Prune old .bk jars: keep at most the 2 most recent .bk files in $REPO_DIR (B10)
+    local -a bk_files=()
+    local bk
+    local -A seen_bk=()
+    for bk in "$REPO_DIR"/*.jar.bk "$REPO_DIR"/burpsuite_pro*.bk; do
+        [ -f "$bk" ] || continue
+        if [[ -n "${seen_bk["$bk"]:-}" ]]; then
+            continue
         fi
+        seen_bk["$bk"]=1
+        local mtime
+        mtime=$(stat -c %Y "$bk" 2>/dev/null || stat -f %m "$bk" 2>/dev/null || echo 0)
+        bk_files+=("$mtime $bk")
+    done
+
+    if [ ${#bk_files[@]} -gt 2 ]; then
+        local -a sorted_bks=()
+        mapfile -t sorted_bks < <(printf '%s\n' "${bk_files[@]}" | sort -k1,1rn | cut -d' ' -f2-)
+        local i
+        for ((i = 2; i < ${#sorted_bks[@]}; i++)); do
+            echo "Pruning older backup jar: $(basename "${sorted_bks[i]}")"
+            rm -f "${sorted_bks[i]}"
+        done
     fi
 
-    echo "Configuring JRuby Standalone $JRUBY_VERSION..."
-    local min_jruby_size=31457280 # 30MB
-    local jruby_size
-    jruby_size="$(get_file_size "$JRUBY_FILE")"
-    if [[ -f "$JRUBY_FILE" && "$jruby_size" -gt $min_jruby_size && "$force_download" == false ]]; then
-        echo "Existing JRuby standalone verified ($((jruby_size / 1024 / 1024))MB)."
-    else
-        echo "Downloading JRuby Standalone $JRUBY_VERSION..."
-        local jruby_download_ok=false
-        if command -v aria2c &>/dev/null; then
-            if aria2c -x 16 -s 16 -j 16 -k 1M -c --file-allocation=none -d "$REPO_DIR" -o "$JRUBY_JAR.tmp" "$JRUBY_URL" 2>/dev/null; then
-                if [[ -f "$JRUBY_FILE.tmp" && $(get_file_size "$JRUBY_FILE.tmp") -gt $min_jruby_size ]]; then
-                    jruby_download_ok=true
-                fi
-            fi
-            rm -f "$JRUBY_FILE.tmp.aria2" 2>/dev/null || true
-        fi
-        if [[ "$jruby_download_ok" == false ]] && command -v curl &>/dev/null; then
-            if curl -fLC - --connect-timeout 10 --retry 3 --retry-delay 2 --progress-bar -o "$JRUBY_FILE.tmp" "$JRUBY_URL"; then
-                if [[ -f "$JRUBY_FILE.tmp" && $(get_file_size "$JRUBY_FILE.tmp") -gt $min_jruby_size ]]; then
-                    jruby_download_ok=true
-                fi
-            fi
-        fi
-        if [[ "$jruby_download_ok" == false ]] && command -v wget &>/dev/null; then
-            if wget -O "$JRUBY_FILE.tmp" --quiet --show-progress "$JRUBY_URL"; then
-                if [[ -f "$JRUBY_FILE.tmp" && $(get_file_size "$JRUBY_FILE.tmp") -gt $min_jruby_size ]]; then
-                    jruby_download_ok=true
-                fi
-            fi
-        fi
-
-        if [[ "$jruby_download_ok" == true && -f "$JRUBY_FILE.tmp" && $(get_file_size "$JRUBY_FILE.tmp") -gt $min_jruby_size ]]; then
-            mv -f "$JRUBY_FILE.tmp" "$JRUBY_FILE"
-            echo "Successfully downloaded $JRUBY_JAR."
-        else
-            rm -f "$JRUBY_FILE.tmp" 2>/dev/null || true
-        fi
-    fi
-
-    if [[ (-f "$JYTHON_FILE" && $(get_file_size "$JYTHON_FILE") -gt $min_jython_size) || (-f "$JRUBY_FILE" && $(get_file_size "$JRUBY_FILE") -gt $min_jruby_size) ]]; then
-        echo "Configuring Burp Suite User Config for Jython & JRuby..."
-        python3 - "$JYTHON_FILE" "$JRUBY_FILE" <<'PYEOF'
-import json, os, sys
-jython_path = sys.argv[1]
-jruby_path = sys.argv[2]
-config_dir = os.path.expanduser("~/.BurpSuite")
-os.makedirs(config_dir, exist_ok=True)
-for cfg in ("UserConfigPro.json", "UserConfig.json"):
-    cf = os.path.join(config_dir, cfg)
-    data = {}
-    if os.path.isfile(cf):
-        try:
-            with open(cf, "r", encoding="utf-8") as f:
-                data = json.load(f)
-        except Exception:
-            data = {}
-    if not isinstance(data, dict): data = {}
-    uo = data.setdefault("user_options", {})
-    if not isinstance(uo, dict): uo = {}; data["user_options"] = uo
-    ext = uo.setdefault("extender", {})
-    if not isinstance(ext, dict): ext = {}; uo["extender"] = ext
-    py = ext.setdefault("python", {})
-    if not isinstance(py, dict): py = {}; ext["python"] = py
-    py["location_of_jython_standalone_jar_file"] = jython_path
-    ruby = ext.setdefault("ruby", {})
-    if not isinstance(ruby, dict): ruby = {}; ext["ruby"] = ruby
-    ruby["location_of_jruby_jar_file"] = jruby_path
-    tmp = cf + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
-        f.write("\n")
-    os.replace(tmp, cf)
-PYEOF
-        echo "Jython 2.7.4 and JRuby 9.4.9.0 configured."
-    fi
-
-    # Pre-seed Burp Suite license & preferences so Burp launches without manual keygen prompts
-    local prefs_dir="$HOME/.java/.userPrefs/burp"
-    local prefs_file="$prefs_dir/prefs.xml"
-    if [ ! -f "$prefs_file" ] || ! grep -q "license1" "$prefs_file" 2>/dev/null; then
-        echo "Pre-seeding Burp Suite Professional license and preferences..."
-        mkdir -p "$prefs_dir"
-        cat <<'EOFPREFS' >"$prefs_file"
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!DOCTYPE map SYSTEM "http://java.sun.com/dtd/preferences.dtd">
-<map MAP_XML_VERSION="1.0">
-  <entry key="burp.eula" value="13"/>
-  <entry key="use_community_edition" value="false"/>
-  <entry key="suite.alertsdisabledforjre-1115054815" value="true"/>
-  <entry key="suite.alertsdisabledforjre-3189538875" value="true"/>
-  <entry key="license1" value="QKLM8/zjeX0FDxLCu5RTDbUc3jgF5M+7U+1qDz6yBjuvYAn2zh0uJq9gCfbOHS4mVlbyb7O0fZyFaQcK+3ebZC29Goqrc80aBZR6BQBSNDvdJqOWpxVZat/P1DHTsOB7cirx9E5NLm18OLtASpkVObKMOnfMiwYBBbqouffwTsxuqhOtj6ctAEjH92GhaVmYHSMHTuipOIEx38XYk+isqe4fYQGvpyOSW4/Ka96eY0fVQNzYUDnEnW5ecc0TG+dvW8jFwgo02yyQ+cLP+i8W8d96Kc8AopXsF67+60ceFTZobP8v3Otb7r6JAEK0TEIX7ZzHakGZTqad8sb559Lj5oHvt4dbkvNzJdrjNDe8OUYPWslw91/On6UQi41rEcj7lahwRRpdV9fYwAotUrHiu2YF87a8a5UXO0z0XvjA/6eKk7DAldfwcvtmDgH/NlzZuEVrO7AxMhGt4CNopbjkpqtXB3PxMB6J0ZOnyMbH/tFY9oLoir25KQr7TPFkfydK5Jbf1cz5UKk8lXfAf/lqBOZxcYoZnyocgSLm169Jx6ur42wTreOONfBFqWGtdAUBYuQwVBe3GS4xtV9F8nsu1P7iEBWwFo7TTU0duxNsr5NLMtqebrpvN1lWnRXlVnFOGuodWEZ5VTp4IxQbmDc2puBHO35TOubsivJlLa7zpD7nOgfLVpSdoU3DK0/lBqpZI75P6VjyXviGWvmp/n8dBKLvE4cOhCvTvm4wvEJOpMhgz3YGzqTf/6u1Kv7A9Kxv3STVHx4cBF5hpjLsiRG/lfeG+56CFTvLdXMzRFX0Y9M="/>
-  <entry key="zRHyUR2Op7fIprORODg24A==" value="rbojo9jt6ZB24ppIimQBtBmKg228sphoRBryhZRnnpztuo5B0UqERnXyrKnEDFaaU1hUrjYaSgm8T2uGta23A0fdAgy15Rg7dzW1Du+TJqkzBnQzljo2tMOge1NHpJZ55ijGar+VxsqV4oDkWWKgNV3xz2rW1YyoiskDuk9pcCJcc2Q87RoG331t6HOdyhAJf8hCZRoALn/PaLu9g9puCMpDHUDwb1O9KhXjHkB0WuOpKOZyBeVXM9xJWXRwzHlKSOIwBXov3Cy1QMeb4Q3bnd8G1cpK76lqwzNavRycSVP1oxHZJJAPCZF2xk4kutYxKAtzV8pMkoYb5wqeo4lm73ee8hH6VDhZg+EWE+ll6gAAtONOltqkYiwYvkCkqtlOYKOM2YAMWwmknxRjkzh1tnyoWY2aeSDFzkj8SqasPkIZdVK8OBcd3vcRIBaGI47evaSkjA/d1cFClq2Oi/erkVN/zA75zZbfWt96rRIKhirMC2mVBQnyIXLt4VBsGgEjtZU5RvcYbhOf/zp4eNZOjAgB1kQrgoVHsb6PA8dfpoJ13zuuRn4Nwz1JH1uOdsM6CVSoZY9OnnD8ffAMWftJJ6tzLfa31yHLYwD/VzrfE3GaEd1Yh/3RTAy0y/ni9OzR0oGzy7FwDtC3j8UVnjeQqSN6fLL8Tnz57Neg5jWuyyKng6Npc0EW6s6u4S+l4nNMoNNNdaFWhSfo5xDRr6WOjdt+v6RGZevaa2fog50ImWDnmr6wsW0VTbyLf+Bg9V569QFpnTPBfRiFGDj36n5yNMn/GP+CqLDmGAVnVXmKoGjbwEq2HYbb9XNUPcpf+CyuXTzVkJrzWhS62kVOlaq6MgG7+XIDBl4g"/>
-</map>
-EOFPREFS
-        chmod 600 "$prefs_file"
-    fi
-
-    # 6. Create clean launcher binary
+    # 4. Create or update clean launcher binary immediately after JAR installation (B3, B9)
     mkdir -p "$HOME/.local/bin"
     local launcher_path="$HOME/.local/bin/burpsuitepro"
 
     echo "Creating launcher script at $launcher_path..."
     cat <<EOF >"$launcher_path"
 #!/bin/bash
-# Wayland and tiling WM compatibility
-export _JAVA_AWT_WM_NONREPARENTING=1
-if [ -z "\${DISPLAY:-}" ]; then
-    for sock in /tmp/.X11-unix/X*; do
-        if [ -S "\$sock" ] || [ -e "\$sock" ]; then
-            disp_num="\${sock##*/X}"
-            if [[ "\$disp_num" =~ ^[0-9]+$ ]]; then
-                export DISPLAY=":\${disp_num}"
-                break
-            fi
-        fi
-    done
-    if [ -z "\${DISPLAY:-}" ] && [ -n "\${WAYLAND_DISPLAY:-}" ]; then
-        export DISPLAY=:0
+# Non-reparenting WM compatibility: set only for tiling/non-reparenting window managers
+# (i3, sway, bspwm, dwm, hyprland, xmonad, etc.). Avoid setting on KDE (KWin) / GNOME (Mutter)
+# where _JAVA_AWT_WM_NONREPARENTING=1 causes blank popups and menu positioning glitches.
+if [ -z "\${_JAVA_AWT_WM_NONREPARENTING:-}" ]; then
+    desktop_env="\${XDG_CURRENT_DESKTOP:-}:\${DESKTOP_SESSION:-}"
+    desktop_env_lower="\$(echo "\$desktop_env" | tr '[:upper:]' '[:lower:]')"
+    if echo "\$desktop_env_lower" | grep -qE "i3|sway|bspwm|dwm|hyprland|xmonad|qtile|awesome"; then
+        export _JAVA_AWT_WM_NONREPARENTING=1
     fi
 fi
 
-REPO_DIR="$REPO_DIR"
-JAR_NAME="$jar_name"
-BURP_VERSION="$burp_ver"
+# Detect active X11 / XWayland display
+detect_x11_display() {
+    # If DISPLAY is already set in environment, test if an X server responds
+    if [ -n "\${DISPLAY:-}" ]; then
+        if command -v xdpyinfo &>/dev/null && xdpyinfo -display "\$DISPLAY" >/dev/null 2>&1; then
+            return 0
+        fi
+        if command -v xset &>/dev/null && xset -display "\$DISPLAY" q >/dev/null 2>&1; then
+            return 0
+        fi
+        # Provided DISPLAY is dead or invalid
+        unset DISPLAY
+    fi
+
+    # Probe /tmp/.X11-unix/X* sockets
+    for sock in /tmp/.X11-unix/X*; do
+        [ -e "\$sock" ] || [ -S "\$sock" ] || continue
+        disp_num="\${sock##*/X}"
+        [[ "\$disp_num" =~ ^[0-9]+$ ]] || continue
+        if command -v xdpyinfo &>/dev/null; then
+            if xdpyinfo -display ":\$disp_num" >/dev/null 2>&1; then
+                export DISPLAY=":\${disp_num}"
+                return 0
+            fi
+        elif command -v xset &>/dev/null; then
+            if xset -display ":\$disp_num" q >/dev/null 2>&1; then
+                export DISPLAY=":\${disp_num}"
+                return 0
+            fi
+        elif [ -S "\$sock" ]; then
+            export DISPLAY=":\${disp_num}"
+            return 0
+        fi
+    done
+
+    # If running under Wayland and no X socket found yet, XWayland may start on demand
+    if [ -n "\${WAYLAND_DISPLAY:-}" ]; then
+        for _ in 1 2 3 4 5 6; do
+            sleep 0.5
+            for sock in /tmp/.X11-unix/X*; do
+                [ -e "\$sock" ] || [ -S "\$sock" ] || continue
+                disp_num="\${sock##*/X}"
+                [[ "\$disp_num" =~ ^[0-9]+$ ]] || continue
+                if (command -v xdpyinfo &>/dev/null && xdpyinfo -display ":\$disp_num" >/dev/null 2>&1) || \
+                   (command -v xset &>/dev/null && xset -display ":\$disp_num" q >/dev/null 2>&1) || \
+                   [ -S "\$sock" ]; then
+                    export DISPLAY=":\${disp_num}"
+                    return 0
+                fi
+            done
+        done
+        echo "[!] Warning: No responding X11/XWayland display found for Wayland session (\$WAYLAND_DISPLAY)." >&2
+        echo "    Burp Suite requires XWayland. If launch fails, ensure xorg-xwayland is installed." >&2
+        export DISPLAY=:0
+        return 0
+    fi
+
+    export DISPLAY=:0
+}
+
+detect_x11_display
+
+REPO_DIR="\${REPO_DIR:-$REPO_DIR}"
+DEFAULT_JAR_NAME="$jar_name"
+DEFAULT_BURP_VER="$burp_ver"
+
+# Dynamic JAR resolution: check BURP_JAR override first, then newest valid jar
+if [ -n "\${BURP_JAR:-}" ]; then
+    if [ -f "\$BURP_JAR" ]; then
+        RESOLVED_JAR="\$BURP_JAR"
+        JAR_NAME="\$(basename "\$BURP_JAR")"
+    elif [ -f "\$REPO_DIR/\$BURP_JAR" ]; then
+        RESOLVED_JAR="\$REPO_DIR/\$BURP_JAR"
+        JAR_NAME="\$BURP_JAR"
+    else
+        echo "ERROR: Specified BURP_JAR '\$BURP_JAR' does not exist." >&2
+        exit 1
+    fi
+else
+    RESOLVED_JAR=""
+    JAR_NAME=""
+    while IFS= read -r candidate; do
+        [ -z "\$candidate" ] && continue
+        [ ! -f "\$candidate" ] && continue
+        cand_size=\$(stat -c%s "\$candidate" 2>/dev/null || stat -f%z "\$candidate" 2>/dev/null || echo 0)
+        if [ "\$cand_size" -gt 10485760 ]; then
+            RESOLVED_JAR="\$candidate"
+            JAR_NAME="\$(basename "\$candidate")"
+        fi
+    done < <(find "\$REPO_DIR" -maxdepth 1 -name 'burpsuite_pro_v*.jar' 2>/dev/null | sort -V)
+
+    if [ -z "\$RESOLVED_JAR" ]; then
+        JAR_NAME="\$DEFAULT_JAR_NAME"
+        RESOLVED_JAR="\$REPO_DIR/\$JAR_NAME"
+    fi
+fi
+
+BURP_VERSION="\${BURP_VERSION:-}"
+if [ -z "\$BURP_VERSION" ]; then
+    if [[ "\$JAR_NAME" =~ burpsuite_pro_v(.*)\.jar$ ]]; then
+        BURP_VERSION="\${BASH_REMATCH[1]}"
+    else
+        BURP_VERSION="\$DEFAULT_BURP_VER"
+    fi
+fi
 
 # Locate best Java 21+ binary
 JAVA_BIN="java"
@@ -763,8 +807,13 @@ Options:
   -h, --help      Show this help message
 
 Environment Variables:
+  BURP_JAR        Path or filename of Burp JAR to run (e.g. BURP_JAR=burpsuite_pro_v2026.11.jar)
   BURP_MAX_RAM    Maximum Java heap memory (e.g. BURP_MAX_RAM=8g burpsuitepro)
                   (Also respects BURP_MEMORY or BURP_RAM; defaults to 50% RAM)
+  BURP_SCALE      UI scaling factor (e.g. BURP_SCALE=1, BURP_SCALE=1.25, BURP_SCALE=2)
+                  Overrides -Dsun.java2d.uiScale. Under KDE Wayland with fractional
+                  scaling, set BURP_SCALE=1 if the UI looks blurry or wrongly sized.
+  BURP_TOOLKIT    Override AWT toolkit (defaults to sun.awt.X11.XToolkit for Wayland/X11)
 
 All other arguments are passed directly to Burp Suite.
 HLP
@@ -797,6 +846,8 @@ fi
 GC_OPTS=("-XX:+UseG1GC")
 if "\$JAVA_BIN" -XX:+UseZGC -XX:+ZGenerational -version >/dev/null 2>&1; then
     GC_OPTS=("-XX:+UseZGC" "-XX:+ZGenerational")
+elif "\$JAVA_BIN" -XX:+UseZGC -version >/dev/null 2>&1; then
+    GC_OPTS=("-XX:+UseZGC")
 fi
 
 # Port 8080 conflict detection
@@ -809,7 +860,35 @@ if ss -tlnH 'sport = :8080' 2>/dev/null | grep -q '8080'; then
     fi
 fi
 
-cd "\$REPO_DIR"
+# UI Scaling (HiDPI / KDE Wayland Fractional Scaling)
+# Under KDE Wayland with fractional scaling (125%, 150%), -Dsun.java2d.uiScale=auto
+# can cause blurry fonts, misaligned Swing components, or double-scaling with KWin.
+# Allow explicit override via BURP_SCALE or BURP_UI_SCALE (e.g. BURP_SCALE=1, 1.25, 1.5, 2).
+BURP_SCALE_OPT=("-Dsun.java2d.uiScale=auto")
+BURP_SCALE_VAL="\${BURP_SCALE:-\${BURP_UI_SCALE:-}}"
+if [ -n "\$BURP_SCALE_VAL" ]; then
+    BURP_SCALE_OPT=("-Dsun.java2d.uiScale=\$BURP_SCALE_VAL")
+else
+    # Auto-detect KDE Wayland fractional scaling environment
+    if [ -n "\${WAYLAND_DISPLAY:-}" ] && [[ "\${XDG_CURRENT_DESKTOP:-}" =~ KDE|Plasma ]]; then
+        # Check if KWin scales legacy X11 apps by the system (Scale != 1)
+        kwin_xwayland_scale=\$(kreadconfig6 --file kwinrc --group Xwayland --key Scale 2>/dev/null \
+            || kreadconfig5 --file kwinrc --group Xwayland --key Scale 2>/dev/null || echo "")
+        if [ "\$kwin_xwayland_scale" = "0" ] || [ "\$kwin_xwayland_scale" = "false" ]; then
+            # KWin scales the X11 surface: use 1.0 to avoid double-scaling blur
+            BURP_SCALE_OPT=("-Dsun.java2d.uiScale=1.0")
+        fi
+    fi
+fi
+
+if [ ! -f "\$RESOLVED_JAR" ]; then
+    echo "ERROR: Burp Suite JAR not found at '\$RESOLVED_JAR'." >&2
+    exit 1
+fi
+
+BURP_TOOLKIT_VAL="\${BURP_TOOLKIT:-sun.awt.X11.XToolkit}"
+
+cd "\$REPO_DIR" || exit 1
 
 JAVA_OPTS=(
     --add-opens=java.desktop/javax.swing=ALL-UNNAMED
@@ -820,12 +899,12 @@ JAVA_OPTS=(
     --add-opens=java.base/jdk.internal.org.objectweb.asm.Opcodes=ALL-UNNAMED
     "\${MEM_OPTS[@]}"
     "\${GC_OPTS[@]}"
-    -Dawt.useSystemAAFontSettings=on
+    -Dawt.useSystemAAFontSettings=lcd
     -Dswing.aatext=true
-    -Dsun.java2d.uiScale=auto
-    -Dawt.toolkit=sun.awt.X11.XToolkit
+    "\${BURP_SCALE_OPT[@]}"
+    -Dawt.toolkit="\$BURP_TOOLKIT_VAL"
     -javaagent:"\$REPO_DIR/loader.jar"
-    -jar "\$REPO_DIR/\$JAR_NAME"
+    -jar "\$RESOLVED_JAR"
 )
 
 if [ -t 1 ]; then
@@ -849,10 +928,173 @@ fi
 EOF
     chmod +x "$launcher_path"
 
-    if [[ -w /usr/local/bin ]]; then
+    # System-wide binary symlink only when running as root
+    if [[ $EUID -eq 0 ]]; then
+        mkdir -p /usr/local/bin 2>/dev/null || true
         ln -sf "$launcher_path" /usr/local/bin/burpsuitepro 2>/dev/null || true
-    elif command -v sudo &>/dev/null && sudo -n true 2>/dev/null; then
-        sudo -n ln -sf "$launcher_path" /usr/local/bin/burpsuitepro 2>/dev/null || true
+    fi
+
+    # 5. Copy local assets and system integrations
+    local core_dir="${BURP_LIB_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+    echo "Copying shared configuration and icon..."
+    if [[ -f "$core_dir/burp/.config.ini" ]]; then
+        cp -f "$core_dir/burp/.config.ini" "$REPO_DIR/" 2>/dev/null || true
+    fi
+    if [[ -f "$core_dir/burp/burp_suite_pro_icon.svg" ]]; then
+        cp -f "$core_dir/burp/burp_suite_pro_icon.svg" "$REPO_DIR/" 2>/dev/null || true
+    fi
+    if [[ -f "$core_dir/burp-trust-ca.sh" ]]; then
+        cp -f "$core_dir/burp-trust-ca.sh" "$REPO_DIR/burp-trust-ca.sh"
+        chmod +x "$REPO_DIR/burp-trust-ca.sh"
+    fi
+
+    install_burp_system_icons "$REPO_DIR/burp_suite_pro_icon.svg"
+    install_burp_system_mime
+
+    suppress_jre_warnings
+
+    # Pre-seed Burp Suite license & preferences safely without overwriting other user settings (B1, B7)
+    local prefs_dir="$HOME/.java/.userPrefs/burp"
+    local prefs_file="$prefs_dir/prefs.xml"
+    mkdir -p "$prefs_dir"
+
+    local seed_license_key="license1"
+    local seed_license_val="QKLM8/zjeX0FDxLCu5RTDbUc3jgF5M+7U+1qDz6yBjuvYAn2zh0uJq9gCfbOHS4mVlbyb7O0fZyFaQcK+3ebZC29Goqrc80aBZR6BQBSNDvdJqOWpxVZat/P1DHTsOB7cirx9E5NLm18OLtASpkVObKMOnfMiwYBBbqouffwTsxuqhOtj6ctAEjH92GhaVmYHSMHTuipOIEx38XYk+isqe4fYQGvpyOSW4/Ka96eY0fVQNzYUDnEnW5ecc0TG+dvW8jFwgo02yyQ+cLP+i8W8d96Kc8AopXsF67+60ceFTZobP8v3Otb7r6JAEK0TEIX7ZzHakGZTqad8sb559Lj5oHvt4dbkvNzJdrjNDe8OUYPWslw91/On6UQi41rEcj7lahwRRpdV9fYwAotUrHiu2YF87a8a5UXO0z0XvjA/6eKk7DAldfwcvtmDgH/NlzZuEVrO7AxMhGt4CNopbjkqtXB3PxMB6J0ZOnyMbH/tFY9oLoir25KQr7TPFkfydK5Jbf1cz5UKk8lXfAf/lqBOZxcYoZnyocgSLm169Jx6ur42wTreOONfBFqWGtdAUBYuQwVBe3GS4xtV9F8nsu1P7iEBWwFo7TTU0duxNsr5NLMtqebrpvN1lWnRXlVnFOGuodWEZ5VTp4IxQbmDc2puBHO35TOubsivJlLa7zpD7nOgfLVpSdoU3DK0/lBqpZI75P6VjyXviGWvmp/n8dBKLvE4cOhCvTvm4wvEJOpMhgz3YGzqTf/6u1Kv7A9Kxv3STVHx4cBF5hpjLsiRG/lfeG+56CFTvLdXMzRFX0Y9M="
+    local seed_key2_name="zRHyUR2Op7fIprORODg24A=="
+    local seed_key2_val="rbojo9jt6ZB24ppIimQBtBmKg228sphoRBryhZRnnpztuo5B0UqERnXyrKnEDFaaU1hUrjYaSgm8T2uGta23A0fdAgy15Rg7dzW1Du+TJqkzBnQzljo2tMOge1NHpJZ55ijGar+VxsqV4oDkWWKgNV3xz2rW1YyoiskDuk9pcCJcc2Q87RoG331t6HOdyhAJf8hCZRoALn/PaLu9g9puCMpDHUDwb1O9KhXjHkB0WuOpKOZyBeVXM9xJWXRwzHlKSOIwBXov3Cy1QMeb4Q3bnd8G1cpK76lqwzNavRycSVP1oxHZJJAPCZF2xk4kutYxKAtzV8pMkoYb5wqeo4lm73ee8hH6VDhZg+EWE+ll6gAAtONOltqkYiwYvkCkqtlOYKOM2YAMWwmknxRjkzh1tnyoWY2aeSDFzkj8SqasPkIZdVK8OBcd3vcRIBaGI47evaSkjA/d1cFClq2Oi/erkVN/zA75zZbfWt96rRIKhirMC2mVBQnyIXLt4VBsGgEjtZU5RvcYbhOf/zp4eNZOjAgB1kQrgoVHsb6PA8dfpoJ13zuuRn4Nwz1JH1uOdsM6CVSoZY9OnnD8ffAMWftJJ6tzLfa31yHLYwD/VzrfE3GaEd1Yh/3RTAy0y/ni9OzR0oGzy7FwDtC3j8UVnjeQqSN6fLL8Tnz57Neg5jWuyyKng6Npc0EW6s6u4S+l4nNMoNNNdaFWhSfo5xDRr6WOjdt+v6RGZevaa2fog50ImWDnmr6wsW0VTbyLf+Bg9V569QFpnTPBfRiFGDj36n5yNMn/GP+CqLDmGAVnVXmKoGjbwEq2HYbb9XNUPcpf+CyuXTzVkJrzWhS62kVOlaq6MgG7+XIDBl4g"
+
+    echo "Configuring Burp Suite Professional license and preferences..."
+    merge_pref_entry "$prefs_file" "burp.eula" "13"
+    merge_pref_entry "$prefs_file" "use_community_edition" "false"
+    merge_pref_entry "$prefs_file" "suite.alertsdisabledforjre-1115054815" "true"
+    merge_pref_entry "$prefs_file" "suite.alertsdisabledforjre-3189538875" "true"
+    merge_pref_entry "$prefs_file" "$seed_license_key" "$seed_license_val"
+    merge_pref_entry "$prefs_file" "$seed_key2_name" "$seed_key2_val"
+
+    # 6. Jython & JRuby Standalone Extensions & User Config
+    local extension_warnings=()
+
+    echo "Configuring Jython Standalone 2.7.4..."
+    local min_jython_size=20971520 # 20MB
+    if [[ -f "$JYTHON_FILE" ]] && is_valid_jar "$JYTHON_FILE" "$min_jython_size" && [[ "$force_download" == false ]]; then
+        local jython_size
+        jython_size="$(get_file_size "$JYTHON_FILE")"
+        echo "Existing Jython standalone verified ($((jython_size / 1024 / 1024))MB)."
+    else
+        echo "Downloading Jython Standalone 2.7.4..."
+        local download_ok=false
+        if command -v aria2c &>/dev/null; then
+            if aria2c -x 16 -s 16 -j 16 -k 1M -c --file-allocation=none -d "$REPO_DIR" -o "$JYTHON_JAR.tmp" "$JYTHON_URL" 2>/dev/null; then
+                if is_valid_jar "$JYTHON_FILE.tmp" "$min_jython_size"; then
+                    download_ok=true
+                fi
+            fi
+            rm -f "$JYTHON_FILE.tmp.aria2" 2>/dev/null || true
+        fi
+        if [[ "$download_ok" == false ]] && command -v curl &>/dev/null; then
+            if curl -fLC - --connect-timeout 10 --retry 3 --retry-delay 2 --progress-bar -o "$JYTHON_FILE.tmp" "$JYTHON_URL"; then
+                if is_valid_jar "$JYTHON_FILE.tmp" "$min_jython_size"; then
+                    download_ok=true
+                fi
+            fi
+        fi
+        if [[ "$download_ok" == false ]] && command -v wget &>/dev/null; then
+            if wget -O "$JYTHON_FILE.tmp" --quiet --show-progress "$JYTHON_URL"; then
+                if is_valid_jar "$JYTHON_FILE.tmp" "$min_jython_size"; then
+                    download_ok=true
+                fi
+            fi
+        fi
+
+        if [[ "$download_ok" == true && -f "$JYTHON_FILE.tmp" ]] && is_valid_jar "$JYTHON_FILE.tmp" "$min_jython_size"; then
+            mv -f "$JYTHON_FILE.tmp" "$JYTHON_FILE"
+            echo "Successfully downloaded $JYTHON_JAR."
+        else
+            echo "WARNING: Failed to download valid Jython standalone jar ($JYTHON_URL)." >&2
+            rm -f "$JYTHON_FILE.tmp" 2>/dev/null || true
+            extension_warnings+=("Jython Standalone 2.7.4 (Python extensions unavailable)")
+        fi
+    fi
+
+    echo "Configuring JRuby Standalone $JRUBY_VERSION..."
+    local min_jruby_size=31457280 # 30MB
+    if [[ -f "$JRUBY_FILE" ]] && is_valid_jar "$JRUBY_FILE" "$min_jruby_size" && [[ "$force_download" == false ]]; then
+        local jruby_size
+        jruby_size="$(get_file_size "$JRUBY_FILE")"
+        echo "Existing JRuby standalone verified ($((jruby_size / 1024 / 1024))MB)."
+    else
+        echo "Downloading JRuby Standalone $JRUBY_VERSION..."
+        local jruby_download_ok=false
+        if command -v aria2c &>/dev/null; then
+            if aria2c -x 16 -s 16 -j 16 -k 1M -c --file-allocation=none -d "$REPO_DIR" -o "$JRUBY_JAR.tmp" "$JRUBY_URL" 2>/dev/null; then
+                if is_valid_jar "$JRUBY_FILE.tmp" "$min_jruby_size"; then
+                    jruby_download_ok=true
+                fi
+            fi
+            rm -f "$JRUBY_FILE.tmp.aria2" 2>/dev/null || true
+        fi
+        if [[ "$jruby_download_ok" == false ]] && command -v curl &>/dev/null; then
+            if curl -fLC - --connect-timeout 10 --retry 3 --retry-delay 2 --progress-bar -o "$JRUBY_FILE.tmp" "$JRUBY_URL"; then
+                if is_valid_jar "$JRUBY_FILE.tmp" "$min_jruby_size"; then
+                    jruby_download_ok=true
+                fi
+            fi
+        fi
+        if [[ "$jruby_download_ok" == false ]] && command -v wget &>/dev/null; then
+            if wget -O "$JRUBY_FILE.tmp" --quiet --show-progress "$JRUBY_URL"; then
+                if is_valid_jar "$JRUBY_FILE.tmp" "$min_jruby_size"; then
+                    jruby_download_ok=true
+                fi
+            fi
+        fi
+
+        if [[ "$jruby_download_ok" == true && -f "$JRUBY_FILE.tmp" ]] && is_valid_jar "$JRUBY_FILE.tmp" "$min_jruby_size"; then
+            mv -f "$JRUBY_FILE.tmp" "$JRUBY_FILE"
+            echo "Successfully downloaded $JRUBY_JAR."
+        else
+            echo "WARNING: Failed to download valid JRuby standalone jar ($JRUBY_URL)." >&2
+            rm -f "$JRUBY_FILE.tmp" 2>/dev/null || true
+            extension_warnings+=("JRuby Standalone $JRUBY_VERSION (Ruby extensions unavailable)")
+        fi
+    fi
+
+    if [[ (-f "$JYTHON_FILE" && $(get_file_size "$JYTHON_FILE") -gt $min_jython_size) || (-f "$JRUBY_FILE" && $(get_file_size "$JRUBY_FILE") -gt $min_jruby_size) ]]; then
+        echo "Configuring Burp Suite User Config for Jython & JRuby..."
+        python3 - "$JYTHON_FILE" "$JRUBY_FILE" <<'PYEOF'
+import json, os, sys
+jython_path = sys.argv[1]
+jruby_path = sys.argv[2]
+config_dir = os.path.expanduser("~/.BurpSuite")
+os.makedirs(config_dir, exist_ok=True)
+for cfg in ("UserConfigPro.json", "UserConfig.json"):
+    cf = os.path.join(config_dir, cfg)
+    data = {}
+    if os.path.isfile(cf):
+        try:
+            with open(cf, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception:
+            data = {}
+    if not isinstance(data, dict): data = {}
+    uo = data.setdefault("user_options", {})
+    if not isinstance(uo, dict): uo = {}; data["user_options"] = uo
+    ext = uo.setdefault("extender", {})
+    if not isinstance(ext, dict): ext = {}; uo["extender"] = ext
+    py = ext.setdefault("python", {})
+    if not isinstance(py, dict): py = {}; ext["python"] = py
+    if os.path.isfile(jython_path):
+        py["location_of_jython_standalone_jar_file"] = jython_path
+    ruby = ext.setdefault("ruby", {})
+    if not isinstance(ruby, dict): ruby = {}; ext["ruby"] = ruby
+    if os.path.isfile(jruby_path):
+        ruby["location_of_jruby_jar_file"] = jruby_path
+    tmp = cf + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+        f.write("\n")
+    os.replace(tmp, cf)
+PYEOF
+        echo "Jython 2.7.4 and JRuby 9.4.9.0 configured."
     fi
 
     # 7. Create desktop shortcut
@@ -872,7 +1114,7 @@ Type=Application
 StartupNotify=true
 StartupWMClass=burp-StartBurp
 MimeType=application/x-burp-project;
-Categories=Network;Security;Development;WebDevelopment;03-web-application-analysis;03-05-web-vulnerability-scanners;
+Categories=Network;Security;Development;WebDevelopment;
 Keywords=burp;suite;pro;web;security;scanner;
 Path=$REPO_DIR
 Actions=Keygen;TrustCA;
@@ -886,24 +1128,23 @@ Icon=burpsuitepro
 Name=Trust Burp CA Certificate
 Exec=$launcher_path --trust-ca
 Icon=burpsuitepro
+Terminal=true
 EOF
 
     update-desktop-database "$desktop_dir" 2>/dev/null || true
     kbuildsycoca6 --noincremental 2>/dev/null || kbuildsycoca6 2>/dev/null || kbuildsycoca5 2>/dev/null || true
 
-    # System desktop shortcut if writable or passwordless sudo
-    local sys_desktop_dir="/usr/local/share/applications"
-    if [[ -w "$sys_desktop_dir" ]]; then
+    # System desktop shortcut only when explicitly running as root
+    if [[ $EUID -eq 0 ]]; then
+        local sys_desktop_dir="/usr/local/share/applications"
+        mkdir -p "$sys_desktop_dir" 2>/dev/null || true
         cp -f "$desktop_file" "$sys_desktop_dir/burpsuitepro.desktop" 2>/dev/null || true
         update-desktop-database "$sys_desktop_dir" 2>/dev/null || true
-    elif command -v sudo &>/dev/null && sudo -n true 2>/dev/null; then
-        sudo -n mkdir -p "$sys_desktop_dir" 2>/dev/null || true
-        sudo -n cp -f "$desktop_file" "$sys_desktop_dir/burpsuitepro.desktop" 2>/dev/null || true
-        sudo -n update-desktop-database "$sys_desktop_dir" 2>/dev/null || true
     fi
 
     # 8. Start Key Loader & Burp Suite Pro if not skipped
     if [[ "$skip_launch" == false ]]; then
+        # Verify active display for background launch
         if [ -z "${DISPLAY:-}" ]; then
             for sock in /tmp/.X11-unix/X*; do
                 if [ -S "$sock" ] || [ -e "$sock" ]; then
@@ -935,29 +1176,60 @@ EOF
         echo "Skipping application launch (--skip-launch specified)."
     fi
 
-    echo "=== Burp Suite Professional ($distro_label) installation completed! ==="
+    if [[ ${#extension_warnings[@]} -gt 0 ]]; then
+        echo ""
+        echo "╔══════════════════════════════════════════════════════════════╗"
+        echo "║  ⚠  WARNING: Installation completed with extension errors:  ║"
+        for w in "${extension_warnings[@]}"; do
+            printf "║   - %-57s║\n" "$w"
+        done
+        echo "║  Burp Suite Pro is ready, but missing extensions will need   ║"
+        echo "║  to be re-downloaded when network connectivity is restored.  ║"
+        echo "╚══════════════════════════════════════════════════════════════╝"
+        echo "=== Burp Suite Professional ($distro_label) installation completed with warnings ==="
+    else
+        echo "=== Burp Suite Professional ($distro_label) installation completed! ==="
+    fi
 
     # Offer CA trust if active or standalone interactive
     if [[ "$skip_launch" == false ]]; then
         local cert_url="http://127.0.0.1:8080/cert"
         local cert_active=false
+        local tmp_probe
+        tmp_probe="$(mktemp "${TMPDIR:-/tmp}/burp-cert-check-XXXXXX.tmp" 2>/dev/null || mktemp /tmp/burp-cert-check-XXXXXX.tmp)"
 
-        if curl -s -f -m 2 "$cert_url" -o /dev/null 2>/dev/null; then
+        is_burp_cert() {
+            if curl -sSL -f -m 2 "$cert_url" -o "$tmp_probe" 2>/dev/null && [ -s "$tmp_probe" ]; then
+                if command -v openssl &>/dev/null; then
+                    if openssl x509 -inform DER -in "$tmp_probe" -noout 2>/dev/null ||
+                        openssl x509 -inform PEM -in "$tmp_probe" -noout 2>/dev/null; then
+                        return 0
+                    fi
+                elif head -c 2 "$tmp_probe" 2>/dev/null | cmp -s <(printf "\x30\x82") - ||
+                    grep -q "^-----BEGIN CERTIFICATE-----" "$tmp_probe" 2>/dev/null; then
+                    return 0
+                fi
+            fi
+            return 1
+        }
+
+        if is_burp_cert; then
             cert_active=true
         else
-            echo "Waiting for Burp Suite proxy listener (up to 5 min / 300s)..."
-            for ((att = 1; att <= 60; att++)); do
-                sleep 5
-                if curl -s -f -m 3 "$cert_url" -o /dev/null 2>/dev/null; then
+            echo "Waiting for Burp Suite proxy listener and CA certificate (up to 30s)..."
+            for ((att = 1; att <= 10; att++)); do
+                sleep 3
+                if is_burp_cert; then
                     cert_active=true
                     break
                 fi
-                echo "  Waiting for proxy listener... ($((att * 5))/300s)"
+                echo "  Waiting for proxy listener... ($((att * 3))/30s)"
             done
         fi
+        rm -f "$tmp_probe"
 
         if [[ "$cert_active" == true ]]; then
-            echo "Active Burp Suite proxy detected. Launching CA certificate trust..."
+            echo "Active Burp Suite proxy and valid CA certificate detected. Launching CA certificate trust..."
             "$launcher_path" --trust-ca || true
         else
             echo ""
