@@ -30,7 +30,7 @@ esac
 x11_tiling_packages=(
     "${wm_packages[@]}"
     xorg-server xorg-xinit xorg-xbacklight xorg-xdpyinfo xorg-xset
-    polybar picom dunst rofi dmenu clipmenu feh flameshot gammastep scrot xss-lock
+    polybar picom dunst rofi dmenu clipmenu feh azote python-xlib flameshot gammastep scrot xss-lock
     xclip xbindkeys arandr dex nwg-look wmname mesa-utils
     kitty thunar thunar-archive-plugin thunar-volman tumbler xarchiver
     zathura zathura-cb zathura-djvu zathura-pdf-poppler zathura-ps
