@@ -29,13 +29,13 @@ esac
 # List of X11 tiling desktop essentials
 x11_tiling_packages=(
     "${wm_packages[@]}"
-    xorg-server xorg-xinit xorg-xbacklight xorg-xdpyinfo
+    xorg-server xorg-xinit xorg-xbacklight xorg-xdpyinfo xorg-xset
     polybar picom dunst rofi dmenu clipmenu feh flameshot gammastep scrot xss-lock
-    xclip xbindkeys arandr dex nwg-look wmname
+    xclip xbindkeys arandr dex nwg-look wmname mesa-utils
     kitty thunar thunar-archive-plugin thunar-volman tumbler xarchiver
     zathura zathura-cb zathura-djvu zathura-pdf-poppler zathura-ps
-    acpi alsa-firmware brightnessctl mpv-mpris playerctl
-    bluez bluez-utils blueman network-manager-applet modemmanager
+    acpi alsa-firmware alsa-utils brightnessctl mpv-mpris pavucontrol playerctl
+    bluez bluez-utils blueman geoclue network-manager-applet modemmanager
     hdparm hwdetect hwinfo dmidecode usb_modeswitch
     accountsservice logrotate lsb-release ntp numlockx os-prober
     polkit-gnome systemd-resolvconf inetutils tcl perl-xml-writer
@@ -45,11 +45,11 @@ x11_tiling_packages=(
     cantarell-fonts awesome-terminal-fonts papirus-icon-theme
     noto-fonts noto-fonts-cjk noto-fonts-emoji noto-fonts-extra
     ttf-jetbrains-mono ttf-jetbrains-mono-nerd ttf-opensans
+    ttf-material-icons adobe-source-han-sans-cn-fonts
 )
 
 # List of X11-specific AUR packages
 x11_aur_packages=(
-    "nitrogen"
     "i3lock-color"
     "dracula-gtk-theme"
 )
