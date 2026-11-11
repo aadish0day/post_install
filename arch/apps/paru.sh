@@ -20,6 +20,7 @@ sudo pacman -S --needed --noconfirm base-devel git
 BUILD_DIR="/tmp/paru_bin_build_$$"
 rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR"
+trap 'rm -rf "$BUILD_DIR"' EXIT
 
 log "Fetching paru-bin (pre-compiled binary) from AUR..."
 if ! git clone https://aur.archlinux.org/paru-bin.git "$BUILD_DIR" 2>/dev/null; then
@@ -27,7 +28,7 @@ if ! git clone https://aur.archlinux.org/paru-bin.git "$BUILD_DIR" 2>/dev/null; 
     curl -fsSL https://aur.archlinux.org/cgit/aur.git/snapshot/paru-bin.tar.gz | tar -xz -C "$BUILD_DIR" --strip-components=1
 fi
 
-log "Building and installing paru-bin package..."
+log "Building paru-bin from the AUR (PKGBUILD is not reviewed by this script)..."
 (cd "$BUILD_DIR" && makepkg -si --noconfirm)
 
 rm -rf "$BUILD_DIR"

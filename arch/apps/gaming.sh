@@ -12,11 +12,9 @@ log() {
 log "Starting Gaming Stack installation..."
 
 # 0. Ensure multilib repository is enabled (required for 32-bit Wine dependencies)
-if ! grep -q "^\[multilib\]" /etc/pacman.conf; then
-    log "Enabling multilib repository in /etc/pacman.conf..."
-    sudo sed -i '/\[multilib\]/,/Include/s/^[#;]//' /etc/pacman.conf
-    sudo pacman -Syu --noconfirm
-fi
+# shellcheck source=lib/arch-multilib.sh
+source "$(dirname "${BASH_SOURCE[0]}")/../../lib/arch-multilib.sh"
+ensure_multilib
 
 # List of official repository gaming packages (including Lutris Wine dependencies)
 gaming_packages=(
@@ -46,24 +44,42 @@ gaming_aur_packages=(
 
 # 1. Install official repository gaming packages
 log "Installing official repository gaming dependencies..."
-sudo pacman -S --needed --noconfirm --overwrite '*' "${gaming_packages[@]}"
+sudo pacman -S --needed --noconfirm "${gaming_packages[@]}"
 
-# 2. Install AUR gaming packages (DXVK async, 32-bit GStreamer, 32-bit Wine dependencies)
-if command -v paru &>/dev/null; then
-    log "Installing AUR gaming extensions and 32-bit Wine libraries via paru..."
-    paru -S --needed --noconfirm "${gaming_aur_packages[@]}" || true
-elif command -v yay &>/dev/null; then
-    log "Installing AUR gaming extensions and 32-bit Wine libraries via yay..."
-    yay -S --needed --noconfirm "${gaming_aur_packages[@]}" || true
-else
-    log "Notice: No AUR helper found. Skipping AUR gaming packages."
+# 2. Extra packages: anything now in official repos goes through pacman; the rest via an AUR helper
+repo_extra=()
+aur_needed=()
+for p in "${gaming_aur_packages[@]}"; do
+    if pacman -Si "$p" &>/dev/null; then
+        repo_extra+=("$p")
+    else
+        aur_needed+=("$p")
+    fi
+done
+
+if [ ${#repo_extra[@]} -gt 0 ]; then
+    log "Installing ${#repo_extra[@]} extra packages from official repos..."
+    sudo pacman -S --needed --noconfirm "${repo_extra[@]}"
 fi
 
-# 3. Enable GameMode daemon service if available
-if systemctl list-unit-files | grep -q "gamemoded.service"; then
-    log "Enabling GameMode daemon..."
-    sudo systemctl enable --now gamemoded.service 2>/dev/null || true
+if [ ${#aur_needed[@]} -gt 0 ]; then
+    aur_helper=""
+    if command -v paru &>/dev/null; then
+        aur_helper="paru"
+    elif command -v yay &>/dev/null; then
+        aur_helper="yay"
+    fi
+    if [ -z "$aur_helper" ]; then
+        log "WARN: no AUR helper found; skipping AUR packages: ${aur_needed[*]}"
+    else
+        # One at a time so a single failure doesn't drop the whole batch
+        for p in "${aur_needed[@]}"; do
+            "$aur_helper" -S --needed --noconfirm "$p" || log "WARN: failed to install AUR package $p"
+        done
+    fi
 fi
+
+# 3. GameMode: gamemoded is a *user* service started on demand via D-Bus; nothing to enable system-wide.
 
 # 4. Add user to gamemode group if group exists
 if getent group gamemode &>/dev/null; then

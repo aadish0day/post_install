@@ -55,17 +55,17 @@ pacman_install_safe() {
 
         echo "$err_output" >&2
         if echo "$err_output" | grep -qiE "404|not found|failed retrieving file|error: failed to commit transaction"; then
-            echo "Package download failed (stale mirror cache or 404 detected). Updating pacman databases and retrying..."
+            echo "Package download failed (stale mirror cache or 404 detected). Running full upgrade (-Syu) and retrying..."
         else
-            echo "Pacman installation failed. Synchronizing database and retrying..."
+            echo "Pacman installation failed. Running full upgrade (-Syu) and retrying..."
         fi
     else
-        echo "Pacman sync database is older than 7 days or missing. Synchronizing databases (-Sy)..."
+        echo "Pacman sync database is older than 7 days or missing. Running full upgrade (-Syu)..."
     fi
 
     # Synchronize and install
-    "${sudo_cmd[@]}" pacman -Sy --noconfirm --needed "${pkgs[@]}"
-    echo "Note: If you encounter library mismatch issues after installing packages, run 'sudo pacman -Syu' to complete a full system upgrade."
+    # Never use -Sy alone on Arch (partial upgrade); do a full sync+upgrade.
+    "${sudo_cmd[@]}" pacman -Syu --noconfirm --needed "${pkgs[@]}"
 }
 
 distro_install_deps() {

@@ -121,6 +121,10 @@ build_plan_debian() {
         fi
     fi
 
+    if [ "${CFG_DESKTOP:-none}" != "none" ] && [ -f "$distro_dir/desktop/theme.sh" ]; then
+        plan_add "Configure Desktop Theme and Fonts (debian/desktop/theme.sh)" run_module "debian/desktop/theme.sh"
+    fi
+
     if [ "${CFG_KVM:-false}" = true ] && [ -f "$distro_dir/virt/kvm-qemu.sh" ]; then
         plan_add "Setup KVM, QEMU & virt-manager (debian/virt/kvm-qemu.sh)" run_module "debian/virt/kvm-qemu.sh"
     fi

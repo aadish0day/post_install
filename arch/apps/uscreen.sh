@@ -15,7 +15,8 @@ set -euo pipefail
 #   --force    reinstall everything even if already latest
 #   --no-apk   skip tablet APK step
 #
-# Production fixes (run only when binaries need install/update, or --force):
+# Production fixes (run when binaries need install/update, when system setup is
+# found incomplete, or with --force):
 # 1. Automatic kernel-headers matching running kernel for DKMS
 # 2. EVDI driver setup & loglevel=2 patch (silences warning spam flood)
 # 3. KWin Wayland crash patch (resolves KDE Bug 527984 on kwin 6.8.2-1)
@@ -24,7 +25,6 @@ set -euo pipefail
 # ============================================================================
 
 USCREEN_REPO="majmichu1/UScreen"
-STATE_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/uscreen-installer"
 
 FORCE=0
 CHECK=0
@@ -35,7 +35,7 @@ for arg in "$@"; do
     --check) CHECK=1 ;;
     --no-apk) DO_APK=0 ;;
     -h | --help)
-        sed -n '4,17p' "$0"
+        sed -n '4,25p' "$0"
         exit 0
         ;;
     *)
@@ -59,12 +59,13 @@ error() {
 
 WORK_DIR="$(mktemp -d /tmp/uscreen_install_XXXXXX)"
 trap 'rm -rf "$WORK_DIR"' EXIT INT TERM
-mkdir -p "$STATE_DIR"
 
 LATEST_TAG=""
 LATEST_VER=""
 TARBALL_URL=""
+TARBALL_DIGEST=""
 APK_URL=""
+APK_DIGEST=""
 
 # ----------------------------------------------------------------------------
 # 1. Arch Linux & AUR Helper Detection
@@ -96,11 +97,41 @@ detect_kernel_headers() {
 # ----------------------------------------------------------------------------
 # Version helpers
 # ----------------------------------------------------------------------------
-# a > b ? (strips leading v)
+# a > b ? (strips leading v; a pre-release suffix like -beta sorts below the release)
 ver_gt() {
     local a="${1#v}" b="${2#v}"
-    [ -n "$a" ] && [ -n "$b" ] && [ "$a" != "$b" ] &&
-        [ "$(printf '%s\n%s\n' "$a" "$b" | sort -V | tail -n1)" = "$a" ]
+    [ -n "$a" ] && [ -n "$b" ] && [ "$a" != "$b" ] || return 1
+    local ab="${a%%-*}" bb="${b%%-*}"
+    if [ "$ab" = "$bb" ]; then
+        # same base: release (no suffix) > pre-release; two pre-releases compare lexically
+        if [ "$a" = "$ab" ]; then return 0; fi
+        if [ "$b" = "$bb" ]; then return 1; fi
+    fi
+    [ "$(printf '%s\n%s\n' "$a" "$b" | sort -V | tail -n1)" = "$a" ]
+}
+
+# verify_digest <file> <"sha256:<hex>" | ""> : fail only on a real mismatch
+verify_digest() {
+    local file="$1" want="${2#sha256:}" got
+    if [ -z "$want" ]; then
+        warn "No upstream checksum published for $(basename "$file"); skipping integrity check."
+        return 0
+    fi
+    got="$(sha256sum "$file" | awk '{print $1}')"
+    if [ "$got" != "$want" ]; then
+        error "Checksum mismatch for $(basename "$file") (expected $want, got $got)."
+        return 1
+    fi
+    log "Checksum OK: $(basename "$file")"
+}
+
+# True when system-side setup (DKMS/EVDI/uinput) is missing or incomplete
+system_setup_incomplete() {
+    pacman -Qq evdi-dkms &>/dev/null || pacman -Qq evdi &>/dev/null || return 0
+    [ -f /etc/modprobe.d/uscreen-evdi.conf ] || return 0
+    [ -f /etc/modules-load.d/uscreen.conf ] || return 0
+    [ -f /etc/udev/rules.d/60-uscreen-uinput.rules ] || return 0
+    return 1
 }
 
 # Installed Arch-side version, parsed from `uscreen --version` (e.g. "uscreen 1.2.8")
@@ -146,7 +177,9 @@ fetch_release_info() {
     LATEST_TAG="$(jq -r '.tag_name // empty' "$json")"
     LATEST_VER="${LATEST_TAG#v}"
     TARBALL_URL="$(jq -r '[.assets[]?.browser_download_url | select(test("uscreen-.*-linux-x86_64\\.tar\\.gz$"))][0] // empty' "$json")"
+    TARBALL_DIGEST="$(jq -r '[.assets[]? | select(.browser_download_url | test("uscreen-.*-linux-x86_64\\.tar\\.gz$"))][0].digest // empty' "$json")"
     APK_URL="$(jq -r '[.assets[]?.browser_download_url | select(test("\\.apk$"))][0] // empty' "$json")"
+    APK_DIGEST="$(jq -r '[.assets[]? | select(.browser_download_url | test("\\.apk$"))][0].digest // empty' "$json")"
     [ -z "$APK_URL" ] && APK_URL="https://github.com/${USCREEN_REPO}/releases/latest/download/uscreen.apk"
 
     [ -n "$LATEST_TAG" ] && log "Upstream latest release: $LATEST_TAG"
@@ -157,6 +190,11 @@ report_status() {
     local cv
     cv="$(local_version)"
     log "Latest release : ${LATEST_VER:-unknown}"
+    if [ -z "$LATEST_VER" ]; then
+        warn "Latest version unknown (offline or rate-limited); cannot compare."
+        log "Arch installed : ${cv:-(none)}"
+        return 0
+    fi
     if [ -z "$cv" ]; then
         log "Arch installed : (none) -> would install"
     elif ver_gt "$LATEST_VER" "$cv"; then
@@ -225,21 +263,8 @@ check_and_fix_kwin() {
     # render device in prepareDirectScanout(), crashing KWin and plasmashell.
     if [[ "$kwin_ver" == "6.8.2-1" ]]; then
         warn "KWin 6.8.2-1 detected! Vulnerable to KDE Bug 527984 (crash on virtual display connect)."
-        log "Attempting upgrade to kwin >= 6.8.2-2..."
-
-        sudo pacman -Syu --noconfirm kwin 2>/dev/null || true
-        kwin_ver="$(pacman -Q kwin | awk '{print $2}')"
-
-        if [[ "$kwin_ver" == "6.8.2-1" ]]; then
-            log "Local mirror is outdated. Pulling kwin 6.8.2-2 directly from official Arch tier-1 mirror..."
-            local kwin_pkg="$WORK_DIR/kwin-6.8.2-2-x86_64.pkg.tar.zst"
-            if curl -fSL -o "$kwin_pkg" "https://geo.mirror.pkgbuild.com/extra/os/x86_64/kwin-6.8.2-2-x86_64.pkg.tar.zst"; then
-                sudo pacman -U --needed --noconfirm "$kwin_pkg"
-                log "Successfully upgraded KWin to 6.8.2-2."
-            fi
-        else
-            log "KWin successfully updated to $kwin_ver."
-        fi
+        warn "Fixed in kwin >= 6.8.2-2. Run a full upgrade first:  sudo pacman -Syu"
+        warn "(Not upgrading automatically: a partial kwin-only upgrade can break the system.)"
     else
         log "KWin version $kwin_ver is safe from KDE Bug 527984."
     fi
@@ -274,7 +299,7 @@ EOF
     fi
 
     # Load evdi module if not loaded
-    if ! lsmod | grep -q '^evdi'; then
+    if ! grep -q '^evdi ' /proc/modules; then
         sudo modprobe evdi 2>/dev/null || warn "evdi module not available yet (may require reboot after newly built DKMS)."
     fi
 
@@ -297,10 +322,6 @@ EOF
 
     sudo udevadm control --reload 2>/dev/null || true
     sudo udevadm trigger --name-match=uinput 2>/dev/null || true
-
-    if getent group input &>/dev/null; then
-        sudo usermod -aG input "$USER"
-    fi
 }
 
 # ----------------------------------------------------------------------------
@@ -335,6 +356,9 @@ install_uscreen_binaries() {
         if ! curl -fSL -o "$tarball" "$TARBALL_URL"; then
             warn "Download failed; falling back to local archive if available..."
             tarball=""
+        elif ! verify_digest "$tarball" "$TARBALL_DIGEST"; then
+            error "Refusing to install unverified tarball."
+            exit 1
         fi
     fi
 
@@ -395,8 +419,6 @@ install_uscreen_binaries() {
         if [ -d "$extracted_dir/packaging/icons" ]; then
             cp -f "$extracted_dir/packaging/icons/"*.svg "$icon_dir/" 2>/dev/null || true
         fi
-
-        [ -n "$LATEST_TAG" ] && echo "$LATEST_TAG" >"$STATE_DIR/installed-version"
 
         if [ "$was_active" -eq 1 ]; then
             log "Restarting uscreen user service..."
@@ -486,11 +508,16 @@ update_tablet_apk() {
         # Download once, lazily
         if [ "$have_apk" -eq 0 ]; then
             log "Downloading APK from $APK_URL..."
-            if ! curl -fSL -o "$apk_tmp" "$APK_URL"; then
-                warn "Could not download APK from $APK_URL."
-                return 0
+            if curl -fSL -o "$apk_tmp" "$APK_URL" && verify_digest "$apk_tmp" "$APK_DIGEST"; then
+                have_apk=1
+            else
+                warn "Could not download/verify APK from $APK_URL."
+                have_apk=-1
             fi
-            have_apk=1
+        fi
+        if [ "$have_apk" -ne 1 ]; then
+            warn "[$serial] Skipping APK install (no verified APK)."
+            continue
         fi
 
         log "[$serial] Installing APK via adb..."
@@ -593,13 +620,21 @@ main() {
         log "UScreen $cur_ver is up to date (latest $LATEST_VER)."
     fi
 
+    local need_sys=0
     if [ "$need_bin" -eq 1 ]; then
+        need_sys=1
+    elif system_setup_incomplete; then
+        warn "System setup (EVDI/uinput/udev) looks incomplete; repairing."
+        need_sys=1
+    fi
+
+    if [ "$need_sys" -eq 1 ]; then
         install_dependencies
         check_and_fix_kwin
         configure_evdi
         configure_uinput
-        install_uscreen_binaries
     fi
+    [ "$need_bin" -eq 1 ] && install_uscreen_binaries
 
     [ "$DO_APK" -eq 1 ] && update_tablet_apk
     configure_adb_reverse

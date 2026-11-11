@@ -56,20 +56,32 @@ x11_aur_packages=(
 
 # 1. Install official repository dependencies
 echo "Installing X11 tiling dependencies from pacman..."
-sudo pacman -S --needed --noconfirm --overwrite '*' "${x11_tiling_packages[@]}"
+sudo pacman -S --needed --noconfirm "${x11_tiling_packages[@]}"
 
 # 2. Handle i3lock conflict and install AUR packages
-if pacman -Qq "i3lock" &>/dev/null; then
-    echo "Removing standard i3lock in favor of i3lock-color..."
-    sudo pacman -Rns --noconfirm "i3lock" || true
+aur_helper=""
+if command -v paru &>/dev/null; then
+    aur_helper="paru"
+elif command -v yay &>/dev/null; then
+    aur_helper="yay"
 fi
 
-if command -v paru &>/dev/null; then
-    echo "Installing X11-specific AUR packages (nitrogen, i3lock-color, dracula-gtk-theme)..."
-    paru -S --needed --noconfirm "${x11_aur_packages[@]}" || true
-elif command -v yay &>/dev/null; then
-    echo "Installing X11-specific AUR packages (nitrogen, i3lock-color, dracula-gtk-theme)..."
-    yay -S --needed --noconfirm "${x11_aur_packages[@]}" || true
+if [ -z "$aur_helper" ]; then
+    echo "WARN: no AUR helper (paru/yay) found; skipping: ${x11_aur_packages[*]}" >&2
+else
+    i3lock_removed=false
+    if pacman -Qq i3lock &>/dev/null; then
+        echo "Removing standard i3lock in favor of i3lock-color..."
+        sudo pacman -Rns --noconfirm i3lock && i3lock_removed=true
+    fi
+    echo "Installing X11-specific AUR packages (${x11_aur_packages[*]})..."
+    "$aur_helper" -S --needed --noconfirm "${x11_aur_packages[@]}" ||
+        echo "WARN: some AUR packages failed to install." >&2
+    # Never leave the system without a screen locker
+    if [ "$i3lock_removed" = true ] && ! pacman -Qq i3lock-color &>/dev/null; then
+        echo "i3lock-color build failed; restoring i3lock."
+        sudo pacman -S --needed --noconfirm i3lock
+    fi
 fi
 
 # 3. Configure Precision Touchpad for X11 (libinput)
@@ -85,13 +97,6 @@ echo "Configuring services for X11 tiling..."
 if systemctl list-unit-files | grep -q "bluetooth.service"; then
     sudo systemctl enable --now bluetooth.service 2>/dev/null || true
     echo "Bluetooth service enabled."
-fi
-
-# Enable DBus broker/daemon user service
-if systemctl list-unit-files | grep -q "dbus-broker.service"; then
-    sudo systemctl enable --now dbus-broker.service 2>/dev/null || true
-elif systemctl list-unit-files | grep -q "dbus-daemon.service"; then
-    sudo systemctl enable --now dbus-daemon.service 2>/dev/null || true
 fi
 
 # Start XDG desktop portal services

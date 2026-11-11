@@ -8,13 +8,23 @@ set -euo pipefail
 # ============================================================
 
 # ------------------------- Detection ------------------------
+# Capture lspci once: piping into `grep -q` under pipefail can SIGPIPE and misreport.
+gpu_lines() {
+    local out
+    out="$(lspci 2>/dev/null || true)"
+    grep -Ei "vga|3d controller|display" <<<"$out" || true
+}
+
 has_intel_cpu() {
     grep -q "GenuineIntel" /proc/cpuinfo
 }
 
 has_intel_gpu() {
-    lspci 2>/dev/null | grep -Ei "vga|3d controller|display" | grep -qi "intel"
+    grep -qi "intel" <<<"$(gpu_lines)"
 }
+
+# shellcheck source=lib/arch-multilib.sh
+source "$(dirname "${BASH_SOURCE[0]}")/../../../lib/arch-multilib.sh"
 
 # ------------------------- Root check -----------------------
 require_root() {
@@ -28,15 +38,7 @@ require_root() {
 install_cpu() {
     echo "Intel CPU detected - installing linux-firmware and intel-ucode..."
     pacman -S --noconfirm --needed linux-firmware intel-ucode
-}
-
-# ------------------------- Multilib -------------------------
-ensure_multilib() {
-    if ! grep -q "^\[multilib\]" /etc/pacman.conf; then
-        echo "Enabling multilib repository in /etc/pacman.conf..."
-        sed -i '/\[multilib\]/,/Include/s/^[#;]//' /etc/pacman.conf
-        pacman -Syu --noconfirm
-    fi
+    refresh_bootloader
 }
 
 # ------------------------- GPU ------------------------------
@@ -47,6 +49,7 @@ install_gpu() {
         linux-firmware mesa lib32-mesa vulkan-intel lib32-vulkan-intel \
         vulkan-icd-loader lib32-vulkan-icd-loader \
         intel-media-driver mesa-utils
+    echo "NOTE: pre-Broadwell iGPUs need libva-intel-driver instead of intel-media-driver."
 }
 
 # ------------------------- Main -----------------------------

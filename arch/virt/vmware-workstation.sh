@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Get the directory where the script is located
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
 log() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1"
 }
@@ -29,18 +26,16 @@ elif command -v yay &>/dev/null; then
 else
     log "Neither paru nor yay found. Installing paru..."
     sudo pacman -S --needed --noconfirm base-devel git
-    rm -rf /tmp/paru
-    if git clone https://aur.archlinux.org/paru.git /tmp/paru && (cd /tmp/paru && makepkg -si --noconfirm); then
+    aur_tmp="$(mktemp -d /tmp/aur_helper_XXXXXX)"
+    trap 'rm -rf "$aur_tmp"' EXIT
+    if git clone https://aur.archlinux.org/paru.git "$aur_tmp/paru" && (cd "$aur_tmp/paru" && makepkg -si --noconfirm); then
         aur_helper="paru"
     else
         log "Failed to install paru, trying yay fallback..."
-        rm -rf /tmp/yay
-        if git clone https://aur.archlinux.org/yay.git /tmp/yay && (cd /tmp/yay && makepkg -si --noconfirm); then
+        if git clone https://aur.archlinux.org/yay.git "$aur_tmp/yay" && (cd "$aur_tmp/yay" && makepkg -si --noconfirm); then
             aur_helper="yay"
         fi
-        rm -rf /tmp/yay
     fi
-    rm -rf /tmp/paru
 fi
 
 if [ -z "$aur_helper" ]; then

@@ -13,14 +13,14 @@ log() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1"
 }
 
-if command -v xdman &>/dev/null || command -v xdm-app &>/dev/null || pacman -Qq xdm-app &>/dev/null 2>&1 || pacman -Qq xdman-bin &>/dev/null 2>&1 || [[ -d /opt/xdm-app ]] || [[ -d /opt/xdman ]]; then
+if command -v xdman &>/dev/null || command -v xdm-app &>/dev/null || pacman -Qq xdm-app &>/dev/null || pacman -Qq xdman-bin &>/dev/null || [[ -d /opt/xdm-app ]] || [[ -d /opt/xdman ]]; then
     log "XDM is already installed."
     exit 0
 fi
 
 # Ensure required dependencies are available
 log "Installing dependencies..."
-sudo pacman -S --needed --noconfirm curl zstd
+sudo pacman -S --needed --noconfirm curl zstd jq
 
 aur_cmd=""
 if command -v paru &>/dev/null; then
@@ -33,20 +33,33 @@ BUILD_DIR="$(mktemp -d /tmp/xdm_install_XXXXXX)"
 trap 'rm -rf "$BUILD_DIR"' EXIT
 
 log "Fetching latest XDM release asset from GitHub..."
-XDM_URL=$(curl -fsSL "https://api.github.com/repos/${XDM_REPO}/releases/latest" 2>/dev/null | grep -oP '"browser_download_url":\s*"\K[^"]*xdm.*x86_64\.pkg\.tar\.zst' | head -n1 || true)
+XDM_URL=""
+XDM_DIGEST=""
+if curl -fsSL "https://api.github.com/repos/${XDM_REPO}/releases/latest" -o "$BUILD_DIR/release.json" 2>/dev/null; then
+    XDM_URL="$(jq -r '[.assets[]?.browser_download_url | select(test("xdm.*x86_64\\.pkg\\.tar\\.zst$"))][0] // empty' "$BUILD_DIR/release.json")"
+    XDM_DIGEST="$(jq -r '[.assets[]? | select(.browser_download_url | test("xdm.*x86_64\\.pkg\\.tar\\.zst$"))][0].digest // empty' "$BUILD_DIR/release.json")"
+    XDM_DIGEST="${XDM_DIGEST#sha256:}"
+fi
 
 installed=false
+
+if [[ -n "$XDM_URL" && -z "$XDM_DIGEST" ]]; then
+    log "No published checksum for the GitHub package; refusing to pacman -U it as root. Using AUR fallback."
+    XDM_URL=""
+fi
 
 if [[ -n "$XDM_URL" ]]; then
     log "Downloading XDM package from $XDM_URL..."
     PKG_FILE="$BUILD_DIR/$(basename "$XDM_URL")"
-    if curl -fSL -o "$PKG_FILE" "$XDM_URL"; then
+    if curl -fSL -o "$PKG_FILE" "$XDM_URL" && [ "$(sha256sum "$PKG_FILE" | awk '{print $1}')" = "$XDM_DIGEST" ]; then
         log "Installing XDM via pacman -U..."
         if sudo pacman -U --needed --noconfirm "$PKG_FILE"; then
             installed=true
         else
             log "pacman -U failed, will attempt fallback..."
         fi
+    else
+        log "Download or checksum verification failed, will attempt fallback..."
     fi
 fi
 

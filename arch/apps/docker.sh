@@ -9,7 +9,7 @@ log() {
 log "Installing Docker on Arch Linux..."
 
 # Install Docker, Docker Compose, and Buildx
-sudo pacman -S --needed docker docker-compose docker-buildx --noconfirm --overwrite '*'
+sudo pacman -S --needed docker docker-compose docker-buildx --noconfirm
 
 # Enable and start Docker socket for on-demand activation
 log "Enabling and starting Docker socket (on-demand activation)..."
@@ -21,4 +21,5 @@ log "Adding user $USER to the docker group..."
 sudo usermod -aG docker "$USER"
 
 log "Docker installation and configuration complete."
+log "NOTE: the docker group is root-equivalent; only add users you trust."
 log "Please log out and log back in for group changes to take effect."

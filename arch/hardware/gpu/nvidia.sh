@@ -8,28 +8,29 @@ set -euo pipefail
 # ============================================================
 
 # ------------------------- Detection ------------------------
+# Capture lspci once: piping into `grep -q` under pipefail can SIGPIPE and misreport.
+gpu_lines() {
+    local out
+    out="$(lspci 2>/dev/null || true)"
+    grep -Ei "vga|3d controller|display" <<<"$out" || true
+}
+
 has_nvidia_gpu() {
-    lspci 2>/dev/null | grep -Ei "vga|3d controller|display" | grep -qi "nvidia"
+    grep -qi "nvidia" <<<"$(gpu_lines)"
 }
 
 is_laptop() {
     compgen -G "/sys/class/power_supply/BAT*" >/dev/null
 }
 
+# shellcheck source=lib/arch-multilib.sh
+source "$(dirname "${BASH_SOURCE[0]}")/../../../lib/arch-multilib.sh"
+
 # ------------------------- Root check -----------------------
 require_root() {
     if [ "$EUID" -ne 0 ]; then
         echo "This script needs root privileges. Re-running with sudo..."
         exec sudo bash "$(readlink -f "$0")" "$@"
-    fi
-}
-
-# ------------------------- Multilib -------------------------
-ensure_multilib() {
-    if ! grep -q "^\[multilib\]" /etc/pacman.conf; then
-        echo "Enabling multilib repository in /etc/pacman.conf..."
-        sed -i '/\[multilib\]/,/Include/s/^[#;]//' /etc/pacman.conf
-        pacman -Syu --noconfirm
     fi
 }
 

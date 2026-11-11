@@ -13,13 +13,23 @@ set -euo pipefail
 # ============================================================
 
 # ------------------------- Detection ------------------------
+# Capture lspci once: piping into `grep -q` under pipefail can SIGPIPE and misreport.
+gpu_lines() {
+    local out
+    out="$(lspci 2>/dev/null || true)"
+    grep -Ei "vga|3d controller|display" <<<"$out" || true
+}
+
 has_amd_cpu() {
     grep -q "AuthenticAMD" /proc/cpuinfo
 }
 
 has_amd_gpu() {
-    lspci 2>/dev/null | grep -Ei "vga|3d controller|display" | grep -qiE "\[amd/ati\]|radeon|navi"
+    grep -qiE "\[amd/ati\]|radeon|navi" <<<"$(gpu_lines)"
 }
+
+# shellcheck source=lib/arch-multilib.sh
+source "$(dirname "${BASH_SOURCE[0]}")/../../../lib/arch-multilib.sh"
 
 # ------------------------- Root check -----------------------
 require_root() {
@@ -36,32 +46,34 @@ install_cpu() {
 }
 
 tune_grub() {
-    local params=("amd_pstate=active" "amd_prefcore=enable" "usbcore.autosuspend=-1")
-    local cmdline param
+    # usbcore.autosuspend=-1 disables USB power saving (battery cost): opt-in only.
+    local params=("amd_pstate=active" "amd_prefcore=enable")
+    [ "${AMD_USB_AUTOSUSPEND_OFF:-0}" = 1 ] && params+=("usbcore.autosuspend=-1")
+    local cmdline param file=/etc/default/grub
 
-    if [ ! -f /etc/default/grub ]; then
-        echo "GRUB not found - skipping amd_pstate kernel parameters."
+    if [ ! -f "$file" ]; then
+        echo "GRUB not found - skipping amd_pstate kernel parameters (systemd-boot: add them to your entry)."
         return
     fi
 
-    # Append missing params instead of overwriting the existing cmdline
-    cmdline="$(sed -nE 's/^GRUB_CMDLINE_LINUX_DEFAULT="(.*)"/\1/p' /etc/default/grub)"
+    # Parse existing value (double or single quotes); empty if line missing.
+    cmdline="$(sed -nE "s/^GRUB_CMDLINE_LINUX_DEFAULT=[\"'](.*)[\"']\s*\$/\1/p" "$file" | head -n1)"
     for param in "${params[@]}"; do
         [[ " $cmdline " == *" $param "* ]] || cmdline="${cmdline:+$cmdline }$param"
     done
 
-    echo "Setting GRUB_CMDLINE_LINUX_DEFAULT=\"$cmdline\"..."
-    sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=\".*\"|GRUB_CMDLINE_LINUX_DEFAULT=\"$cmdline\"|" /etc/default/grub
-    grub-mkconfig -o /boot/grub/grub.cfg || true
-}
+    # Escape sed replacement specials (\, &, |)
+    local esc="${cmdline//\\/\\\\}"
+    esc="${esc//&/\\&}"
+    esc="${esc//|/\\|}"
 
-# ------------------------- Multilib -------------------------
-ensure_multilib() {
-    if ! grep -q "^\[multilib\]" /etc/pacman.conf; then
-        echo "Enabling multilib repository in /etc/pacman.conf..."
-        sed -i '/\[multilib\]/,/Include/s/^[#;]//' /etc/pacman.conf
-        pacman -Syu --noconfirm
+    echo "Setting GRUB_CMDLINE_LINUX_DEFAULT=\"$cmdline\"..."
+    if grep -q '^GRUB_CMDLINE_LINUX_DEFAULT=' "$file"; then
+        sed -i -E "s|^GRUB_CMDLINE_LINUX_DEFAULT=.*|GRUB_CMDLINE_LINUX_DEFAULT=\"$esc\"|" "$file"
+    else
+        echo "GRUB_CMDLINE_LINUX_DEFAULT=\"$cmdline\"" >>"$file"
     fi
+    refresh_bootloader
 }
 
 # ------------------------- GPU ------------------------------
@@ -71,7 +83,7 @@ install_gpu() {
     pacman -S --noconfirm --needed \
         linux-firmware mesa lib32-mesa vulkan-radeon lib32-vulkan-radeon \
         vulkan-icd-loader lib32-vulkan-icd-loader \
-        xf86-video-amdgpu vulkan-mesa-layers lib32-vulkan-mesa-layers \
+        vulkan-mesa-layers lib32-vulkan-mesa-layers \
         mesa-utils lib32-mesa-utils mesa-demos lib32-mesa-demos glu lib32-glu radeontop
 }
 

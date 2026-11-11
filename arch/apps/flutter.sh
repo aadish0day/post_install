@@ -20,6 +20,8 @@ log "Configuring Flutter SDK permissions on Arch Linux..."
 if getent group flutter &>/dev/null; then
     log "Adding user $USER to the 'flutter' group for direct /opt/flutter access..."
     sudo usermod -aG flutter "$USER"
+else
+    log "WARN: no 'flutter' group found - is flutter-bin installed? Skipping group setup."
 fi
 
 # Clean up stale unionfs mounts and cache from ~/.cache

@@ -59,48 +59,9 @@ else
     fi
 fi
 
-# JetBrains Mono Nerd Font (Arch: ttf-jetbrains-mono-nerd)
-FONT_DIR="$HOME/.local/share/fonts/JetBrainsMonoNerd"
-if [ -d "$FONT_DIR" ] || fc-list 2>/dev/null | grep -qi "JetBrainsMono Nerd"; then
-    log "JetBrains Mono Nerd Font already installed"
-else
-    log "Installing JetBrains Mono Nerd Font..."
-    url="$(github_asset_url ryanoasis/nerd-fonts 'JetBrainsMono\.tar\.xz$')" || true
-    url="${url:-https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.tar.xz}"
-    if is_simulate; then
-        url_ok "$url" >/dev/null && log "[simulate] would extract $url to $FONT_DIR"
-    else
-        mkdir -p "$FONT_DIR"
-        if curl -fSL --retry 3 "$url" | tar -xJ -C "$FONT_DIR"; then
-            if command -v fc-cache >/dev/null 2>&1; then
-                fc-cache -f "$FONT_DIR" >/dev/null 2>&1 || true
-            fi
-            log "Installed JetBrains Mono Nerd Font to $FONT_DIR"
-        else
-            warn "Failed to download or extract JetBrains Mono Nerd Font"
-            rm -rf "$FONT_DIR"
-        fi
-    fi
-fi
-
-# Dracula GTK theme (Arch AUR dracula-gtk-theme): GitHub release into ~/.themes
-if [ -d "$HOME/.themes/Dracula" ]; then
-    log "Dracula GTK theme already installed"
-else
-    log "Installing Dracula GTK theme..."
-    url="$(github_asset_url dracula/gtk 'Dracula\.tar\.xz$')" || true
-    url="${url:-https://github.com/dracula/gtk/releases/latest/download/Dracula.tar.xz}"
-    if is_simulate; then
-        url_ok "$url" >/dev/null && log "[simulate] would extract $url to ~/.themes"
-    else
-        mkdir -p "$HOME/.themes"
-        if curl -fSL --retry 3 "$url" | tar -xJ -C "$HOME/.themes"; then
-            log "Installed Dracula GTK theme to ~/.themes"
-        else
-            warn "Failed to download or extract Dracula GTK theme"
-            rm -rf "$HOME/.themes/Dracula"
-        fi
-    fi
+# Desktop theme, icons, cursors, and fonts
+if [ -f "$SCRIPT_DIR/theme.sh" ]; then
+    bash "$SCRIPT_DIR/theme.sh"
 fi
 
 # Precision touchpad for X11 (libinput)
