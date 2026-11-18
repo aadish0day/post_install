@@ -52,7 +52,7 @@ install_github_binary lexiforest/curl-impersonate 'curl-impersonate-v[0-9.]+\.x8
 # Packages above can pull in ffmpeg-free; make sure the full codec build wins
 swap_ffmpeg
 
-# Python CLI tools (AUR gallery-dl-bin / markitdown-bin equivalents)
+# Python CLI tools (AUR gallery-dl / markitdown-bin equivalents)
 uv_tool_install gallery-dl
 uv_tool_install --with markitdown-ocr --with openai "markitdown[all]"
 

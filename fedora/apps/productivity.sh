@@ -47,7 +47,7 @@ if app_wanted "anydesk"; then
     dnf_install anydesk
 fi
 
-# Python CLIs (Arch: gallery-dl-bin, markitdown-bin)
+# Python CLIs (Arch: gallery-dl, markitdown-bin)
 if app_wanted "gallery_dl"; then
     uv_tool_install gallery-dl
 fi
