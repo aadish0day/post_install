@@ -58,25 +58,7 @@ find_java_bin() {
     echo "java"
 }
 
-# Helper function to find burp binary
-find_burp_bin() {
-    if [ -n "${BURP_BIN:-}" ] && [ "$BURP_BIN" != "none" ] && [ -x "$BURP_BIN" ]; then
-        echo "$BURP_BIN"
-        return 0
-    fi
-    local b
-    for b in "$HOME/.local/bin/burpsuitepro" "/usr/local/bin/burpsuitepro" "${REPO_DIR:-$HOME/Documents/Crack/Burpsuite-Professional}/burpsuitepro"; do
-        if [ -x "$b" ]; then
-            echo "$b"
-            return 0
-        fi
-    done
-    if command -v burpsuitepro &>/dev/null; then
-        command -v burpsuitepro
-        return 0
-    fi
-    return 1
-}
+# find_burp_bin is defined in burp-common.sh (sourced above); no duplicate needed here.
 
 # Helper function to get file size in bytes
 get_file_size() {
@@ -1289,8 +1271,8 @@ if [ "\$DO_DIAG" = true ]; then
     fi
     echo "Burp Version:         \$BURP_VERSION"
     echo "Key Loader JAR:       \$REPO_DIR/loader.jar \$([ -f "\$REPO_DIR/loader.jar" ] && echo '[Present]' || echo '[MISSING]')"
-    echo "Jython 2.7.4 JAR:     \$REPO_DIR/jython-standalone-2.7.4.jar \$([ -f "\$REPO_DIR/jython-standalone-2.7.4.jar" ] && echo '[Present]' || echo '[Not installed]')"
-    echo "JRuby Complete JAR:   \$REPO_DIR/jruby-complete-9.4.9.0.jar \$([ -f "\$REPO_DIR/jruby-complete-9.4.9.0.jar" ] && echo '[Present]' || echo '[Not installed]')"
+    echo "Jython 2.7.4 JAR:     \$REPO_DIR/$JYTHON_JAR \$([ -f "\$REPO_DIR/$JYTHON_JAR" ] && echo '[Present]' || echo '[Not installed]')"
+    echo "JRuby Complete JAR:   \$REPO_DIR/$JRUBY_JAR \$([ -f "\$REPO_DIR/$JRUBY_JAR" ] && echo '[Present]' || echo '[Not installed]')"
     echo "Burp Trust CA Script: \$REPO_DIR/burp-trust-ca.sh \$([ -x "\$REPO_DIR/burp-trust-ca.sh" ] && echo '[Present, Executable]' || echo '[MISSING]')"
     echo
     echo "--- Java Runtime ---"
@@ -1435,8 +1417,7 @@ EOF
     echo "Configuring Burp Suite Professional license and preferences..."
     merge_pref_entry "$prefs_file" "burp.eula" "13"
     merge_pref_entry "$prefs_file" "use_community_edition" "false"
-    merge_pref_entry "$prefs_file" "suite.alertsdisabledforjre-1115054815" "true"
-    merge_pref_entry "$prefs_file" "suite.alertsdisabledforjre-3189538875" "true"
+    # Note: JRE warning suppression keys are already written by suppress_jre_warnings() above.
     merge_pref_entry "$prefs_file" "$seed_license_key" "$seed_license_val"
     merge_pref_entry "$prefs_file" "$seed_key2_name" "$seed_key2_val"
 
@@ -1601,7 +1582,10 @@ Terminal=true
 EOF
 
     update-desktop-database "$desktop_dir" 2>/dev/null || true
-    kbuildsycoca6 --noincremental 2>/dev/null || kbuildsycoca6 2>/dev/null || kbuildsycoca5 2>/dev/null || true
+    # Rebuild KDE service cache only when running inside a KDE/Plasma session
+    if [[ "${XDG_CURRENT_DESKTOP:-}" =~ KDE|Plasma ]]; then
+        kbuildsycoca6 --noincremental 2>/dev/null || kbuildsycoca6 2>/dev/null || kbuildsycoca5 2>/dev/null || true
+    fi
 
     # System desktop shortcut only when explicitly running as root
     if [[ $EUID -eq 0 ]]; then
@@ -1667,28 +1651,28 @@ EOF
         local tmp_probe
         tmp_probe="$(mktemp "${TMPDIR:-/tmp}/burp-cert-check-XXXXXX.tmp" 2>/dev/null || mktemp /tmp/burp-cert-check-XXXXXX.tmp)"
 
-        is_burp_cert() {
-            if curl -sSL -f -m 2 "$cert_url" -o "$tmp_probe" 2>/dev/null && [ -s "$tmp_probe" ]; then
-                if command -v openssl &>/dev/null; then
-                    if openssl x509 -inform DER -in "$tmp_probe" -noout 2>/dev/null ||
-                        openssl x509 -inform PEM -in "$tmp_probe" -noout 2>/dev/null; then
-                        return 0
-                    fi
-                elif head -c 2 "$tmp_probe" 2>/dev/null | cmp -s <(printf "\x30\x82") - ||
-                    grep -q "^-----BEGIN CERTIFICATE-----" "$tmp_probe" 2>/dev/null; then
-                    return 0
-                fi
+        # Bug fix: nested function definition inside a function is a bash portability hazard
+        # under set -euo pipefail. Replaced with an inline helper using a subshell.
+        _check_burp_cert() {
+            local _probe="$1"
+            local _url="$2"
+            curl -sSL -f -m 2 "$_url" -o "$_probe" 2>/dev/null && [ -s "$_probe" ] || return 1
+            if command -v openssl &>/dev/null; then
+                openssl x509 -inform DER -in "$_probe" -noout 2>/dev/null ||
+                    openssl x509 -inform PEM -in "$_probe" -noout 2>/dev/null
+            else
+                head -c 2 "$_probe" 2>/dev/null | cmp -s <(printf "\x30\x82") - ||
+                    grep -q "^-----BEGIN CERTIFICATE-----" "$_probe" 2>/dev/null
             fi
-            return 1
         }
 
-        if is_burp_cert; then
+        if _check_burp_cert "$tmp_probe" "$cert_url"; then
             cert_active=true
         else
             echo "Waiting for Burp Suite proxy listener and CA certificate (up to 30s)..."
             for ((att = 1; att <= 10; att++)); do
                 sleep 3
-                if is_burp_cert; then
+                if _check_burp_cert "$tmp_probe" "$cert_url"; then
                     cert_active=true
                     break
                 fi

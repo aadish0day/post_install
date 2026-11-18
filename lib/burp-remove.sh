@@ -646,9 +646,13 @@ fi
 
 # 6. Cleanup temporary logs (Fix G5)
 echo "Cleaning temporary logs..."
+# Clean logs from /tmp and XDG_RUNTIME_DIR (the launcher writes to whichever is set)
 rm -f "/tmp/burpsuitepro-${UID:-$USER}.log" 2>/dev/null || true
-rm -f "/tmp/burpsuitepro-${UID}.log" "/tmp/burpsuitepro-${USER}.log" 2>/dev/null || true
 rm -f /tmp/burpsuitepro-*.log 2>/dev/null || true
+if [[ -n "${XDG_RUNTIME_DIR:-}" && "$XDG_RUNTIME_DIR" != "/tmp" ]]; then
+    rm -f "${XDG_RUNTIME_DIR}/burpsuitepro-${UID:-$USER}.log" 2>/dev/null || true
+    rm -f "${XDG_RUNTIME_DIR}/burpsuitepro-${UID:-$USER}.log.old" 2>/dev/null || true
+fi
 rm -f "${TMPDIR:-/tmp}"/burp-ca-*.tmp "${TMPDIR:-/tmp}"/burp-ca-*.der "${TMPDIR:-/tmp}"/burp-ca-*.crt 2>/dev/null || true
 rm -f "${TMPDIR:-/tmp}"/burp-pol-*.json "${TMPDIR:-/tmp}"/burp-pol-err-*.tmp 2>/dev/null || true
 rm -f "${TMPDIR:-/tmp}"/burp-cert-check-*.tmp 2>/dev/null || true
@@ -670,10 +674,10 @@ fi
 if command -v update-mime-database &>/dev/null; then
     update-mime-database "$HOME/.local/share/mime" 2>/dev/null || true
 fi
-if command -v kbuildsycoca6 &>/dev/null; then
-    kbuildsycoca6 --noincremental 2>/dev/null || kbuildsycoca6 2>/dev/null || true
-elif command -v kbuildsycoca5 &>/dev/null; then
-    kbuildsycoca5 2>/dev/null || true
+if command -v kbuildsycoca6 &>/dev/null || command -v kbuildsycoca5 &>/dev/null; then
+    if [[ "${XDG_CURRENT_DESKTOP:-}" =~ KDE|Plasma ]]; then
+        kbuildsycoca6 --noincremental 2>/dev/null || kbuildsycoca6 2>/dev/null || kbuildsycoca5 2>/dev/null || true
+    fi
 fi
 
 # System cache updates if writable or passwordless sudo

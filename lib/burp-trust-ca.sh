@@ -102,11 +102,8 @@ if sudo -n true 2>/dev/null; then
     HAS_SUDO=true
 elif [ "$IS_NON_INTERACTIVE" = true ] || [ ! -c /dev/tty ]; then
     HAS_SUDO=false
-elif [ "$TRUST_ALL" = true ]; then
-    if sudo -v 2>/dev/null; then
-        HAS_SUDO=true
-    fi
 else
+    # Prompt for sudo credentials once (covers both TRUST_ALL and interactive cases)
     if sudo -v 2>/dev/null; then
         HAS_SUDO=true
     fi
