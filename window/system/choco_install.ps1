@@ -65,7 +65,7 @@ $isAdmin = Test-IsAdmin
 function Ensure-AdminElevation {
     if (-not (Test-IsAdmin)) {
         Write-Host " [*] Elevating to Administrator..." -ForegroundColor Yellow
-        $scriptPath = if (![string]::IsNullOrEmpty($PSScriptRoot)) { $MyInvocation.MyCommand.Path }
+        $scriptPath = if (![string]::IsNullOrEmpty($PSCommandPath)) { $PSCommandPath }
                       elseif ($MyInvocation.MyCommand.Path) { $MyInvocation.MyCommand.Path }
                       else { $null }
 

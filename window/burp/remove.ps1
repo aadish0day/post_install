@@ -244,11 +244,9 @@ foreach ($fap in $fileAssocPaths) {
 
 if ($assocRemoved -gt 0) {
     try {
-        $type = [System.Type]::GetType("Win32.ShellNotifyRemove")
-        if (-not $type) {
-            $shellNotifyCode = '[System.Runtime.InteropServices.DllImport("shell32.dll")] public static extern void SHChangeNotify(int wEventId, int uFlags, IntPtr dwItem1, IntPtr dwItem2);'
-            Add-Type -MemberDefinition $shellNotifyCode -Name "ShellNotifyRemove" -Namespace "Win32" -ErrorAction SilentlyContinue | Out-Null
-        }
+        # Add-Type'd types are not discoverable by [System.Type]::GetType; guard by catching re-definition error instead.
+        Add-Type -MemberDefinition '[System.Runtime.InteropServices.DllImport("shell32.dll")] public static extern void SHChangeNotify(int wEventId, int uFlags, IntPtr dwItem1, IntPtr dwItem2);' `
+            -Name "ShellNotifyRemove" -Namespace "Win32" -ErrorAction SilentlyContinue | Out-Null
         [Win32.ShellNotifyRemove]::SHChangeNotify(0x08000000, 0, [IntPtr]::Zero, [IntPtr]::Zero)
         Write-Host "      [OK] Windows Shell notified of file association change." -ForegroundColor DarkGray
     } catch {}
@@ -308,11 +306,8 @@ if (-not $KeepData) {
 Write-Host "`n(6/6) Refreshing Windows Shell and search index..." -ForegroundColor Cyan
 
 try {
-    $type = [System.Type]::GetType("Win32.ShellNotifyRemove")
-    if (-not $type) {
-        $shellNotifyCode = '[System.Runtime.InteropServices.DllImport("shell32.dll")] public static extern void SHChangeNotify(int wEventId, int uFlags, IntPtr dwItem1, IntPtr dwItem2);'
-        Add-Type -MemberDefinition $shellNotifyCode -Name "ShellNotifyRemove" -Namespace "Win32" -ErrorAction SilentlyContinue | Out-Null
-    }
+    Add-Type -MemberDefinition '[System.Runtime.InteropServices.DllImport("shell32.dll")] public static extern void SHChangeNotify(int wEventId, int uFlags, IntPtr dwItem1, IntPtr dwItem2);' `
+        -Name "ShellNotifyRemove" -Namespace "Win32" -ErrorAction SilentlyContinue | Out-Null
     [Win32.ShellNotifyRemove]::SHChangeNotify(0x08000000, 0, [IntPtr]::Zero, [IntPtr]::Zero)
     Write-Host "      [OK] Windows Shell notified and icon cache flushed." -ForegroundColor Green
 } catch {

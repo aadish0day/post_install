@@ -1208,6 +1208,11 @@ foreach ($cfgPath in $configTargets) {
                         ruby = [PSCustomObject]@{
                             location_of_jruby_jar_file = if (Test-Path $TargetJruby) { $TargetJruby } else { "" }
                         }
+                        settings = [PSCustomObject]@{
+                            automatically_update_bapps_on_startup  = $false
+                            automatically_reload_extensions_on_startup = $true
+                            suppress_extension_loaded_popup        = $true
+                        }
                     }
                 }
             }
@@ -1223,6 +1228,22 @@ foreach ($cfgPath in $configTargets) {
             }
             if (-not ($cfgObj.user_options.extender.PSObject.Properties['ruby']) -or ($null -eq $cfgObj.user_options.extender.ruby)) {
                 $cfgObj.user_options.extender | Add-Member -NotePropertyName "ruby" -NotePropertyValue ([PSCustomObject]@{}) -Force
+            }
+            # Ensure extender.settings block exists and auto-update is suppressed
+            if (-not ($cfgObj.user_options.extender.PSObject.Properties['settings']) -or ($null -eq $cfgObj.user_options.extender.settings)) {
+                $cfgObj.user_options.extender | Add-Member -NotePropertyName "settings" -NotePropertyValue ([PSCustomObject]@{}) -Force
+            }
+            $extSettings = $cfgObj.user_options.extender.settings
+            if ($extSettings.PSObject.Properties['automatically_update_bapps_on_startup']) {
+                $extSettings.automatically_update_bapps_on_startup = $false
+            } else {
+                $extSettings | Add-Member -NotePropertyName "automatically_update_bapps_on_startup" -NotePropertyValue $false -Force
+            }
+            if (-not $extSettings.PSObject.Properties['automatically_reload_extensions_on_startup']) {
+                $extSettings | Add-Member -NotePropertyName "automatically_reload_extensions_on_startup" -NotePropertyValue $true -Force
+            }
+            if (-not $extSettings.PSObject.Properties['suppress_extension_loaded_popup']) {
+                $extSettings | Add-Member -NotePropertyName "suppress_extension_loaded_popup" -NotePropertyValue $true -Force
             }
 
             if (Test-Path $TargetJython) {
@@ -1919,10 +1940,8 @@ try {
     # Refresh Windows Shell & Icon Cache so Search and File Associations update immediately
     try {
         $shellNotifyCode = '[System.Runtime.InteropServices.DllImport("shell32.dll")] public static extern void SHChangeNotify(int wEventId, int uFlags, IntPtr dwItem1, IntPtr dwItem2);'
-        $shellNotify = Add-Type -MemberDefinition $shellNotifyCode -Name "ShellNotify" -Namespace "Win32" -PassThru -ErrorAction SilentlyContinue
-        if ($shellNotify) {
-            [Win32.ShellNotify]::SHChangeNotify(0x08000000, 0, [IntPtr]::Zero, [IntPtr]::Zero)
-        }
+        Add-Type -MemberDefinition $shellNotifyCode -Name "ShellNotify" -Namespace "Win32" -ErrorAction SilentlyContinue | Out-Null
+        [Win32.ShellNotify]::SHChangeNotify(0x08000000, 0, [IntPtr]::Zero, [IntPtr]::Zero)
     } catch {}
 
 } catch {
