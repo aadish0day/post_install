@@ -88,8 +88,9 @@ distro_install_deps() {
     # is unneeded and would break other tools requiring different JVM versions.
 
     # 2. Check required network, SSL, and desktop integration tools
+    # Note: xdotool is used by the launcher (optional focus feature), not required at install time.
     local tool
-    for tool in wget curl aria2c openssl certutil rsvg-convert update-desktop-database update-mime-database notify-send ss unshare gtk-update-icon-cache xdotool; do
+    for tool in wget curl aria2c openssl certutil rsvg-convert update-desktop-database update-mime-database notify-send; do
         if ! command -v "$tool" &>/dev/null; then
             case "$tool" in
             aria2c) missing_pkgs+=(aria2) ;;
@@ -98,9 +99,6 @@ distro_install_deps() {
             update-desktop-database) missing_pkgs+=(desktop-file-utils) ;;
             update-mime-database) missing_pkgs+=(shared-mime-info) ;;
             notify-send) missing_pkgs+=(libnotify) ;;
-            ss) missing_pkgs+=(iproute2) ;;
-            unshare) missing_pkgs+=(util-linux) ;;
-            gtk-update-icon-cache) missing_pkgs+=(gtk-update-icon-cache) ;;
             *) missing_pkgs+=("$tool") ;;
             esac
         fi
@@ -111,9 +109,9 @@ distro_install_deps() {
         missing_pkgs+=(python)
     fi
 
-    # 3. Ensure xorg-xwayland is present for Wayland / KDE Wayland sessions
-    # (Burp runs via AWT X11 toolkit over XWayland; missing xorg-xwayland causes launch failure)
-    if ! pacman -Qi xorg-xwayland &>/dev/null; then
+    # 3. Ensure xorg-xwayland is present only for Wayland sessions
+    # (Burp runs via AWT X11 toolkit over XWayland; only needed when WAYLAND_DISPLAY is set)
+    if [[ -n "${WAYLAND_DISPLAY:-}" ]] && ! pacman -Qi xorg-xwayland &>/dev/null; then
         missing_pkgs+=(xorg-xwayland)
     fi
 
@@ -125,19 +123,13 @@ distro_install_deps() {
         missing_pkgs+=(ca-certificates-utils)
     fi
 
-    # Deduplicate missing packages
+    # Deduplicate missing packages using an associative array (O(n) vs O(n²))
+    local -A _seen_pkgs=()
     local -a unique_pkgs=()
     local p
     for p in "${missing_pkgs[@]}"; do
-        local seen=false
-        local u
-        for u in "${unique_pkgs[@]}"; do
-            if [[ "$u" == "$p" ]]; then
-                seen=true
-                break
-            fi
-        done
-        if [[ "$seen" == false ]]; then
+        if [[ -z "${_seen_pkgs[$p]+x}" ]]; then
+            _seen_pkgs[$p]=1
             unique_pkgs+=("$p")
         fi
     done

@@ -8,7 +8,7 @@ set -euo pipefail
 # List of KDE Plasma desktop environment packages
 kde_plasma_packages=(
     plasma-meta plasma-camera
-    rsync obsidian elisa gwenview kamoso okular libreoffice-fresh wl-clipboard qt6-tools
+    rsync obsidian elisa gwenview kamoso okular libreoffice-fresh hunspell-en_us wl-clipboard qt6-tools
     mesa libva-utils vulkan-tools dosfstools sshfs kdeconnect
     kclock
     # KDE specific apps

@@ -231,8 +231,21 @@ install_dependencies() {
     headers_pkg="$(detect_kernel_headers)"
     log "Checking core dependencies and kernel headers ($headers_pkg)..."
 
-    sudo pacman -S --needed --noconfirm \
-        "$headers_pkg" dkms ffmpeg android-tools android-udev curl jq tar zstd
+    # Only invoke pacman for packages that are not already installed.
+    # This prevents accidental partial upgrades of kernel headers when kernel package is not yet upgraded.
+    local pkgs_to_install=()
+    for pkg in "$headers_pkg" dkms ffmpeg android-tools android-udev curl jq tar zstd; do
+        if ! pacman -Qq "$pkg" &>/dev/null; then
+            pkgs_to_install+=("$pkg")
+        fi
+    done
+
+    if [ ${#pkgs_to_install[@]} -gt 0 ]; then
+        log "Installing missing dependencies: ${pkgs_to_install[*]}"
+        sudo pacman -S --needed --noconfirm "${pkgs_to_install[@]}"
+    else
+        log "Core dependencies and kernel headers are already installed."
+    fi
 
     # Install evdi-dkms if not installed
     if ! pacman -Qq evdi-dkms &>/dev/null && ! pacman -Qq evdi &>/dev/null; then
@@ -582,6 +595,18 @@ verify_installation() {
         fi
     fi
 
+    # Validate VA-API device path in config to prevent failure on hybrid GPU profile switch (e.g. Eco mode)
+    local cfg="${HOME}/.config/uscreen/config.toml"
+    if [ -f "$cfg" ]; then
+        local va_dev
+        va_dev="$(grep -E '^\s*vaapi_device\s*=' "$cfg" | sed -E 's/.*=\s*"([^"]*)".*/\1/' || true)"
+        if [ -n "$va_dev" ] && [ ! -e "$va_dev" ]; then
+            warn "Configured vaapi_device '$va_dev' does not exist (e.g. dGPU currently disabled/in Eco mode)."
+            warn "Resetting vaapi_device in $cfg to \"\" for automatic GPU render node detection."
+            sed -i -E 's/^\s*vaapi_device\s*=.*/vaapi_device = ""/' "$cfg"
+        fi
+    fi
+
     log "UScreen installation and configuration complete!"
     log "Quick start: run 'uscreen start' or launch UScreen from your application menu."
 }
@@ -621,7 +646,7 @@ main() {
     fi
 
     local need_sys=0
-    if [ "$need_bin" -eq 1 ]; then
+    if [ "$FORCE" -eq 1 ]; then
         need_sys=1
     elif system_setup_incomplete; then
         warn "System setup (EVDI/uinput/udev) looks incomplete; repairing."

@@ -21,6 +21,7 @@ gst-libav
 gst-plugins-ugly
 highlight
 htop
+hunspell-en_us
 img2pdf
 imagemagick
 inxi
@@ -34,6 +35,7 @@ libgme
 liblrdf
 libltc
 libtool
+libreoffice-fresh
 linux-headers
 logrotate
 lsd

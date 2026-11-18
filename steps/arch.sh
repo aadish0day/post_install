@@ -220,10 +220,10 @@ step_arch_prod_apps() {
         anydesk) prod_pkgs+=("anydesk-bin") ;;
         obsidian) prod_pkgs+=("obsidian") ;;
         markitdown) prod_pkgs+=("markitdown-bin") ;;
-        gallery_dl) prod_pkgs+=("gallery-dl-bin") ;;
+        gallery_dl) prod_pkgs+=("gallery-dl") ;;
         ani_cli) prod_pkgs+=("ani-cli") ;;
         advcpmv) prod_pkgs+=("advcpmv") ;;
-        libreoffice) prod_pkgs+=("libreoffice-fresh") ;;
+        libreoffice) prod_pkgs+=("libreoffice-fresh" "hunspell-en_us") ;;
         esac
     done
 
