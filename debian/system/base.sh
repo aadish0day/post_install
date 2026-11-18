@@ -110,7 +110,7 @@ if ! command -v yazi >/dev/null 2>&1; then
     install_yazi || warn "yazi installation failed"
 fi
 
-# Python CLI tools (Arch: gallery-dl-bin, markitdown-bin)
+# Python CLI tools (Arch: gallery-dl, markitdown-bin)
 log "Installing Python CLI tools with uv tool..."
 uv_tool_install gallery-dl
 uv_tool_install --with markitdown-ocr --with openai "markitdown[all]"
