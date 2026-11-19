@@ -201,7 +201,7 @@ if (Test-Path $InstallDir) {
             Remove-Item -Path $InstallDir -Recurse -Force
             Write-Host "      [OK] Deleted $InstallDir" -ForegroundColor Green
         } catch {
-            Write-Warning "Could not delete $InstallDir: $($_.Exception.Message)"
+            Write-Warning "Could not delete ${InstallDir}: $($_.Exception.Message)"
         }
     }
 } else {
@@ -237,7 +237,7 @@ foreach ($fap in $fileAssocPaths) {
             Write-Host "      [OK] Removed file association: $fap" -ForegroundColor Green
             $assocRemoved++
         } catch {
-            Write-Warning "Could not remove file association $fap: $($_.Exception.Message)"
+            Write-Warning "Could not remove file association ${fap}: $($_.Exception.Message)"
         }
     }
 }

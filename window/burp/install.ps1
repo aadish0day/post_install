@@ -1039,7 +1039,7 @@ if ($olderJars) {
             Rename-Item -Path $oldJar.FullName -NewName $bkName -Force
             Write-Host "      [OK] Preserved older release: $($oldJar.Name) -> $bkName" -ForegroundColor Green
         } catch {
-            Write-Warning "Could not backup $($oldJar.Name) to $bkName: $($_.Exception.Message)"
+            Write-Warning "Could not backup $($oldJar.Name) to ${bkName}: $($_.Exception.Message)"
         }
     }
 }
@@ -1268,7 +1268,7 @@ foreach ($cfgPath in $configTargets) {
         [System.IO.File]::WriteAllText($cfgPath, $jsonOut, $utf8NoBom)
         Write-Host "      [OK] Configured Jython & JRuby paths in: $cfgPath" -ForegroundColor Green
     } catch {
-        Write-Warning "Could not configure extender paths in $cfgPath: $($_.Exception.Message)"
+        Write-Warning "Could not configure extender paths in ${cfgPath}: $($_.Exception.Message)"
     }
 }
 
