@@ -147,9 +147,6 @@ build_plan_debian() {
     fi
 
     local -a burp_args=(--skip-launch)
-    case "${CFG_BURP_CHANNEL:-}" in
-    stable | latest) burp_args+=(--channel "$CFG_BURP_CHANNEL") ;;
-    esac
     if [ "${CFG_SECURITY_BURP:-false}" = true ] && [ -f "$distro_dir/apps/burp/install.sh" ]; then
         plan_add "Setup Burp Suite Professional (debian/apps/burp/install.sh)" run_module "debian/apps/burp/install.sh" "${burp_args[@]}"
     fi

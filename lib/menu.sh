@@ -221,40 +221,35 @@ menu_badge_coding() {
 }
 
 menu_badge_burp() {
-    case "${CFG_BURP_CHANNEL:-off}" in
-    stable) printf '[Stable %s]' "${BURP_STABLE_VERSION:-2026.10.1}" ;;
-    latest) printf '[Latest ⚠]' ;;
-    *) printf '[No]' ;;
-    esac
+    if [ "${CFG_SECURITY_BURP:-false}" = true ]; then
+        printf '[v%s]' "${BURP_STABLE_VERSION:-2026.10.1}"
+    else
+        printf '[No]'
+    fi
 }
 
 menu_choice_burp() {
     local current="off"
     if [ "${CFG_SECURITY_BURP:-false}" = true ]; then
-        current="${CFG_BURP_CHANNEL:-stable}"
+        current="install"
     fi
 
     local sel=""
-    sel=$(ui_menu "Burp Suite Professional — Version Channel" \
-        "Select Burp Suite Professional installation channel:\n\n  Stable: v${BURP_STABLE_VERSION:-2026.10.1} (tested & verified)\n  Latest: Fetches newest release from PortSwigger API (untested)" \
+    sel=$(ui_menu "Burp Suite Professional" \
+        "Install Burp Suite Professional (tested stable release v${BURP_STABLE_VERSION:-2026.10.1}) or configure CA trust:" \
         "$current" \
+        "install" "Install Burp Suite Pro (tested stable v${BURP_STABLE_VERSION:-2026.10.1})" \
         "off" "Don't install Burp Suite Professional" \
-        "stable" "Stable — v${BURP_STABLE_VERSION:-2026.10.1} (Recommended, tested)" \
-        "latest" "Latest — Newest PortSwigger release (⚠ untested)" \
         "trust" "Auto-Trust CA — Install & trust Burp CA certificate now") || return 0
 
     case "$sel" in
-    off)
-        CFG_SECURITY_BURP=false
-        CFG_BURP_CHANNEL="off"
-        ;;
-    stable)
+    install)
         CFG_SECURITY_BURP=true
         CFG_BURP_CHANNEL="stable"
         ;;
-    latest)
-        CFG_SECURITY_BURP=true
-        CFG_BURP_CHANNEL="latest"
+    off)
+        CFG_SECURITY_BURP=false
+        CFG_BURP_CHANNEL="off"
         ;;
     trust)
         menu_action_burp_ca
@@ -264,7 +259,7 @@ menu_choice_burp() {
 
 menu_badge_burp_ca() {
     # 1. If Burp Suite is enabled for this installation run, show that it runs automatically at the end!
-    if [ "${CFG_SECURITY_BURP:-false}" = true ] && [ "${CFG_BURP_CHANNEL:-off}" != "off" ]; then
+    if [ "${CFG_SECURITY_BURP:-false}" = true ]; then
         if curl -s -f -m 1 "http://127.0.0.1:8080/cert" -o /dev/null 2>/dev/null; then
             printf '[Proxy Live ✓]'
         else

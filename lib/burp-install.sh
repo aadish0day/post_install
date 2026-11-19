@@ -282,11 +282,10 @@ burp_usage() {
     cat <<EOF
 Usage: install.sh [OPTIONS] [VERSION]
 
-Install Burp Suite Professional with selectable version channel.
+Install Burp Suite Professional.
 
 Options:
   -v, --version <ver>   Install an exact version (e.g. 2026.10.1)
-      --channel <name>  Version channel: stable (tested) or latest (UNTESTED)
   -f, --force           Re-download even if files already exist
       --skip-launch     Install without launching Burp Suite
   -h, --help            Show this help and exit
@@ -305,7 +304,6 @@ run_burp_installation() {
     local skip_launch=false
     local force_download=false
     local custom_version=""
-    local channel=""
     local explicit_version=false
 
     while [[ $# -gt 0 ]]; do
@@ -337,19 +335,6 @@ run_burp_installation() {
             force_download=true
             shift
             ;;
-        --channel)
-            if [[ $# -lt 2 ]]; then
-                echo "ERROR: $1 requires a channel argument (stable or latest)." >&2
-                burp_usage
-                exit 1
-            fi
-            channel="$2"
-            shift 2
-            ;;
-        --channel=*)
-            channel="${1#*=}"
-            shift
-            ;;
         -*)
             echo "ERROR: Unknown option: $1" >&2
             burp_usage
@@ -369,69 +354,18 @@ run_burp_installation() {
         esac
     done
 
-    # Validate channel argument if provided
-    if [[ -n "$channel" ]]; then
-        local channel_norm="${channel,,}"
-        if [[ "$channel_norm" != "stable" && "$channel_norm" != "latest" ]]; then
-            echo "ERROR: Invalid channel '$channel'. Allowed channels are: stable, latest" >&2
-            burp_usage
-            exit 1
-        fi
-        channel="$channel_norm"
-    fi
-
     # Version resolution
     local burp_ver=""
     if [[ -n "$custom_version" ]]; then
         burp_ver="$custom_version"
-        if [[ -n "$channel" ]]; then
-            echo "WARNING: Both --channel ($channel) and explicit version ($custom_version) specified. Explicit version takes precedence over --channel." >&2
-        fi
         echo "Using specified Burp Suite version: $burp_ver"
     elif [[ -n "${BURP_VERSION:-}" ]]; then
         burp_ver="$BURP_VERSION"
         explicit_version=true
-        if [[ -n "$channel" ]]; then
-            echo "WARNING: Both --channel ($channel) and BURP_VERSION ($BURP_VERSION) specified. BURP_VERSION takes precedence over --channel." >&2
-        fi
         echo "Using environment BURP_VERSION: $burp_ver"
     else
-        channel="${channel:-stable}"
-        if [[ "$channel" == "stable" ]]; then
-            burp_ver="$BURP_STABLE_VERSION"
-            echo "Using stable (tested) Burp Suite version: $burp_ver"
-        elif [[ "$channel" == "latest" ]]; then
-            echo ""
-            echo "╔══════════════════════════════════════════════════════════════╗"
-            echo "║  ⚠  WARNING: Latest channel selected (UNTESTED)            ║"
-            echo "║  This fetches the newest release from PortSwigger.          ║"
-            echo "╚══════════════════════════════════════════════════════════════╝"
-            echo "Fetching latest Burp Suite version from PortSwigger..."
-            burp_ver="$(curl -sSL --connect-timeout 10 --max-time 15 'https://portswigger.net/burp/releases/data?pageSize=10' 2>/dev/null | python3 -c "
-import json, sys
-try:
-    data = json.load(sys.stdin)
-    if isinstance(data, dict):
-        for r in data.get('ResultSet', {}).get('Results', []):
-            if any(b.get('BuildCategoryPlatform') == 'Jar' for b in r.get('builds', [])):
-                v = r.get('version')
-                if v:
-                    print(v)
-                    sys.exit(0)
-except Exception:
-    pass
-" 2>/dev/null || true)"
-
-            if [[ -z "$burp_ver" ]]; then
-                burp_ver="$BURP_STABLE_VERSION"
-                echo "PortSwigger release API unavailable. Falling back to stable version: $burp_ver"
-            else
-                echo "Latest version detected: $burp_ver"
-            fi
-        else
-            echo "ERROR: Invalid channel '$channel'. Use 'stable' or 'latest'." >&2
-            exit 1
-        fi
+        burp_ver="$BURP_STABLE_VERSION"
+        echo "Using tested stable Burp Suite version: $burp_ver"
     fi
 
     local jar_name="burpsuite_pro_v${burp_ver}.jar"

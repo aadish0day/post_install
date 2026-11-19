@@ -477,7 +477,6 @@ Options:
   --desktop <de>        Override desktop environment (kde, i3, bspwm, both, none)
   --craft               Install ArtCraft suite (AppMan + wordcraft, gridcraft, deckcraft, photocraft, filmcraft)
   --burp                Install Burp Suite Professional (tested Java 21 LTS + CA trust)
-  --channel <channel>   Set Burp channel (stable or latest)
   -h, --help            Show this help message
 
 Examples:
@@ -542,18 +541,20 @@ while [[ $# -gt 0 ]]; do
         ;;
     --burp)
         CFG_SECURITY_BURP=true
-        if [ -z "${CFG_BURP_CHANNEL:-}" ] || [ "$CFG_BURP_CHANNEL" = "off" ]; then
-            CFG_BURP_CHANNEL="stable"
-        fi
+        CFG_BURP_CHANNEL="stable"
         shift
         ;;
     --channel)
-        if [ $# -lt 2 ]; then
-            log_err "--channel requires an argument (stable or latest)."
-            exit 1
+        log_warn "--channel is deprecated and has no effect. The tested stable release is installed by default."
+        if [ $# -ge 2 ] && [[ "$2" != -* ]]; then
+            shift 2
+        else
+            shift
         fi
-        CFG_BURP_CHANNEL="$2"
-        shift 2
+        ;;
+    --channel=*)
+        log_warn "--channel is deprecated and has no effect. The tested stable release is installed by default."
+        shift
         ;;
     -h | --help)
         show_help

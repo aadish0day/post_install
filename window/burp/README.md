@@ -37,26 +37,24 @@ irm "https://raw.githubusercontent.com/aadish0day/post_install/main/window/burp/
 
 ---
 
-## 🎚️ Version Channel (Tested vs. Latest)
+## 🎚️ Tested Stable Version & Version Selection
 
-Double-clicking `install.bat` (or running `install.ps1` in a console) asks which channel to install:
-
-```text
-Burp Suite Professional - version channel
-  1) Tested stable  v2026.10.1  (recommended)
-  2) Latest         newest PortSwigger release (UNTESTED)
-Select [1]:
-```
-
-Press <kbd>Enter</kbd> for the tested stable build. Choosing latest queries the PortSwigger release API, prints a yellow warning and falls back to the tested version if the API is unreachable. Invalid input re-prompts up to 3 times, then falls back to stable.
-
-For unattended runs, pass a flag instead — no prompt is shown when `-Version`, `-Channel` or `$env:BURP_VERSION` is set, and non-interactive sessions default to tested stable:
+By default, the installer uses the tested stable release (`2026.10.1`) without prompting:
 
 ```cmd
-.\install.bat                              # asks: tested 2026.10.1 or latest (untested)
-.\install.bat -Channel latest              # newest release, no prompt (UNTESTED)
-.\install.bat -Channel stable              # tested 2026.10.1, no prompt
-.\install.bat -Version 2026.10.1           # pin an exact version
+.\install.bat                              # installs tested stable release (2026.10.1)
+.\install.bat -Version 2026.10.1           # pin or specify an exact version
+```
+
+Custom versions can be supplied via `-Version <version>` or the `$env:BURP_VERSION` environment variable:
+
+```powershell
+# Via command-line parameter:
+.\install.ps1 -Version "2026.10.1"
+
+# Via environment variable:
+$env:BURP_VERSION = "2026.10.1"
+.\install.ps1
 ```
 
 ---
@@ -67,8 +65,8 @@ For unattended runs, pass a flag instead — no prompt is shown when `-Version`,
   - Automatically inspects session `$env:Path`, `JAVA_HOME` (User & Machine), Windows Registry (`HKLM:\SOFTWARE\Microsoft\JDK`, `HKLM:\SOFTWARE\JavaSoft`), and standard program directories.
   - If Java 21+ already exists, **skips downloading entirely**.
   - If missing or outdated, automatically downloads and silently installs the official **Microsoft OpenJDK 21 MSI** (with Adoptium and `winget` fallbacks).
-- **Dynamic Latest Release Lookup**:
-  - Queries PortSwigger's live release API (`https://portswigger.net/burp/releases/data?pageSize=10`) to automatically download the latest official Pro JAR.
+- **Tested Stable Release by Default**:
+  - Automatically downloads and verifies the tested stable release (`2026.10.1`), with support for custom version overrides via `-Version` or `$env:BURP_VERSION`.
 - **High-Speed `curl.exe` Acceleration & Auto-Resume**:
   - Automatically leverages native Windows `curl.exe` (`C:\Windows\System32\curl.exe`) with HTTP/2 and auto-resume (`-C -`), delivering maximum download speeds for the ~750MB JAR. Falls back smoothly to an optimized 1MB buffered .NET stream reader if needed.
 - **Failover Mirror Redundancy**:
@@ -125,7 +123,7 @@ window/burp/
 | :---: | :--- | :--- |
 | **(1/8)** | **Directory Setup** | Creates `%USERPROFILE%\Documents\Crack\Burpsuite-Professional`. |
 | **(2/8)** | **Java Detection & Setup** | Verifies Java 21+. If missing, silently installs OpenJDK 21 via direct MSI. |
-| **(3/8)** | **Version Resolution** | Prompts for tested stable or latest (non-interactive: stable), or honors `-Version` / `-Channel` / `BURP_VERSION`. |
+| **(3/8)** | **Version Resolution** | Defaults directly to tested stable release (`2026.10.1`), or honors `-Version` / `$env:BURP_VERSION` overrides. |
 | **(4/8)** | **Loader Fetch** | Downloads `loader.jar` with integrity verification (> 10 KB). |
 | **(5/8)** | **JAR Download & Smart Caching** | Skips download if existing valid JAR matches or exceeds requested version; backs up older JARs with `.bk` extension (non-destructive) instead of deleting them. |
 | **(6/8)** | **Assets, Jython & Registry** | Copies `.config.ini`, `burp_suite_pro.ico`, downloads `jython-standalone-2.7.4.jar`, configures `UserConfigPro.json` for Python BApps, and pre-seeds JRE warning suppression flags in Windows Java Preferences registry. |
@@ -205,15 +203,15 @@ To reinstall or update the JAR without launching the application at the end:
 .\install.ps1 -SkipLaunch
 ```
 
-### Specifying an Exact Version
-By default, the installer uses the tested stable release (`2026.10.1`). To install or pin a specific version:
+### Specifying a Custom Version
+By default, the installer uses the tested stable release (`2026.10.1`). To install or pin a custom version:
 ```powershell
+# Using the -Version parameter
 .\install.ps1 -Version "2026.10.1"
-```
 
-To opt into the newest PortSwigger release instead (see **Version Channel** above):
-```powershell
-.\install.ps1 -Channel latest
+# Or using the BURP_VERSION environment variable
+$env:BURP_VERSION = "2026.10.1"
+.\install.ps1
 ```
 
 ---
