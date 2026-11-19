@@ -37,6 +37,7 @@ build_plan_kali() {
     plan_managed_app "lazydocker"
     plan_managed_app "burp"
     plan_managed_app "advcpmv"
+    plan_managed_app "craft"
 
     plan_add "Kali Linux Core Setup (kali/kali.sh)" step_kali_core
 
@@ -66,6 +67,10 @@ build_plan_kali() {
 
     if [ "${CFG_ADVCPMV:-false}" = true ] && [ -f "$distro_dir/apps/advcpmv.sh" ]; then
         plan_add "Install Advanced Copy with Progress Bar (kali/apps/advcpmv.sh)" run_module "kali/apps/advcpmv.sh"
+    fi
+
+    if [ "${CFG_CRAFT:-false}" = true ] && [ -f "$distro_dir/apps/craft.sh" ]; then
+        plan_add "Install ArtCraft Suite (wordcraft, gridcraft, deckcraft, photocraft, filmcraft)" run_module "kali/apps/craft.sh"
     fi
 
     if [ "${CFG_KALI_SEARCHSPLOIT:-false}" = true ]; then

@@ -41,6 +41,7 @@ build_plan_fedora() {
     plan_managed_app "productivity"
     plan_managed_app "markitdown"
     plan_managed_app "xdm"
+    plan_managed_app "uscreen"
     plan_managed_app "craft"
 
     if [ -f "$distro_dir/system/dnf.sh" ]; then
@@ -119,15 +120,19 @@ build_plan_fedora() {
         plan_add "Install Productivity Applications (fedora/apps/productivity.sh - ${#CFG_PROD_APPS[@]} apps)" \
             step_fedora_productivity "${CFG_PROD_APPS[*]}"
 
-        local has_xdm=false p
+        local has_xdm=false has_uscreen=false p
         for p in "${CFG_PROD_APPS[@]}"; do
             if [ "$p" = "xdm" ]; then
                 has_xdm=true
-                break
+            elif [ "$p" = "uscreen" ]; then
+                has_uscreen=true
             fi
         done
         if [ "$has_xdm" = true ] && [ -f "$distro_dir/apps/xdm.sh" ]; then
             plan_add "Install XDM Download Manager (fedora/apps/xdm.sh)" run_module "fedora/apps/xdm.sh"
+        fi
+        if [ "$has_uscreen" = true ] && [ -f "$distro_dir/apps/uscreen.sh" ]; then
+            plan_add "Install UScreen USB Second Display (fedora/apps/uscreen.sh)" run_module "fedora/apps/uscreen.sh"
         fi
     fi
 

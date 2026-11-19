@@ -75,7 +75,7 @@ CATALOG_PROD=(
     "libreoffice|LibreOffice (Office productivity suite)|CFG_PROD_APPS|arch debian"
     "xdm|XDM (Xtreme Download Manager)|CFG_PROD_APPS|"
     "advcpmv|advcpmv (cp/mv with progress bars)|CFG_PROD_APPS|arch debian"
-    "uscreen|UScreen (Android tablet as USB second monitor)|CFG_PROD_APPS|arch"
+    "uscreen|UScreen (Android tablet as USB second monitor)|CFG_PROD_APPS|arch debian fedora"
 )
 
 CHECKLIST_PROMPT="Toggle components to configure (select ALL/NONE to bulk toggle):\n\n[j/k]=Navigate  [SPACE]=Toggle  [ENTER]=Confirm"

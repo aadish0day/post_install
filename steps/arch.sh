@@ -287,6 +287,7 @@ build_plan_arch() {
     plan_managed_app "flutter"
     plan_managed_app "burp"
     plan_managed_app "xdm"
+    plan_managed_app "uscreen"
     plan_managed_app "craft"
 
     if [ "${CFG_MIRRORS:-false}" = true ]; then

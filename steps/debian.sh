@@ -69,6 +69,7 @@ build_plan_debian() {
     plan_managed_app "productivity"
     plan_managed_app "markitdown"
     plan_managed_app "xdm"
+    plan_managed_app "uscreen"
     plan_managed_app "advcpmv"
     plan_managed_app "craft"
     plan_managed_app "burp"
@@ -165,15 +166,19 @@ build_plan_debian() {
         plan_add "Install Productivity Applications (debian/apps/productivity.sh - ${#CFG_PROD_APPS[@]} apps)" \
             step_debian_productivity "${CFG_PROD_APPS[*]}"
 
-        local has_xdm=false p
+        local has_xdm=false has_uscreen=false p
         for p in ${CFG_PROD_APPS[@]+"${CFG_PROD_APPS[@]}"}; do
             if [ "$p" = "xdm" ]; then
                 has_xdm=true
-                break
+            elif [ "$p" = "uscreen" ]; then
+                has_uscreen=true
             fi
         done
         if [ "$has_xdm" = true ] && [ -f "$distro_dir/apps/xdm.sh" ]; then
             plan_add "Install XDM Download Manager (debian/apps/xdm.sh)" run_module "debian/apps/xdm.sh"
+        fi
+        if [ "$has_uscreen" = true ] && [ -f "$distro_dir/apps/uscreen.sh" ]; then
+            plan_add "Install UScreen USB Second Display (debian/apps/uscreen.sh)" run_module "debian/apps/uscreen.sh"
         fi
     fi
 

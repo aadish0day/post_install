@@ -70,10 +70,16 @@ APK_DIGEST=""
 # ----------------------------------------------------------------------------
 # 1. Arch Linux & AUR Helper Detection
 # ----------------------------------------------------------------------------
-if [ ! -f /etc/arch-release ] && ! grep -qi "arch" /etc/os-release 2>/dev/null; then
-    error "This script is tailored specifically for Arch Linux."
-    exit 1
-fi
+check_os() {
+    if [ ! -f /etc/arch-release ] && ! grep -qi "arch" /etc/os-release 2>/dev/null; then
+        if [ "$CHECK" -eq 1 ]; then
+            warn "Host is not Arch Linux; running in check-only mode."
+        else
+            error "This script is tailored specifically for Arch Linux."
+            exit 1
+        fi
+    fi
+}
 
 aur_cmd=""
 if command -v paru &>/dev/null; then
@@ -176,11 +182,30 @@ fetch_release_info() {
 
     LATEST_TAG="$(jq -r '.tag_name // empty' "$json")"
     LATEST_VER="${LATEST_TAG#v}"
-    TARBALL_URL="$(jq -r '[.assets[]?.browser_download_url | select(test("uscreen-.*-linux-x86_64\\.tar\\.gz$"))][0] // empty' "$json")"
-    TARBALL_DIGEST="$(jq -r '[.assets[]? | select(.browser_download_url | test("uscreen-.*-linux-x86_64\\.tar\\.gz$"))][0].digest // empty' "$json")"
+    TARBALL_URL="$(jq -r '[.assets[]?.browser_download_url | select(test("uscreen.*linux.*x86_64\\.tar\\.gz$"))][0] // empty' "$json")"
+    TARBALL_DIGEST="$(jq -r '[.assets[]? | select(.browser_download_url | test("uscreen.*linux.*x86_64\\.tar\\.gz$"))][0].digest // empty' "$json")"
     APK_URL="$(jq -r '[.assets[]?.browser_download_url | select(test("\\.apk$"))][0] // empty' "$json")"
     APK_DIGEST="$(jq -r '[.assets[]? | select(.browser_download_url | test("\\.apk$"))][0].digest // empty' "$json")"
     [ -z "$APK_URL" ] && APK_URL="https://github.com/${USCREEN_REPO}/releases/latest/download/uscreen.apk"
+
+    # Also parse SHA256SUMS asset if digests are not embedded in API
+    local sums_url
+    sums_url="$(jq -r '[.assets[]?.browser_download_url | select(test("SHA256SUMS$"))][0] // empty' "$json")"
+    if [ -n "$sums_url" ]; then
+        curl -fsSL "$sums_url" -o "$WORK_DIR/SHA256SUMS" 2>/dev/null || true
+        if [ -f "$WORK_DIR/SHA256SUMS" ]; then
+            if [ -z "$APK_DIGEST" ] && [ -n "$APK_URL" ]; then
+                local apk_name
+                apk_name="$(basename "$APK_URL")"
+                APK_DIGEST="$(awk -v f="$apk_name" '$2==f || $2=="*"f {print $1; exit}' "$WORK_DIR/SHA256SUMS" || true)"
+            fi
+            if [ -z "$TARBALL_DIGEST" ] && [ -n "$TARBALL_URL" ]; then
+                local tb_name
+                tb_name="$(basename "$TARBALL_URL")"
+                TARBALL_DIGEST="$(awk -v f="$tb_name" '$2==f || $2=="*"f {print $1; exit}' "$WORK_DIR/SHA256SUMS" || true)"
+            fi
+        fi
+    fi
 
     [ -n "$LATEST_TAG" ] && log "Upstream latest release: $LATEST_TAG"
     [ -n "$LATEST_TAG" ]
@@ -253,7 +278,13 @@ install_dependencies() {
             log "Installing evdi-dkms via $aur_cmd..."
             "$aur_cmd" -S --needed --noconfirm evdi-dkms
         else
-            warn "No AUR helper found (paru/yay). Please ensure evdi-dkms is installed from AUR."
+            log "No AUR helper found. Building evdi-dkms directly from AUR..."
+            local aur_evdi="$WORK_DIR/evdi-dkms"
+            if git clone --depth 1 https://aur.archlinux.org/evdi-dkms.git "$aur_evdi" 2>/dev/null; then
+                ( cd "$aur_evdi" && makepkg -si --noconfirm )
+            else
+                warn "Could not clone evdi-dkms from AUR. Please ensure evdi-dkms is installed from AUR."
+            fi
         fi
     else
         log "EVDI driver package already installed."
@@ -426,6 +457,7 @@ install_uscreen_binaries() {
         if [ -f "$extracted_dir/scripts/uscreen.service" ]; then
             cp -f "$extracted_dir/scripts/uscreen.service" "$systemd_dir/uscreen.service"
             systemctl --user daemon-reload 2>/dev/null || true
+            systemctl --user enable --now uscreen.service 2>/dev/null || warn "Could not enable uscreen.service immediately (starts on next login)."
         fi
 
         # Install scalable icons
@@ -608,7 +640,7 @@ verify_installation() {
     fi
 
     log "UScreen installation and configuration complete!"
-    log "Quick start: run 'uscreen start' or launch UScreen from your application menu."
+    log "Quick start: run 'systemctl --user start uscreen' or launch UScreen from your application menu."
 }
 
 # ----------------------------------------------------------------------------
@@ -617,9 +649,13 @@ verify_installation() {
 main() {
     log "Starting UScreen installation & update for Arch Linux..."
 
-    # jq is needed to parse release info before anything else
-    command -v jq &>/dev/null || sudo pacman -S --needed --noconfirm jq
-    command -v adb &>/dev/null || [ "$CHECK" -eq 1 ] || sudo pacman -S --needed --noconfirm android-tools
+    check_os
+
+    if [ "$CHECK" -eq 0 ]; then
+        # jq is needed to parse release info before anything else
+        command -v jq &>/dev/null || sudo pacman -S --needed --noconfirm jq
+        command -v adb &>/dev/null || sudo pacman -S --needed --noconfirm android-tools
+    fi
 
     fetch_release_info || true
 
