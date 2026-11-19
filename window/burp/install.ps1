@@ -835,12 +835,12 @@ if (-not [string]::IsNullOrWhiteSpace($Version)) {
         Write-Host "      Using stable (tested) version: $BURP_VERSION" -ForegroundColor Green
     } elseif ($Channel -eq "latest") {
         Write-Host ""
-        Write-Host "      ╔══════════════════════════════════════════════════════════════╗" -ForegroundColor Yellow
-        Write-Host "      ║  ⚠  WARNING: Latest channel selected (UNTESTED)            ║" -ForegroundColor Yellow
-        Write-Host "      ║  This fetches the newest release from PortSwigger.          ║" -ForegroundColor Yellow
-        Write-Host "      ║  It may contain breaking changes or compatibility issues.   ║" -ForegroundColor Yellow
-        Write-Host "      ║  Use 'stable' channel for a known-good version.            ║" -ForegroundColor Yellow
-        Write-Host "      ╚══════════════════════════════════════════════════════════════╝" -ForegroundColor Yellow
+        Write-Host "      +--------------------------------------------------------------+" -ForegroundColor Yellow
+        Write-Host "      |  [!] WARNING: Latest channel selected (UNTESTED)             |" -ForegroundColor Yellow
+        Write-Host "      |  This fetches the newest release from PortSwigger.           |" -ForegroundColor Yellow
+        Write-Host "      |  It may contain breaking changes or compatibility issues.    |" -ForegroundColor Yellow
+        Write-Host "      |  Use 'stable' channel for a known-good version.             |" -ForegroundColor Yellow
+        Write-Host "      +--------------------------------------------------------------+" -ForegroundColor Yellow
         Write-Host ""
         Write-Host "      Checking PortSwigger release API for latest version..." -ForegroundColor DarkGray
         try {

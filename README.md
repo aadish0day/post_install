@@ -167,6 +167,16 @@ Automated PortSwigger latest release API query, JDK 21 detection & auto-installa
 ```
 *(Or via PowerShell: `.\window\burp\install.ps1`)*
 
+#### Windows 11 OOBE Local Account & Network Bypass
+Bypass mandatory Microsoft Account sign-in during Windows 11 initial setup (OOBE) and create a local offline account:
+
+* **Open Command Prompt during OOBE**: Press `Shift + F10` (or `Shift + Fn + F10`).
+* **Direct Local Account Prompt**: Run `start ms-cxh:localonly` (or `start ms-accounts:connectonly`).
+* **Network Requirement Bypass (BYPASSNRO)**: Run `OOBE\BYPASSNRO` to reboot and unlock the *"I don't have internet"* option.
+* **Manual User Provisioning**: Run `net user <username> /add` and `net localgroup administrators <username> /add`.
+
+See the complete guide in [`window/OOBE_LOCAL_ACCOUNT.md`](file:///home/aadish/Documents/Github/post_install/window/OOBE_LOCAL_ACCOUNT.md).
+
 ---
 
 ## Repository Architecture
@@ -209,7 +219,7 @@ post_install/
 ├── fedora/                     # Fedora modular sub-scripts, config, & fedora/lib/common.sh
 ├── kali/                       # Kali Linux modular sub-scripts (apps, hardware)
 ├── termux/                     # Termux scripts & font installer
-├── window/                     # Windows PowerShell scripts & assets (burp/, system/winget_install.ps1, system/choco_install.ps1)
+├── window/                     # Windows PowerShell scripts & guides (burp/, system/, OOBE_LOCAL_ACCOUNT.md)
 └── theme_and_font.sh           # Standalone font and theme installer
 ```
 
