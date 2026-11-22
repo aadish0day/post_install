@@ -1,52 +1,91 @@
 #!/usr/bin/env bash
-# Simple WiFi driver installer for Kali Linux
-# Check if running as root (auto-elevate if needed)
+# Realtek RTL88xxAU (RTL8811AU / 8812AU / 8821AU) WiFi driver installer for Kali Linux
+#
+# Driver choice (WIFI_DRIVER=auto|kali|morrownr, default auto):
+#   kali      Kali's realtek-rtl88xxau-dkms (RTL8811/8812/8821AU, maintained with Kali kernels)
+#   morrownr  morrownr/8821au-20210708 (RTL8811AU/8821AU ONLY; does not support RTL8812AU)
+#   auto      try kali first, fall back to morrownr
+set -euo pipefail
+
+# Auto-elevate
 if [ "$(id -u)" -ne 0 ]; then
     echo "Re-running with sudo..."
     exec sudo bash "$(readlink -f "$0")" "$@"
 fi
 
-echo "Installing WiFi drivers..."
+WIFI_DRIVER="${WIFI_DRIVER:-auto}"
+MORROWNR_REF="${MORROWNR_REF:-1a819991f5b75e64dfcf922b96a6681f367cbba0}"
+export DEBIAN_FRONTEND=noninteractive
 
-# Check if nala is available, otherwise use apt
-if command -v nala >/dev/null 2>&1; then
-    echo "Using nala package manager..."
-    PKG_MANAGER="nala"
-else
-    echo "Nala not found, using apt..."
-    PKG_MANAGER="apt"
-fi
+case "$WIFI_DRIVER" in
+auto | kali | morrownr) ;;
+*)
+    echo "ERROR: WIFI_DRIVER must be auto, kali or morrownr (got '$WIFI_DRIVER')." >&2
+    exit 1
+    ;;
+esac
 
-# Update and install packages
-apt update -y
-$PKG_MANAGER upgrade -y
-$PKG_MANAGER install -y dkms git build-essential bc libelf-dev linux-headers-$(uname -r) iw rfkill
+echo "Installing RTL88xxAU WiFi drivers (WIFI_DRIVER=$WIFI_DRIVER)..."
 
-# Create temporary directory and install driver
-TEMP_DIR=$(mktemp -d)
-installed=0
-
-echo "Downloading driver source from morrownr GitHub repository..."
-if git clone --depth 1 https://github.com/morrownr/8821au-20210708.git "$TEMP_DIR/8821au" 2>/dev/null; then
-    cd "$TEMP_DIR/8821au"
-    chmod +x install-driver.sh
-    if ./install-driver.sh --no-prompt 2>/dev/null || ./install-driver.sh; then
-        echo "Successfully installed morrownr 8821au driver via DKMS."
-        installed=1
+# Report any Realtek USB adapter so a wrong/missing adapter is obvious
+if command -v lsusb >/dev/null 2>&1; then
+    if lsusb | grep -qi 'realtek'; then
+        echo "Detected Realtek USB device(s):"
+        lsusb | grep -i 'realtek' | sed 's/^/  /'
+    else
+        echo "WARNING: no Realtek USB adapter detected right now (plug it in before testing). Installing anyway."
     fi
 fi
-cd /
-rm -rf "$TEMP_DIR"
 
-if [ "$installed" -eq 0 ]; then
-    echo "GitHub install failed or unavailable. Falling back to Kali APT package (realtek-rtl88xxau-dkms)..."
-    if $PKG_MANAGER install -y realtek-rtl88xxau-dkms; then
-        echo "Successfully installed realtek-rtl88xxau-dkms from Kali repos."
+# Headers: use the architecture metapackage so DKMS gets headers for the NEWEST installed kernel.
+# (linux-headers-$(uname -r) fails or targets a stale kernel after a kernel upgrade in the same run.)
+ARCH="$(dpkg --print-architecture)"
+apt-get update
+apt-get install -y dkms git build-essential bc libelf-dev "linux-headers-${ARCH}" iw rfkill
+
+install_kali_pkg() {
+    echo "Installing Kali package realtek-rtl88xxau-dkms..."
+    apt-get install -y realtek-rtl88xxau-dkms
+}
+
+install_morrownr() {
+    local tmp
+    tmp="$(mktemp -d)"
+    trap 'rm -rf "$tmp"' RETURN
+    echo "Fetching morrownr/8821au-20210708 at ${MORROWNR_REF:0:12}..."
+    git init -q "$tmp/8821au"
+    git -C "$tmp/8821au" remote add origin https://github.com/morrownr/8821au-20210708.git
+    git -C "$tmp/8821au" fetch -q --depth 1 origin "$MORROWNR_REF"
+    git -C "$tmp/8821au" checkout -q FETCH_HEAD
+    (cd "$tmp/8821au" && chmod +x install-driver.sh && ./install-driver.sh NoPrompt)
+}
+
+installed=0
+case "$WIFI_DRIVER" in
+kali)
+    install_kali_pkg && installed=1
+    ;;
+morrownr)
+    install_morrownr && installed=1
+    ;;
+auto)
+    if install_kali_pkg; then
         installed=1
     else
-        echo "Error: Failed to install WiFi driver via morrownr source and APT." >&2
-        exit 1
+        echo "Kali package failed; falling back to morrownr 8821au (RTL8811AU/8821AU only)..."
+        install_morrownr && installed=1
     fi
+    ;;
+esac
+
+if [ "$installed" -ne 1 ]; then
+    echo "Error: WiFi driver installation failed." >&2
+    exit 1
 fi
 
-echo "WiFi drivers installed. Reboot to complete."
+echo
+echo "DKMS status:"
+dkms status 2>/dev/null | grep -Ei '8812au|88xxau|8821au|rtl88' || echo "  (no rtl88xx DKMS entry found; check 'dkms status')"
+echo
+echo "WiFi drivers installed. Running kernel: $(uname -r)."
+echo "Reboot to load the module built for the newest installed kernel."

@@ -21,11 +21,13 @@ MENU_ROWS=(
     "gaming|@gaming|toggle|CFG_GAMING|arch debian fedora|menu_badge_gaming"
     "aiml|AI / ML Acceleration (ROCm)|toggle|CFG_AIML|arch debian fedora|menu_badge_aiml"
     "prod|@prod|multi|CFG_PROD_APPS|arch debian fedora|menu_badge_prod"
-    "craft|ArtCraft Suite (AppMan & 5 Apps)|toggle|CFG_CRAFT|arch debian fedora kali|menu_badge_craft"
+    "craft|ArtCraft Suite (AppMan & 5 Apps)|toggle|CFG_CRAFT|arch debian fedora|menu_badge_craft"
     "aur|AUR Helper Selection|choice|CFG_AUR|arch|menu_badge_aur"
     "mirrors|Mirror Optimization (Reflector)|toggle|CFG_MIRRORS|arch|menu_badge_mirrors"
     "kali_meta|Kali Metapackages|choice|CFG_KALI_META|kali|menu_badge_kali_meta"
-    "wifi|Realtek WiFi Driver (RTL8821AU)|toggle|CFG_KALI_WIFI|kali|menu_badge_wifi"
+    "wifi|Realtek RTL88xxAU WiFi Driver (8811/8812/8821AU)|toggle|CFG_KALI_WIFI|kali|menu_badge_wifi"
+    "webtools|Web Pentest Tools (arjun, caido, ghauri, jwt_tool, ...)|toggle|CFG_KALI_WEBTOOLS|kali|menu_badge_webtools"
+    "searchsploit|Update SearchSploit Exploit DB|toggle|CFG_KALI_SEARCHSPLOIT|kali|menu_badge_searchsploit"
     "advcpmv|Advanced Copy (advcpmv progress bar)|toggle|CFG_ADVCPMV|kali|menu_badge_advcpmv"
     "termux_core|Termux Environment Setup|info||termux|menu_badge_termux_core"
     "fonts|JetBrains Mono Nerd Font|toggle|CFG_FONTS|termux|menu_badge_fonts"
@@ -38,7 +40,7 @@ declare -A MENU_ORDER=(
     [arch]="distro desktop hardware virt docker coding burp burp_ca gaming aiml prod craft aur mirrors install abort"
     [debian]="distro debian_sudo desktop hardware virt docker coding burp burp_ca gaming aiml prod craft install abort"
     [fedora]="distro desktop hardware virt docker coding gaming aiml prod craft install abort"
-    [kali]="distro burp burp_ca kali_meta wifi docker craft advcpmv install abort"
+    [kali]="distro burp burp_ca kali_meta wifi docker webtools searchsploit advcpmv install abort"
     [termux]="distro termux_core fonts install abort"
 )
 
@@ -393,6 +395,14 @@ menu_badge_kali_meta() {
 
 menu_badge_wifi() {
     if [ "$CFG_KALI_WIFI" = true ]; then printf '[Yes]'; else printf '[No]'; fi
+}
+
+menu_badge_webtools() {
+    if [ "${CFG_KALI_WEBTOOLS:-false}" = true ]; then printf '[Yes]'; else printf '[No]'; fi
+}
+
+menu_badge_searchsploit() {
+    if [ "${CFG_KALI_SEARCHSPLOIT:-false}" = true ]; then printf '[Yes]'; else printf '[No]'; fi
 }
 
 menu_badge_advcpmv() {

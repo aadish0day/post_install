@@ -1,4 +1,5 @@
 #!/bin/bash
+set -uo pipefail
 
 # Kali Linux User Setup Script
 # Creates a new user with pentesting permissions and removes the default kali user
@@ -17,7 +18,7 @@ echo
 # Get new username
 NEW_USER="${1:-}"
 if [[ -z "$NEW_USER" ]]; then
-    read -p "Enter the new username: " NEW_USER
+    read -r -p "Enter the new username: " NEW_USER
 fi
 
 # Validate username
@@ -79,44 +80,69 @@ done
 chown -R "$NEW_USER":"$NEW_USER" /home/"$NEW_USER"
 
 # Create common directories
-su - "$NEW_USER" -c "mkdir -p ~/Documents ~/Downloads ~/Tools ~/Scripts"
+su - "$NEW_USER" -c "mkdir -p ~/Documents ~/Downloads ~/cybersec ~/Scripts"
 
 # Handle default kali user removal
 if [[ "$KALI_EXISTS" == true ]]; then
-    CURRENT_SESSION_USER="${SUDO_USER:-$(logname 2>/dev/null || echo "${USER:-}")}"
-    if [[ "$CURRENT_SESSION_USER" == "kali" ]]; then
+    # True if kali is the invoking user OR has any login session (GUI, tty, ssh).
+    # SUDO_USER/logname alone miss a GUI session when this script is run via `su -`.
+    kali_session_active() {
+        local u
+        for u in "${SUDO_USER:-}" "$(logname 2>/dev/null || true)"; do
+            [[ "$u" == "kali" ]] && return 0
+        done
+        if command -v loginctl >/dev/null 2>&1 &&
+            loginctl list-sessions --no-legend 2>/dev/null | awk '{print $3}' | grep -qx kali; then
+            return 0
+        fi
+        who 2>/dev/null | awk '{print $1}' | grep -qx kali
+    }
+
+    if kali_session_active; then
         echo
         echo "Notice: Current active session belongs to 'kali'."
         echo "Skipping removal, renaming, usermod, or locking of the active 'kali' user account to prevent session self-termination."
         echo "Please log out, log in as '$NEW_USER', and remove or modify 'kali' from that session if desired."
     else
         echo
-        read -p "Remove the default 'kali' user? (yes/no): " REMOVE_KALI
+        read -r -p "Remove the default 'kali' user? (yes/no): " REMOVE_KALI
 
         if [[ "$REMOVE_KALI" == "yes" || "$REMOVE_KALI" == "y" ]]; then
             echo "Removing kali user..."
-            pkill -u kali 2>/dev/null
+            pkill -u kali 2>/dev/null || true
             sleep 2
-            userdel -r kali 2>/dev/null
-            rm -f /etc/sudoers.d/kali 2>/dev/null
-            echo "Kali user removed"
+            if userdel kali; then
+                # Keep the home directory (no -r): move it aside instead of destroying it.
+                if [[ -d /home/kali ]]; then
+                    BACKUP_HOME="/home/kali.removed.$(date +%s)"
+                    mv /home/kali "$BACKUP_HOME"
+                    echo "Old home kept at $BACKUP_HOME (delete it yourself once you have copied what you need)."
+                fi
+                rm -f /etc/sudoers.d/kali 2>/dev/null || true
+                echo "Kali user removed"
+            else
+                echo "Warning: userdel kali failed; user not removed." >&2
+            fi
         fi
     fi
 fi
 
-# Auto-login configuration
+# Auto-login configuration (lightdm and gdm3 supported; sddm needs a session name, so it is skipped)
 echo
-read -p "Enable auto-login for $NEW_USER? (yes/no): " AUTO_LOGIN
+read -r -p "Enable auto-login for $NEW_USER? (yes/no): " AUTO_LOGIN
 
 if [[ "$AUTO_LOGIN" == "yes" || "$AUTO_LOGIN" == "y" ]]; then
-    if [[ -f /etc/lightdm/lightdm.conf ]]; then
-        cp /etc/lightdm/lightdm.conf /etc/lightdm/lightdm.conf.backup
-    fi
-
-    if grep -q "^autologin-user=" /etc/lightdm/lightdm.conf 2>/dev/null; then
-        sed -i "s/^autologin-user=.*/autologin-user=$NEW_USER/" /etc/lightdm/lightdm.conf
+    if command -v lightdm >/dev/null 2>&1 || [[ -d /etc/lightdm ]]; then
+        # Drop-in instead of editing lightdm.conf; it overrides any existing autologin-user
+        mkdir -p /etc/lightdm/lightdm.conf.d
+        printf '[Seat:*]\nautologin-user=%s\nautologin-user-timeout=0\n' "$NEW_USER" >/etc/lightdm/lightdm.conf.d/50-autologin.conf
+        echo "Auto-login enabled via /etc/lightdm/lightdm.conf.d/50-autologin.conf"
+    elif [[ -f /etc/gdm3/daemon.conf ]]; then
+        cp /etc/gdm3/daemon.conf /etc/gdm3/daemon.conf.backup
+        sed -i -E "s/^#?[[:space:]]*AutomaticLoginEnable[[:space:]]*=.*/AutomaticLoginEnable = true/; s/^#?[[:space:]]*AutomaticLogin[[:space:]]*=.*/AutomaticLogin = $NEW_USER/" /etc/gdm3/daemon.conf
+        echo "Auto-login enabled in /etc/gdm3/daemon.conf"
     else
-        echo -e "\n[Seat:*]\nautologin-user=$NEW_USER\nautologin-user-timeout=0" >>/etc/lightdm/lightdm.conf
+        echo "No supported display manager (lightdm/gdm3) found; auto-login skipped."
     fi
 fi
 

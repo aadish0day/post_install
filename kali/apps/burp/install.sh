@@ -56,10 +56,17 @@ distro_install_deps() {
         done
     fi
 
-    # 2. Always set Java 21 as default JVM (arch-independent path detection)
+    # 2. Make Java 21 the default JVM only if the current default is older (or missing).
+    #    A newer default is left alone; this changes the system-wide JVM for every Java tool.
     if [ -n "$java_21_path" ]; then
-        echo "Setting Java 21 as default JVM ($java_21_path)..."
-        sudo update-alternatives --set java "$java_21_path" 2>/dev/null || true
+        local cur_major
+        cur_major="$(java -version 2>&1 | sed -n '1s/.*version "\([0-9]*\).*/\1/p' || true)"
+        if [ -z "$cur_major" ] || [ "$cur_major" -lt 21 ]; then
+            echo "Setting Java 21 as default JVM ($java_21_path) (current default: ${cur_major:-none})..."
+            sudo update-alternatives --set java "$java_21_path" 2>/dev/null || true
+        else
+            echo "Default JVM is Java $cur_major (>= 21); leaving system default unchanged."
+        fi
     fi
 
     # 3. Ensure required network, SSL, and desktop integration tools

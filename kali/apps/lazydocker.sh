@@ -78,7 +78,7 @@ fi
 
 if [[ -z "$TAG" ]]; then
     # Hardcoded fallback if offline / completely blocked
-    TAG="v0.24.1"
+    TAG="v0.25.2"
     warn "Could not resolve latest tag from GitHub API, falling back to $TAG"
 fi
 
@@ -94,19 +94,35 @@ DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${TAG}/${ARCHIVE_NAME
 
 log "Downloading $ARCHIVE_NAME..."
 if ! curl -fSL -o "$TEMP_DIR/$ARCHIVE_NAME" "$DOWNLOAD_URL"; then
-    warn "Direct download failed, falling back to release-pinned install script..."
-    fallback_sh="$TEMP_DIR/install_update_linux.sh"
-    script_url="https://raw.githubusercontent.com/${REPO}/${TAG}/scripts/install_update_linux.sh"
-    if curl -fsSL -o "$fallback_sh" "$script_url"; then
-        log "Downloaded fallback installer from $script_url (sha256: $(sha256sum "$fallback_sh" | awk '{print $1}'))"
-        DIR="$TEMP_DIR" bash "$fallback_sh"
-    fi
+    error "Download failed: $DOWNLOAD_URL"
+    exit 1
 fi
 
-if [ -f "$TEMP_DIR/$ARCHIVE_NAME" ]; then
-    log "Extracting binary..."
-    tar -xzf "$TEMP_DIR/$ARCHIVE_NAME" -C "$TEMP_DIR" lazydocker
+# Verify against the release's published checksums.txt before installing anything as root
+CHECKSUMS_URL="https://github.com/${REPO}/releases/download/${TAG}/checksums.txt"
+EXPECTED=""
+if curl -fsSL -o "$TEMP_DIR/checksums.txt" "$CHECKSUMS_URL"; then
+    EXPECTED="$(awk -v f="$ARCHIVE_NAME" '$2 == f {print $1}' "$TEMP_DIR/checksums.txt")"
 fi
+if [ -z "$EXPECTED" ]; then
+    if [ "${LAZYDOCKER_ALLOW_UNVERIFIED:-0}" = 1 ]; then
+        warn "No checksum found for $ARCHIVE_NAME; continuing (LAZYDOCKER_ALLOW_UNVERIFIED=1)."
+    else
+        error "No checksum found for $ARCHIVE_NAME in $CHECKSUMS_URL; refusing to install."
+        error "Set LAZYDOCKER_ALLOW_UNVERIFIED=1 to override."
+        exit 1
+    fi
+else
+    ACTUAL="$(sha256sum "$TEMP_DIR/$ARCHIVE_NAME" | awk '{print $1}')"
+    if [ "$ACTUAL" != "$EXPECTED" ]; then
+        error "Checksum mismatch for $ARCHIVE_NAME (expected $EXPECTED, got $ACTUAL)."
+        exit 1
+    fi
+    log "Checksum verified."
+fi
+
+log "Extracting binary..."
+tar -xzf "$TEMP_DIR/$ARCHIVE_NAME" -C "$TEMP_DIR" lazydocker
 
 if [ ! -f "$TEMP_DIR/lazydocker" ]; then
     error "Failed to extract lazydocker binary."

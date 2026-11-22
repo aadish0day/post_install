@@ -34,16 +34,30 @@ append_line_once() {
 echo "=== Installing Advanced Copy & Move (advcpmv) on Kali Linux ==="
 
 # 1. Determine Target User & Home (handles sudo execution)
-TARGET_USER="${SUDO_USER:-$USER}"
+TARGET_USER="${SUDO_USER:-${USER:-$(id -un)}}"
 TARGET_HOME=$(getent passwd "$TARGET_USER" | cut -d: -f6 2>/dev/null || echo "$HOME")
 TARGET_HOME="${TARGET_HOME:-$HOME}"
 
-# 2. Check if already installed in /usr/bin
-if [ -x /usr/bin/advcp ] && [ -x /usr/bin/advmv ]; then
-    log "advcpmv binaries are already installed in /usr/bin."
+# Pinned upstream commit + patch (advcpmv 1.0 for coreutils 9.12). Override via env.
+ADVCPMV_REF="${ADVCPMV_REF:-abd30958c6040a7b4446aa9e2308814cc6d20c9d}"
+ADVCPMV_PATCH="${ADVCPMV_PATCH:-advcpmv-1.0-9.12.patch}"
+
+# 2. Find existing install (/usr/local/bin preferred; /usr/bin from older versions of this script)
+ADVCP_BIN=""
+ADVMV_BIN=""
+for d in /usr/local/bin /usr/bin; do
+    if [ -x "$d/advcp" ] && [ -x "$d/advmv" ]; then
+        ADVCP_BIN="$d/advcp"
+        ADVMV_BIN="$d/advmv"
+        break
+    fi
+done
+
+if [ -n "$ADVCP_BIN" ]; then
+    log "advcpmv binaries are already installed ($ADVCP_BIN)."
 else
     log "Installing build dependencies for advcpmv..."
-    DEPS=(build-essential patch curl xz-utils texinfo)
+    DEPS=(build-essential patch curl xz-utils texinfo git)
     if command -v nala &>/dev/null; then
         sudo nala install -y "${DEPS[@]}"
     else
@@ -53,30 +67,32 @@ else
     BUILD_DIR="$(mktemp -d /tmp/advcpmv_build_XXXXXX)"
     trap 'rm -rf "$BUILD_DIR"' EXIT
 
-    log "Downloading upstream advcpmv installer..."
-    curl -fsSL https://raw.githubusercontent.com/jarun/advcpmv/master/install.sh -o "$BUILD_DIR/install.sh"
+    log "Fetching upstream advcpmv at pinned commit ${ADVCPMV_REF:0:12}..."
+    git init -q "$BUILD_DIR/src"
+    git -C "$BUILD_DIR/src" remote add origin https://github.com/jarun/advcpmv.git
+    git -C "$BUILD_DIR/src" fetch -q --depth 1 origin "$ADVCPMV_REF"
+    git -C "$BUILD_DIR/src" checkout -q FETCH_HEAD
+    [ -f "$BUILD_DIR/src/$ADVCPMV_PATCH" ] || {
+        error "Patch $ADVCPMV_PATCH not found in upstream repo at $ADVCPMV_REF."
+        exit 1
+    }
 
-    log "Patching installer for parallel compilation and doc bypass..."
-    # shellcheck disable=SC2016
-    sed -i 's/^[[:space:]]*make[[:space:]]*$/    touch doc\/*.info 2>\/dev\/null || true\n    make -j$(nproc) src\/cp src\/mv || make -j$(nproc)/' "$BUILD_DIR/install.sh"
+    # Upstream install.sh (POSIX sh) downloads coreutils from ftp.gnu.org over HTTPS, applies the
+    # LOCAL patch we pass (no network fetch of the patch from master) and builds cp/mv.
+    log "Building advcpmv (this downloads and compiles coreutils)..."
+    mkdir -p "$BUILD_DIR/work"
+    (cd "$BUILD_DIR/work" && MAKEFLAGS="-j$(nproc)" sh "$BUILD_DIR/src/install.sh" "$BUILD_DIR/src/$ADVCPMV_PATCH")
 
-    log "Building advcpmv..."
-    (cd "$BUILD_DIR" && sh install.sh)
-
-    log "Installing binaries to /usr/bin..."
-    sudo install -m 0755 "$BUILD_DIR/advcp" /usr/bin/advcp
-    sudo install -m 0755 "$BUILD_DIR/advmv" /usr/bin/advmv
+    log "Installing binaries to /usr/local/bin..."
+    sudo install -m 0755 "$BUILD_DIR/work/advcp" /usr/local/bin/advcp
+    sudo install -m 0755 "$BUILD_DIR/work/advmv" /usr/local/bin/advmv
+    ADVCP_BIN="/usr/local/bin/advcp"
+    ADVMV_BIN="/usr/local/bin/advmv"
 
     log "Creating symlinks (cpg, mvg)..."
-    sudo ln -sf /usr/bin/advcp /usr/bin/cpg
-    sudo ln -sf /usr/bin/advmv /usr/bin/mvg
-    sudo ln -sf /usr/bin/advcp /usr/local/bin/advcp 2>/dev/null || true
-    sudo ln -sf /usr/bin/advmv /usr/local/bin/advmv 2>/dev/null || true
+    sudo ln -sf /usr/local/bin/advcp /usr/local/bin/cpg
+    sudo ln -sf /usr/local/bin/advmv /usr/local/bin/mvg
 fi
-
-# 3. Locate binaries for aliases (target /usr/bin/advcp)
-ADVCP_BIN="/usr/bin/advcp"
-ADVMV_BIN="/usr/bin/advmv"
 
 # 4. Configure Shell Aliases for Target User & Root
 log "Configuring shell aliases for user '$TARGET_USER' (home: $TARGET_HOME)..."
