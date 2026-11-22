@@ -8,8 +8,8 @@ set -euo pipefail
 # List of KDE Plasma desktop environment packages
 kde_plasma_packages=(
     plasma-meta plasma-camera
-    rsync obsidian elisa gwenview kamoso okular libreoffice-fresh hunspell-en_us wl-clipboard qt6-tools
-    mesa libva-utils vulkan-tools dosfstools sshfs kdeconnect
+    rsync elisa gwenview kamoso okular wl-clipboard qt6-tools
+    mesa libva-utils vulkan-tools sshfs kdeconnect bluez bluez-utils
     kclock
     # KDE specific apps
     dolphin kate konsole ark kdenlive ffmpegthumbs koko
@@ -21,6 +21,24 @@ sudo pacman -S --needed --noconfirm "${kde_plasma_packages[@]}"
 
 # 2. Service Configuration for KDE Plasma
 echo "Configuring KDE Plasma services..."
+
+# Install a display manager if Plasma did not pull one in (plasma-meta does not guarantee it)
+dm_present() {
+    local u
+    for u in plasmalogin.service sddm.service; do
+        systemctl list-unit-files "$u" 2>/dev/null | grep -q "^$u" && return 0
+    done
+    return 1
+}
+if ! dm_present; then
+    if pacman -Si plasma-login-manager &>/dev/null; then
+        echo "No display manager found; installing plasma-login-manager..."
+        sudo pacman -S --needed --noconfirm plasma-login-manager
+    else
+        echo "No display manager found; installing sddm..."
+        sudo pacman -S --needed --noconfirm sddm
+    fi
+fi
 
 # Enable a display manager. Plasma 6.7+ ships plasma-login-manager (plasmalogin.service);
 # older installs use SDDM. Only one may be enabled.
@@ -37,6 +55,11 @@ if [ -n "$dm_unit" ]; then
 else
     echo "WARN: no Plasma display manager unit found; you will boot to a TTY." >&2
     echo "      Check: systemctl list-unit-files | grep -iE 'login|sddm'" >&2
+fi
+
+# Bluetooth (bluedevil needs the service running)
+if systemctl list-unit-files bluetooth.service 2>/dev/null | grep -q '^bluetooth.service'; then
+    sudo systemctl enable bluetooth.service 2>/dev/null || true
 fi
 
 # Start XDG desktop portal services for KDE Wayland/X11

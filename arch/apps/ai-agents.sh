@@ -60,6 +60,8 @@ DO_AGY=false
 DO_OLLAMA=false
 FORCE=false
 AUR_HELPER=""
+TARGET_USER="${SYS_USER:-${SUDO_USER:-${USER:-$(id -un)}}}"
+FAILED=()
 
 # --- Sudo sanity check ---
 check_user() {
@@ -144,15 +146,10 @@ check_prerequisites() {
 # --- Helper: npm global installer with permission check ---
 npm_install_global() {
     local pkg="$1"
-    local npm_prefix
-    npm_prefix="$(npm config get prefix 2>/dev/null || echo "/usr")"
-
-    log "Installing npm package globally: $pkg..."
-    if [ -w "$npm_prefix" ] || [ -w "$npm_prefix/lib/node_modules" ] || [ -w "$npm_prefix/bin" ]; then
-        npm install -g "$pkg"
-    else
-        sudo npm install -g "$pkg"
-    fi
+    local prefix="$HOME/.local"
+    log "Installing npm package for the current user (prefix: $prefix): $pkg..."
+    mkdir -p "$prefix"
+    npm install -g --prefix "$prefix" "$pkg"
 }
 
 # --- Installer: Claude Code ---
@@ -212,7 +209,7 @@ install_claude() {
     elif [ "$install_ok" = true ]; then
         success "Claude Code installation completed."
     else
-        die "Failed to install Claude Code from AUR."
+        { err "Failed to install Claude Code from AUR."; return 1; }
     fi
 }
 
@@ -253,36 +250,13 @@ install_opencode() {
         fi
     fi
 
-    # Method 3: GitHub releases direct binary download
-    if [ "$install_ok" = false ]; then
-        log "Attempting installation via GitHub releases (anomalyco/opencode)..."
-        local arch_name="amd64"
-        local uname_m
-        uname_m="$(uname -m)"
-        if [ "$uname_m" = "aarch64" ]; then
-            arch_name="arm64"
-        fi
-
-        local release_json
-        release_json="$(curl -fsSL https://api.github.com/repos/anomalyco/opencode/releases/latest 2>/dev/null || true)"
-        local download_url
-        download_url="$(echo "$release_json" | grep -oE "https://github\.com/anomalyco/opencode/releases/download/[^\"]+linux-${arch_name}\.tar\.gz" | head -n1 || true)"
-
-        if [ -n "$download_url" ]; then
-            local tmp_dir
-            tmp_dir="$(mktemp -d /tmp/opencode_XXXXXX)"
-            curl -fsSL "$download_url" | tar -xz -C "$tmp_dir"
-            sudo install -Dm755 "$tmp_dir/opencode" /usr/local/bin/opencode
-            rm -rf "$tmp_dir"
-            install_ok=true
-        fi
-    fi
+    # (No direct-binary fallback: unauthenticated tarballs installed as root were removed.)
 
     if command -v opencode &>/dev/null; then
         success "OpenCode installed successfully: $(opencode --version 2>/dev/null || echo 'active')!"
         log "Run 'opencode' in your project to start."
     else
-        die "Failed to install OpenCode."
+        { err "Failed to install OpenCode."; return 1; }
     fi
 }
 
@@ -317,40 +291,19 @@ install_agy() {
     # Method 2: npm fallback (@google/antigravity-cli)
     if [ "$install_ok" = false ]; then
         log "Attempting installation via npm (@google/antigravity-cli)..."
-        if npm_install_global "@google/antigravity-cli" 2>/dev/null || \
-           npm_install_global "antigravity-cli" 2>/dev/null; then
+        if npm_install_global "@google/antigravity-cli" || \
+           npm_install_global "antigravity-cli"; then
             install_ok=true
         fi
     fi
 
-    # Method 3: Standalone Google Cloud storage binary
-    if [ "$install_ok" = false ]; then
-        log "Attempting download of official Antigravity CLI binary..."
-        local uname_m
-        uname_m="$(uname -m)"
-        local arch_url="https://storage.googleapis.com/antigravity-public/antigravity-cli/1.5.11-6132547114106880/linux-x64/cli_linux_x64.tar.gz"
-        if [ "$uname_m" = "aarch64" ]; then
-            arch_url="https://storage.googleapis.com/antigravity-public/antigravity-cli/1.5.11-6132547114106880/linux-arm/cli_linux_arm64.tar.gz"
-        fi
-
-        local tmp_dir
-        tmp_dir="$(mktemp -d /tmp/agy_install_XXXXXX)"
-        if curl -fsSL "$arch_url" | tar -xz -C "$tmp_dir" 2>/dev/null; then
-            local bin_file
-            bin_file="$(find "$tmp_dir" -type f \( -name "antigravity" -o -name "agy" \) 2>/dev/null | head -n1 || true)"
-            if [ -n "$bin_file" ]; then
-                sudo install -Dm755 "$bin_file" /usr/local/bin/agy
-                install_ok=true
-            fi
-        fi
-        rm -rf "$tmp_dir"
-    fi
+    # (No direct-binary fallback: a pinned, unverified tarball installed as root was removed.)
 
     if command -v agy &>/dev/null; then
         success "Google Antigravity CLI (agy) installed successfully: $(agy --version 2>/dev/null || echo 'active')!"
         log "Run 'agy' to interact with Google's agentic platform."
     else
-        die "Failed to install Google Antigravity CLI (agy)."
+        { err "Failed to install Google Antigravity CLI (agy)."; return 1; }
     fi
 }
 
@@ -404,19 +357,29 @@ install_ollama() {
 
     if [ "$need_install" = true ]; then
         log "Installing $target_pkg from Arch Linux official repositories..."
-        sudo pacman -S --needed --noconfirm "$target_pkg"
+        sudo pacman -S --needed --noconfirm "$target_pkg" || { err "pacman failed to install $target_pkg"; return 1; }
 
         # For AMD GPUs, configure video and render group permissions for ROCm
         if [ "$gpu_type" = "amd" ]; then
-            log "Ensuring user ($USER) is in video and render groups for AMD ROCm..."
-            sudo usermod -aG video,render "$USER" 2>/dev/null || true
+            log "Ensuring user ($TARGET_USER) is in video and render groups for AMD ROCm..."
+            sudo usermod -aG video,render "$TARGET_USER" 2>/dev/null || true
         fi
+    fi
+
+    # systemd services do not read /etc/environment, so give ollama.service the gfx override
+    # itself (Radeon 680M/660M = gfx1035, PCI 1002:1681).
+    if [ "$gpu_type" = "amd" ] && lspci -nn 2>/dev/null | grep -qi '1002:1681'; then
+        log "Radeon 680M/660M detected: adding HSA_OVERRIDE_GFX_VERSION=10.3.0 to ollama.service..."
+        sudo mkdir -p /etc/systemd/system/ollama.service.d
+        printf '[Service]\nEnvironment="HSA_OVERRIDE_GFX_VERSION=10.3.0"\n' |
+            sudo tee /etc/systemd/system/ollama.service.d/rocm-gfx.conf >/dev/null
     fi
 
     # Enable and start Ollama systemd daemon
     log "Configuring systemd service (ollama.service)..."
     sudo systemctl daemon-reload 2>/dev/null || true
     sudo systemctl enable --now ollama.service
+    sudo systemctl try-restart ollama.service 2>/dev/null || true
 
     if systemctl is-active --quiet ollama.service 2>/dev/null; then
         success "Ollama systemd service is active and running!"
@@ -601,6 +564,13 @@ print_summary() {
 
 # --- Main entry point (TUI-Only) ---
 main() {
+    local _a
+    for _a in "$@"; do
+        case "$_a" in
+        -f | --force) FORCE=true ;;
+        esac
+    done
+
     check_user
 
     # Always present the interactive TUI checklist
@@ -616,24 +586,30 @@ main() {
     check_prerequisites
 
     # Execute selected installations
+    # One failing tool must not stop the others
     if [ "$DO_CLAUDE" = true ]; then
-        install_claude
+        install_claude || FAILED+=("claude")
     fi
 
     if [ "$DO_OPENCODE" = true ]; then
-        install_opencode
+        install_opencode || FAILED+=("opencode")
     fi
 
     if [ "$DO_AGY" = true ]; then
-        install_agy
+        install_agy || FAILED+=("agy")
     fi
 
     if [ "$DO_OLLAMA" = true ]; then
-        install_ollama
+        install_ollama || FAILED+=("ollama")
     fi
 
     # Print final summary
     print_summary
+
+    if [ ${#FAILED[@]} -gt 0 ]; then
+        err "These tools failed to install: ${FAILED[*]}"
+        exit 1
+    fi
 }
 
 main "$@"

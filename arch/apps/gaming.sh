@@ -42,9 +42,17 @@ gaming_aur_packages=(
     "lib32-v4l-utils"
 )
 
+TARGET_USER="${SYS_USER:-${SUDO_USER:-${USER:-$(id -un)}}}"
+skipped_aur=()
+
 # 1. Install official repository gaming packages
 log "Installing official repository gaming dependencies..."
-sudo pacman -S --needed --noconfirm "${gaming_packages[@]}"
+ask_flag=()
+if pacman -Qq wine &>/dev/null && ! pacman -Qq wine-staging &>/dev/null; then
+    log "Replacing wine with wine-staging (conflicting packages are auto-removed)."
+    ask_flag=(--ask=4)
+fi
+sudo pacman -S --needed --noconfirm "${ask_flag[@]}" "${gaming_packages[@]}"
 
 # 2. Extra packages: anything now in official repos goes through pacman; the rest via an AUR helper
 repo_extra=()
@@ -71,10 +79,14 @@ if [ ${#aur_needed[@]} -gt 0 ]; then
     fi
     if [ -z "$aur_helper" ]; then
         log "WARN: no AUR helper found; skipping AUR packages: ${aur_needed[*]}"
+        skipped_aur=("${aur_needed[@]}")
     else
         # One at a time so a single failure doesn't drop the whole batch
         for p in "${aur_needed[@]}"; do
-            "$aur_helper" -S --needed --noconfirm "$p" || log "WARN: failed to install AUR package $p"
+            "$aur_helper" -S --needed --noconfirm "$p" || {
+                log "WARN: failed to install AUR package $p"
+                skipped_aur+=("$p")
+            }
         done
     fi
 fi
@@ -83,7 +95,11 @@ fi
 
 # 4. Add user to gamemode group if group exists
 if getent group gamemode &>/dev/null; then
-    sudo usermod -aG gamemode "$USER" 2>/dev/null || true
+    sudo usermod -aG gamemode "$TARGET_USER" 2>/dev/null || true
 fi
 
-log "Gaming stack installation and configuration completed successfully!"
+if [ ${#skipped_aur[@]} -gt 0 ]; then
+    log "Gaming stack installed, but these AUR packages were NOT installed: ${skipped_aur[*]}"
+else
+    log "Gaming stack installation and configuration completed successfully!"
+fi

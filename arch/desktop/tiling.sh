@@ -20,9 +20,13 @@ bspwm)
     wm_packages+=(bspwm sxhkd)
     echo "Configuring X11 Tiling Environment (bspwm + sxhkd)..."
     ;;
-both | tiling | *)
+both | tiling)
     wm_packages=(i3-wm bspwm sxhkd)
     echo "Configuring X11 Tiling Environment (i3-wm + bspwm + sxhkd)..."
+    ;;
+*)
+    echo "ERROR: unknown window manager choice '$WM_CHOICE' (use i3, bspwm or both)." >&2
+    exit 1
     ;;
 esac
 
@@ -37,7 +41,7 @@ x11_tiling_packages=(
     acpi alsa-firmware alsa-utils brightnessctl mpv-mpris pavucontrol playerctl
     bluez bluez-utils blueman geoclue network-manager-applet modemmanager
     hdparm hwdetect hwinfo dmidecode usb_modeswitch
-    accountsservice logrotate lsb-release ntp numlockx os-prober
+    accountsservice logrotate lsb-release numlockx os-prober
     polkit-gnome systemd-resolvconf inetutils tcl perl-xml-writer
     xdg-desktop-portal xdg-desktop-portal-gtk xdg-user-dirs-gtk
     ffmpegthumbnailer gtksourceview3 poppler-glib
@@ -53,6 +57,15 @@ x11_aur_packages=(
     "i3lock-color"
     "dracula-gtk-theme"
 )
+
+# systemd-resolvconf conflicts with openresolv; skip it when openresolv is installed
+if pacman -Qq openresolv &>/dev/null; then
+    filtered=()
+    for _p in "${x11_tiling_packages[@]}"; do
+        [ "$_p" = "systemd-resolvconf" ] || filtered+=("$_p")
+    done
+    x11_tiling_packages=("${filtered[@]}")
+fi
 
 # 1. Install official repository dependencies
 echo "Installing X11 tiling dependencies from pacman..."
@@ -87,7 +100,7 @@ fi
 # 3. Configure Precision Touchpad for X11 (libinput)
 if [ -f "$ARCH_DIR/hardware/touchpad.sh" ]; then
     echo "Configuring X11 Precision Touchpad (arch/hardware/touchpad.sh)..."
-    bash "$ARCH_DIR/hardware/touchpad.sh" || true
+    bash "$ARCH_DIR/hardware/touchpad.sh" || echo "WARN: touchpad configuration failed." >&2
 fi
 
 # 4. Service Configuration for X11 Tiling
@@ -115,22 +128,48 @@ if command -v zathura &>/dev/null; then
     xdg-mime default org.pwmt.zathura.desktop application/pdf 2>/dev/null || true
 fi
 
-if command -v thorium-browser-avx2 &>/dev/null; then
-    echo "Setting thorium-browser-avx2 as the default browser..."
-    xdg-settings set default-web-browser thorium-browser-avx2.desktop 2>/dev/null || true
-elif command -v thorium-browser-avx &>/dev/null; then
-    echo "Setting thorium-browser-avx as the default browser..."
-    xdg-settings set default-web-browser thorium-browser-avx.desktop 2>/dev/null || true
-elif command -v thorium-browser-sse4 &>/dev/null; then
-    echo "Setting thorium-browser-sse4 as the default browser..."
-    xdg-settings set default-web-browser thorium-browser-sse4.desktop 2>/dev/null || true
-elif command -v thorium-browser &>/dev/null; then
-    echo "Setting thorium-browser as the default browser..."
-    xdg-settings set default-web-browser thorium-browser.desktop 2>/dev/null || true
-fi
-
 if command -v xdg-user-dirs-update &>/dev/null; then
     xdg-user-dirs-update 2>/dev/null || true
 fi
+
+# 6. Minimal session setup (only creates files that do not exist)
+if [ ! -f "$HOME/.xinitrc" ]; then
+    default_wm="i3"
+    [ "$WM_CHOICE" = "bspwm" ] && default_wm="bspwm"
+    echo "Creating ~/.xinitrc (default WM: $default_wm; override with WM=bspwm startx)..."
+    cat >"$HOME/.xinitrc" <<EOF
+#!/bin/sh
+exec "\${WM:-$default_wm}"
+EOF
+    chmod +x "$HOME/.xinitrc"
+fi
+if command -v bspwm &>/dev/null; then
+    mkdir -p "$HOME/.config/bspwm" "$HOME/.config/sxhkd"
+    if [ ! -f "$HOME/.config/bspwm/bspwmrc" ]; then
+        cat >"$HOME/.config/bspwm/bspwmrc" <<'EOF'
+#!/bin/sh
+pgrep -x sxhkd >/dev/null || sxhkd &
+bspc monitor -d 1 2 3 4 5
+bspc config border_width 2
+bspc config window_gap 8
+EOF
+        chmod +x "$HOME/.config/bspwm/bspwmrc"
+    fi
+    if [ ! -f "$HOME/.config/sxhkd/sxhkdrc" ]; then
+        cat >"$HOME/.config/sxhkd/sxhkdrc" <<'EOF'
+super + Return
+	kitty
+super + d
+	rofi -show drun
+super + alt + {q,r}
+	bspc {quit,wm -r}
+super + {_,shift + }w
+	bspc node -{c,k}
+super + {1-5}
+	bspc desktop -f '^{1-5}'
+EOF
+    fi
+fi
+echo "No display manager is installed: log in on a TTY and run 'startx'."
 
 echo "X11 Tiling Window Manager configuration complete."

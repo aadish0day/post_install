@@ -1,4 +1,4 @@
-# Core terminal & archive utilities
+# Core utilities & common apps
 7zip
 android-tools
 aria2
@@ -51,7 +51,6 @@ mpv
 ncdu
 nodejs
 npm
-ntp
 obs-studio
 opencode
 pacman-contrib

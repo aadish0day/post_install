@@ -28,40 +28,20 @@ pacman_install_safe() {
         sudo_cmd=(sudo)
     fi
 
-    # Check pacman sync database freshness
-    local sync_db="/var/lib/pacman/sync/core.db"
-    local db_stale=false
-    if [[ ! -f "$sync_db" ]]; then
-        db_stale=true
-    else
-        local db_age
-        db_age=$(($(date +%s) - $(stat -c %Y "$sync_db" 2>/dev/null || echo 0)))
-        # If older than 7 days (604800s) on Arch rolling release, mirrors likely pruned packages
-        if ((db_age > 604800)); then
-            db_stale=true
-        fi
+    # Try a plain install first. Only fall back to a full upgrade (-Syu) if it fails,
+    # e.g. a stale sync DB / 404 on a pruned package.
+    local err_output
+    set +e
+    err_output=$("${sudo_cmd[@]}" pacman -S --noconfirm --needed "${pkgs[@]}" 2>&1)
+    local rc=$?
+    set -e
+    if [ $rc -eq 0 ]; then
+        return 0
     fi
 
-    # If database is fresh, try installing without -Sy first to avoid partial upgrades
-    if [[ "$db_stale" == false ]]; then
-        local err_output
-        set +e
-        err_output=$("${sudo_cmd[@]}" pacman -S --noconfirm --needed "${pkgs[@]}" 2>&1)
-        local rc=$?
-        set -e
-        if [ $rc -eq 0 ]; then
-            return 0
-        fi
-
-        echo "$err_output" >&2
-        if echo "$err_output" | grep -qiE "404|not found|failed retrieving file|error: failed to commit transaction"; then
-            echo "Package download failed (stale mirror cache or 404 detected). Running full upgrade (-Syu) and retrying..."
-        else
-            echo "Pacman installation failed. Running full upgrade (-Syu) and retrying..."
-        fi
-    else
-        echo "Pacman sync database is older than 7 days or missing. Running full upgrade (-Syu)..."
-    fi
+    echo "$err_output" >&2
+    echo "WARNING: pacman install failed (stale sync DB or pruned package?)."
+    echo "Running a FULL system upgrade (-Syu) and retrying; reboot afterwards if the kernel updated."
 
     # Synchronize and install
     # Never use -Sy alone on Arch (partial upgrade); do a full sync+upgrade.

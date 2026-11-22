@@ -15,7 +15,7 @@ case "$(uname -r 2>/dev/null)" in
 *-zen*) kheaders="linux-zen-headers" ;;
 *-hardened*) kheaders="linux-hardened-headers" ;;
 esac
-sudo pacman -S --needed --noconfirm "$kheaders" base-devel dkms fuse2 gtkmm3 pcsclite libcanberra
+sudo pacman -S --needed --noconfirm "$kheaders" base-devel git dkms fuse2 gtkmm3 pcsclite libcanberra
 
 # 2. Check/Install AUR helper (paru or yay)
 aur_helper=""
@@ -24,15 +24,13 @@ if command -v paru &>/dev/null; then
 elif command -v yay &>/dev/null; then
     aur_helper="yay"
 else
-    log "Neither paru nor yay found. Installing paru..."
-    sudo pacman -S --needed --noconfirm base-devel git
-    aur_tmp="$(mktemp -d /tmp/aur_helper_XXXXXX)"
-    trap 'rm -rf "$aur_tmp"' EXIT
-    if git clone https://aur.archlinux.org/paru.git "$aur_tmp/paru" && (cd "$aur_tmp/paru" && makepkg -si --noconfirm); then
+    log "Neither paru nor yay found. Installing paru-bin via arch/apps/paru.sh..."
+    apps_dir="$(dirname "${BASH_SOURCE[0]}")/../apps"
+    if bash "$apps_dir/paru.sh" && command -v paru &>/dev/null; then
         aur_helper="paru"
     else
-        log "Failed to install paru, trying yay fallback..."
-        if git clone https://aur.archlinux.org/yay.git "$aur_tmp/yay" && (cd "$aur_tmp/yay" && makepkg -si --noconfirm); then
+        log "paru-bin install failed, trying yay-bin..."
+        if bash "$apps_dir/yay.sh" && command -v yay &>/dev/null; then
             aur_helper="yay"
         fi
     fi
@@ -71,7 +69,11 @@ fi
 
 # Load VMware kernel modules
 log "Loading VMware kernel modules..."
-sudo modprobe -a vmw_vmci vmmon vmnet 2>/dev/null || true
+modules_ok=true
+sudo modprobe -a vmw_vmci vmmon vmnet 2>/dev/null || modules_ok=false
+if [ "$modules_ok" = false ]; then
+    log "WARN: VMware kernel modules did not load (DKMS build may have failed, or headers don't match the running kernel). Check 'dkms status' and reboot."
+fi
 
 # 5. Wayland Compatibility
 log "Configuring Wayland compatibility..."

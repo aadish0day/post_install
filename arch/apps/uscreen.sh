@@ -58,7 +58,9 @@ error() {
 }
 
 WORK_DIR="$(mktemp -d /tmp/uscreen_install_XXXXXX)"
-trap 'rm -rf "$WORK_DIR"' EXIT INT TERM
+trap 'rm -rf "$WORK_DIR"' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 LATEST_TAG=""
 LATEST_VER=""
@@ -120,8 +122,13 @@ ver_gt() {
 verify_digest() {
     local file="$1" want="${2#sha256:}" got
     if [ -z "$want" ]; then
-        warn "No upstream checksum published for $(basename "$file"); skipping integrity check."
-        return 0
+        if [ "${USCREEN_ALLOW_UNVERIFIED:-0}" = 1 ]; then
+            warn "No upstream checksum for $(basename "$file"); continuing (USCREEN_ALLOW_UNVERIFIED=1)."
+            return 0
+        fi
+        error "No upstream checksum published for $(basename "$file"); refusing to install unverified file."
+        error "Set USCREEN_ALLOW_UNVERIFIED=1 to override."
+        return 1
     fi
     got="$(sha256sum "$file" | awk '{print $1}')"
     if [ "$got" != "$want" ]; then
@@ -158,7 +165,7 @@ ready_serials() {
 
 tablet_pkg() { # $1=serial -> installed uscreen package name (empty if none)
     local pkg
-    pkg="$(adb -s "$1" shell pm list packages --user 0 2>/dev/null | tr -d '\r' | sed 's/^package://' | grep -i uscreen | head -n1 || true)"
+    pkg="$(adb -s "$1" shell pm list packages --user 0 2>/dev/null | tr -d '\r' | sed 's/^package://' | grep -iE '(^|\.)uscreen$' | head -n1 || true)"
     [ -z "$pkg" ] && pkg="$(adb -s "$1" shell pm list packages 2>/dev/null | tr -d '\r' | sed 's/^package://' | grep -i uscreen | head -n1 || true)"
     echo "$pkg"
 }
@@ -270,6 +277,14 @@ install_dependencies() {
         sudo pacman -S --needed --noconfirm "${pkgs_to_install[@]}"
     else
         log "Core dependencies and kernel headers are already installed."
+    fi
+
+    # DKMS builds for the *installed* kernel; warn if headers are newer than the running kernel
+    local hv
+    hv="$(pacman -Q "$headers_pkg" 2>/dev/null | awk '{print $2}')"
+    hv="${hv/.arch/-arch}"
+    if [ -n "$hv" ] && [[ "$(uname -r)" != "${hv}"* ]]; then
+        warn "Installed headers ($hv) differ from the running kernel ($(uname -r)); reboot into the new kernel before using uscreen."
     fi
 
     # Install evdi-dkms if not installed
@@ -482,9 +497,13 @@ install_uscreen_binaries() {
         chmod +x "$bin_dir/uscreen-gui"
     fi
 
-    # Symlink to /usr/local/bin so uscreen is available in system PATH
-    sudo ln -sf "$bin_dir/uscreen" /usr/local/bin/uscreen 2>/dev/null || true
-    sudo ln -sf "$bin_dir/evdi_helper" /usr/local/bin/evdi_helper 2>/dev/null || true
+    # Remove root-owned symlinks from older versions of this script: they pointed into a
+    # user-writable directory (privilege-escalation risk). Use ~/.local/bin in PATH instead.
+    for l in /usr/local/bin/uscreen /usr/local/bin/evdi_helper; do
+        if [ -L "$l" ] && [[ "$(readlink "$l")" == "$bin_dir"/* ]]; then
+            sudo rm -f "$l" 2>/dev/null || true
+        fi
+    done
 
     # Update icon caches
     command -v gtk-update-icon-cache &>/dev/null && gtk-update-icon-cache -q -t "${icon_dir%/scalable/apps}" 2>/dev/null || true
@@ -566,13 +585,15 @@ update_tablet_apk() {
         fi
 
         log "[$serial] Installing APK via adb..."
-        if adb -s "$serial" install -r -d "$apk_tmp"; then
+        local dflag=()
+        [ "$FORCE" -eq 1 ] && dflag=(-d)
+        if adb -s "$serial" install -r "${dflag[@]}" "$apk_tmp"; then
             log "[$serial] Tablet APK updated successfully!"
             [ -d "$setup_dir" ] && cp -f "$apk_tmp" "$setup_dir/uscreen.apk" 2>/dev/null || true
         else
             warn "[$serial] Streamed install failed, trying fallback adb push..."
             if adb -s "$serial" push "$apk_tmp" /data/local/tmp/uscreen.apk 2>/dev/null &&
-                adb -s "$serial" shell pm install -r -d /data/local/tmp/uscreen.apk 2>/dev/null; then
+                adb -s "$serial" shell pm install -r "${dflag[@]}" /data/local/tmp/uscreen.apk 2>/dev/null; then
                 adb -s "$serial" shell rm -f /data/local/tmp/uscreen.apk 2>/dev/null || true
                 log "[$serial] Tablet APK installed successfully via fallback push!"
             else

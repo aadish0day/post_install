@@ -17,8 +17,9 @@ sudo systemctl disable docker.service 2>/dev/null || true
 sudo systemctl enable --now docker.socket
 
 # Configure permissions
-log "Adding user $USER to the docker group..."
-sudo usermod -aG docker "$USER"
+TARGET_USER="${SYS_USER:-${SUDO_USER:-${USER:-$(id -un)}}}"
+log "Adding user $TARGET_USER to the docker group..."
+sudo usermod -aG docker "$TARGET_USER"
 
 log "Docker installation and configuration complete."
 log "NOTE: the docker group is root-equivalent; only add users you trust."

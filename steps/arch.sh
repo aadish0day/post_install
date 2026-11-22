@@ -17,7 +17,7 @@ arch_ensure_multilib() {
     if [ -f /etc/pacman.conf ] && ! grep -q "^\[multilib\]" /etc/pacman.conf; then
         log "Enabling multilib repository in /etc/pacman.conf..."
         sudo sed -i '/\[multilib\]/,/Include/s/^[#;]//' /etc/pacman.conf
-        sudo pacman -Sy
+        sudo pacman -Syu --noconfirm || return 1
     fi
 }
 
@@ -52,10 +52,11 @@ step_arch_mirrors() {
 
     if [ -f /etc/pacman.d/mirrorlist ]; then
         log "Backing up current mirrorlist to /etc/pacman.d/mirrorlist.bak..."
-        sudo cp -f /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.bak 2>/dev/null || true
-        # Clean known dead/timing out mirrors to prevent hanging transactions
-        sudo sed -i '/ftp.myrveln.se/d' /etc/pacman.d/mirrorlist 2>/dev/null || true
+        # Keep the first (original) backup; do not overwrite it with an already-ranked list
+        [ -f /etc/pacman.d/mirrorlist.bak ] || sudo cp -f /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.bak 2>/dev/null || true
     fi
+    local countries="${CFG_MIRROR_COUNTRIES-India,Singapore}"
+    local country_codes="${CFG_MIRROR_CC-IN SG}"
 
     if ! command -v reflector &>/dev/null; then
         log "Reflector not found, attempting installation..."
@@ -66,14 +67,16 @@ step_arch_mirrors() {
 
     local ranked=false
     if command -v reflector &>/dev/null; then
-        log "Ranking fastest regional HTTPS mirrors (India, Singapore) via reflector..."
+        if [ -n "$countries" ]; then
+        log "Ranking fastest regional HTTPS mirrors ($countries) via reflector..."
         if timeout 60s sudo reflector --latest 20 --fastest 5 --protocol https \
             --connection-timeout 5 --download-timeout 5 --threads 8 \
-            --country India,Singapore --sort rate --save /etc/pacman.d/mirrorlist 2>/dev/null; then
+            --country "$countries" --sort rate --save /etc/pacman.d/mirrorlist 2>/dev/null; then
             if [ -s /etc/pacman.d/mirrorlist ] && grep -q "^Server" /etc/pacman.d/mirrorlist; then
                 log "Successfully ranked regional mirrors."
                 ranked=true
             fi
+        fi
         fi
 
         if [ "$ranked" = false ]; then
@@ -93,7 +96,9 @@ step_arch_mirrors() {
         warn "Reflector unavailable or failed; fetching verified active mirrors from archlinux.org..."
         local tmp_mirrorlist
         tmp_mirrorlist="$(mktemp 2>/dev/null || echo "/tmp/mirrorlist.$$")"
-        if curl -fsSL "https://archlinux.org/mirrorlist/?country=IN&country=SG&protocol=https&ip_version=4&use_mirror_status=on" >"$tmp_mirrorlist" 2>/dev/null && grep -q "^#Server" "$tmp_mirrorlist"; then
+        local cc_query="" cc
+        for cc in $country_codes; do cc_query+="country=${cc}&"; done
+        if [ -n "$cc_query" ] && curl -fsSL "https://archlinux.org/mirrorlist/?${cc_query}protocol=https&ip_version=4&use_mirror_status=on" >"$tmp_mirrorlist" 2>/dev/null && grep -q "^#Server" "$tmp_mirrorlist"; then
             sed -i 's/^#Server/Server/' "$tmp_mirrorlist"
             sudo cp -f "$tmp_mirrorlist" /etc/pacman.d/mirrorlist
             ranked=true
@@ -112,14 +117,14 @@ step_arch_mirrors() {
         fi
     fi
 
-    arch_ensure_multilib
+    arch_ensure_multilib || return 1
     log "Synchronizing package databases with updated mirrors..."
     sudo pacman -Syu --noconfirm
 }
 
 step_arch_base_pkgs() {
     if [ "${DRY_RUN_MODE:-false}" = true ]; then return 0; fi
-    arch_ensure_multilib
+    arch_ensure_multilib || return 1
     local base_file="${SCRIPT_DIR:-.}/arch/packages.txt"
     local pkgs=()
     local kheaders
@@ -136,7 +141,7 @@ step_arch_base_pkgs() {
     done <"$base_file"
 
     if [ ${#pkgs[@]} -gt 0 ]; then
-        sudo pacman -S --needed --noconfirm "${pkgs[@]}"
+        sudo pacman -S --needed --noconfirm "${pkgs[@]}" || return 1
     fi
 
     if command -v git &>/dev/null && command -v git-lfs &>/dev/null; then
@@ -170,7 +175,7 @@ step_arch_coding() {
     done
 
     if [ ${#pacman_pkgs[@]} -gt 0 ]; then
-        sudo pacman -S --needed --noconfirm "${pacman_pkgs[@]}"
+        sudo pacman -S --needed --noconfirm "${pacman_pkgs[@]}" || return 1
     fi
 
     if [ ${#pkgs[@]} -gt 0 ]; then
@@ -180,7 +185,7 @@ step_arch_coding() {
             echo "Error: no AUR helper found (paru or yay required for coding tools: ${pkgs[*]})" >&2
             return 1
         fi
-        "$aur" -S --needed --noconfirm "${pkgs[@]}"
+        "$aur" -S --needed --noconfirm "${pkgs[@]}" || return 1
     fi
 
     if [ "$run_flutter" = true ] && [ -f "${SCRIPT_DIR:-.}/arch/apps/flutter.sh" ]; then
@@ -190,6 +195,10 @@ step_arch_coding() {
 
 step_arch_aiml() {
     if [ "${DRY_RUN_MODE:-false}" = true ]; then return 0; fi
+    if ! lspci 2>/dev/null | grep -qE '\[AMD/ATI\]'; then
+        warn "ROCm/AI-ML suite skipped: no AMD GPU detected."
+        return 0
+    fi
     sudo pacman -S --needed --noconfirm \
         rocm-llvm rocm-opencl-runtime rocm-opencl-sdk rocm-hip-sdk rocm-ml-libraries \
         rocm-openmp hipify-clang rocminfo opencl-headers libclc ocl-icd \
@@ -232,13 +241,23 @@ step_arch_prod_apps() {
     fi
 
     if [ ${#prod_pkgs[@]} -gt 0 ]; then
-        "$aur" -S --needed --noconfirm "${prod_pkgs[@]}"
+        "$aur" -S --needed --noconfirm "${prod_pkgs[@]}" || return 1
+    fi
+
+    if [ "$need_thorium" = true ]; then
+        local desk
+        desk="$(basename "$(ls /usr/share/applications/thorium-browser*.desktop 2>/dev/null | head -n1)" 2>/dev/null || true)"
+        if [ -n "$desk" ] && command -v xdg-settings &>/dev/null; then
+            log "Setting $desk as the default browser..."
+            xdg-settings set default-web-browser "$desk" 2>/dev/null || true
+        fi
     fi
 }
 
 step_arch_services_shell() {
     if [ "${DRY_RUN_MODE:-false}" = true ]; then return 0; fi
     sudo systemctl enable --now --no-block rtkit-daemon.service 2>/dev/null || true
+    sudo systemctl enable --now --no-block systemd-timesyncd.service 2>/dev/null || true
     if systemctl --user show-environment >/dev/null 2>&1; then
         for s in xdg-desktop-portal.service xdg-desktop-portal-gtk.service; do
             if systemctl --user list-unit-files "$s" 2>/dev/null | grep -q "$s"; then
@@ -251,6 +270,16 @@ step_arch_services_shell() {
     target_user="${SYS_USER:-${SUDO_USER:-${USER:-$(id -un)}}}"
     current_shell="$(getent passwd "$target_user" 2>/dev/null | cut -d: -f7)"
     if [ -n "$zsh_bin" ] && [ -n "$target_user" ] && [ "$current_shell" != "$zsh_bin" ]; then
+        # Pre-create ~/.zshrc so the first zsh login does not open the zsh-newuser-install wizard
+        local user_home
+        user_home="$(getent passwd "$target_user" 2>/dev/null | cut -d: -f6)"
+        if [ -n "$user_home" ] && [ -d "$user_home" ] && [ ! -e "$user_home/.zshrc" ]; then
+            if [ "$(id -un)" = "$target_user" ]; then
+                touch "$user_home/.zshrc"
+            else
+                sudo -u "$target_user" touch "$user_home/.zshrc" 2>/dev/null || true
+            fi
+        fi
         if [ "$(realpath "$current_shell" 2>/dev/null)" != "$(realpath "$zsh_bin" 2>/dev/null)" ]; then
             sudo usermod -s "$zsh_bin" "$target_user" 2>/dev/null || chsh -s "$zsh_bin" "$target_user" </dev/null 2>/dev/null || true
         fi
@@ -258,6 +287,11 @@ step_arch_services_shell() {
 }
 
 arch_needs_aur() {
+    # gaming.sh installs AUR packages (dxvk-gplasync-bin, lib32 extras)
+    if [ "${CFG_GAMING:-false}" = true ]; then
+        return 0
+    fi
+
     # If any coding tools requiring AUR are selected
     if [ "${CFG_CODING:-false}" = true ] && [ -n "${CFG_CODING_TOOLS+x}" ] && [ ${#CFG_CODING_TOOLS[@]} -gt 0 ]; then
         local tool
@@ -289,6 +323,8 @@ build_plan_arch() {
     plan_managed_app "xdm"
     plan_managed_app "uscreen"
     plan_managed_app "craft"
+    plan_managed_app "ai-agents"
+    plan_managed_app "davinci-resolve"
 
     if [ "${CFG_MIRRORS:-false}" = true ]; then
         plan_add "Optimize Mirrorlist (Reflector)" step_arch_mirrors
@@ -324,14 +360,18 @@ build_plan_arch() {
 
     if [ "${CFG_INTEL_GPU:-false}" = true ] && [ -f "$distro_dir/hardware/gpu/intel.sh" ]; then
         plan_add "Intel CPU/GPU Drivers (arch/hardware/gpu/intel.sh)" run_module "arch/hardware/gpu/intel.sh"
+    elif [ "${CFG_INTEL_GPU:-false}" = true ]; then
+        warn "arch/hardware/gpu/intel.sh does not exist yet; skipping Intel drivers."
     fi
 
     if [ "${CFG_NVIDIA_GPU:-false}" = true ] && [ -f "$distro_dir/hardware/gpu/nvidia.sh" ]; then
         plan_add "NVIDIA GPU Drivers (arch/hardware/gpu/nvidia.sh)" run_module "arch/hardware/gpu/nvidia.sh"
+    elif [ "${CFG_NVIDIA_GPU:-false}" = true ]; then
+        warn "arch/hardware/gpu/nvidia.sh does not exist yet; skipping NVIDIA drivers."
     fi
 
     if [ "${CFG_ASUS:-false}" = true ] && [ -f "$distro_dir/hardware/asus.sh" ]; then
-        plan_add "Configure ASUS ROG & Power Tooling (arch/hardware/asus.sh)" run_module "arch/hardware/asus.sh" "${CFG_ASUS_LIMIT:-80}"
+        plan_add "Configure ASUS ROG & Power Tooling (arch/hardware/asus.sh)" run_module "arch/hardware/asus.sh" "${CFG_ASUS_LIMIT:-85}"
     fi
 
     if [ "${CFG_DESKTOP:-none}" = "kde" ] && [ -f "$distro_dir/desktop/kde.sh" ]; then
@@ -345,6 +385,16 @@ build_plan_arch() {
             plan_add "Install X11 Tiling Window Managers (arch/desktop/tiling.sh both)" run_module "arch/desktop/tiling.sh" "both"
         fi
     fi
+
+    # tiling.sh configures the touchpad itself; run it separately for every other desktop
+    case "${CFG_DESKTOP:-none}" in
+    i3 | bspwm | tiling | both) ;;
+    *)
+        if [ "${CFG_TOUCHPAD:-false}" = true ] && [ -f "$distro_dir/hardware/touchpad.sh" ]; then
+            plan_add "Configure Touchpad (arch/hardware/touchpad.sh)" run_module "arch/hardware/touchpad.sh"
+        fi
+        ;;
+    esac
 
     if [ "${CFG_KVM:-false}" = true ] && [ -f "$distro_dir/virt/kvm-qemu.sh" ]; then
         plan_add "Setup KVM, QEMU & virt-manager (arch/virt/kvm-qemu.sh)" run_module "arch/virt/kvm-qemu.sh"
@@ -404,6 +454,13 @@ build_plan_arch() {
 
     if [ "${CFG_CRAFT:-false}" = true ] && [ -f "$distro_dir/apps/craft.sh" ]; then
         plan_add "Install ArtCraft Suite (wordcraft, gridcraft, deckcraft, photocraft, filmcraft)" run_module "arch/apps/craft.sh"
+    fi
+
+    if [ "${CFG_AI_AGENTS:-false}" = true ] && [ -f "$distro_dir/apps/ai-agents.sh" ]; then
+        plan_add "Install AI Coding Agents (arch/apps/ai-agents.sh)" run_module "arch/apps/ai-agents.sh"
+    fi
+    if [ "${CFG_DAVINCI:-false}" = true ] && [ -f "$distro_dir/apps/davinci-resolve.sh" ]; then
+        plan_add "Install DaVinci Resolve (arch/apps/davinci-resolve.sh)" run_module "arch/apps/davinci-resolve.sh"
     fi
 
     append_extra_scripts "$distro_dir" "arch"

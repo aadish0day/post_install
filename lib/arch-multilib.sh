@@ -24,7 +24,8 @@ refresh_bootloader() {
     [ "${EUID:-$(id -u)}" -ne 0 ] && sudo_cmd=(sudo)
     if [ -f /etc/default/grub ] && command -v grub-mkconfig &>/dev/null; then
         local out=/boot/grub/grub.cfg
-        [ -d /boot/grub ] || out=/boot/grub2/grub.cfg
+        # /boot/grub2 is Fedora layout; only use it if /boot/grub is absent and grub2 exists
+        if [ ! -d /boot/grub ] && [ -d /boot/grub2 ]; then out=/boot/grub2/grub.cfg; fi
         echo "Regenerating GRUB config ($out)..."
         "${sudo_cmd[@]}" grub-mkconfig -o "$out" || echo "WARN: grub-mkconfig failed; run it manually." >&2
     elif command -v bootctl &>/dev/null && bootctl is-installed &>/dev/null; then

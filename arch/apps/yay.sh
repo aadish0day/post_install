@@ -23,7 +23,12 @@ mkdir -p "$BUILD_DIR"
 trap 'rm -rf "$BUILD_DIR"' EXIT
 
 log "Fetching yay-bin (pre-compiled binary) from AUR..."
-if ! git clone https://aur.archlinux.org/yay-bin.git "$BUILD_DIR" 2>/dev/null; then
+if [ "$(id -u)" -eq 0 ]; then
+    echo "ERROR: makepkg refuses to run as root; run this script as a normal user." >&2
+    exit 1
+fi
+
+if ! git clone https://aur.archlinux.org/yay-bin.git "$BUILD_DIR" 2>&1 | tail -n 3; then
     log "git clone failed, downloading yay-bin snapshot tarball from AUR..."
     curl -fsSL https://aur.archlinux.org/cgit/aur.git/snapshot/yay-bin.tar.gz | tar -xz -C "$BUILD_DIR" --strip-components=1
 fi

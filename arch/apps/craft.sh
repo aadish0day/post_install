@@ -20,6 +20,8 @@ mkdir -p "$HOME/.local/bin"
 # shellcheck disable=SC2016
 path_line='export PATH="$HOME/.local/bin:$PATH"'
 touch "$HOME/.bashrc"
+# zsh is the default shell set by the installer; create ~/.zshrc so PATH is added there too
+command -v zsh &>/dev/null && touch "$HOME/.zshrc"
 for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
     [ -f "$rc" ] || continue
     if ! grep -q 'PATH=.*\.local/bin' "$rc"; then

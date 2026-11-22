@@ -31,13 +31,21 @@ sudo pacman -S --needed --noconfirm base-devel git curl jq aria2 rocm-opencl-run
 
 # 3. Ensure user is in video and render groups for OpenCL / GPU access
 log "Configuring GPU device permissions (video & render groups)..."
-sudo usermod -aG video,render "$USER"
+TARGET_USER="${SYS_USER:-${SUDO_USER:-${USER:-$(id -un)}}}"
+sudo usermod -aG video,render "$TARGET_USER"
 
 # 4. Prepare temporary AUR build directory
-BUILD_DIR="/tmp/davinci_resolve_build_$$"
+# /tmp is tmpfs (RAM) on Arch; the zip is ~4.5 GB and the build extracts ~10-15 GB, so build on disk.
+BUILD_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/davinci_resolve_build_$$"
 rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR"
 trap 'rm -rf "$BUILD_DIR"' EXIT
+
+avail_kib="$(df --output=avail -k "$BUILD_DIR" 2>/dev/null | tail -n1 | tr -d ' ')"
+if [ -n "${avail_kib:-}" ] && [ "$avail_kib" -lt $((30 * 1024 * 1024)) ]; then
+    log "ERROR: less than 30 GiB free on $(dirname "$BUILD_DIR"); DaVinci Resolve needs ~30 GiB to build."
+    exit 1
+fi
 
 log "Cloning davinci-resolve AUR package..."
 git clone https://aur.archlinux.org/davinci-resolve.git "$BUILD_DIR"
@@ -72,20 +80,27 @@ else
         exit 1
     fi
 
-    _reqjson='{
-      "firstname": "Linux",
-      "lastname": "User",
-      "email": "user@archlinux.org",
-      "phone": "202-555-0194",
-      "country": "us",
-      "street": "Main St",
-      "state": "NY",
-      "city": "AUR",
-      "product": "DaVinci Resolve"
-    }'
+    # Blackmagic requires registration to download. Use your own details via environment variables
+    # (no placeholder data is submitted on your behalf).
+    missing_env=()
+    for v in BMD_FIRSTNAME BMD_LASTNAME BMD_EMAIL BMD_PHONE BMD_COUNTRY BMD_STATE BMD_CITY BMD_STREET; do
+        [ -n "${!v:-}" ] || missing_env+=("$v")
+    done
+    if [ ${#missing_env[@]} -gt 0 ]; then
+        log "Automatic download needs your registration details; missing: ${missing_env[*]}"
+        log "Either export them and re-run, or download '$expected_zip' manually from:"
+        log "  https://www.blackmagicdesign.com/support/family/davinci-resolve-and-fusion"
+        log "and save it to ~/Downloads, then re-run this script."
+        exit 1
+    fi
+    _reqjson="$(jq -n \
+        --arg firstname "$BMD_FIRSTNAME" --arg lastname "$BMD_LASTNAME" --arg email "$BMD_EMAIL" \
+        --arg phone "$BMD_PHONE" --arg country "$BMD_COUNTRY" --arg state "$BMD_STATE" \
+        --arg city "$BMD_CITY" --arg street "$BMD_STREET" \
+        '{firstname:$firstname,lastname:$lastname,email:$email,phone:$phone,country:$country,state:$state,city:$city,street:$street,product:"DaVinci Resolve"}')"
 
     log "Requesting signed download URL for DaVinci Resolve ${pkgver}..."
-    _dlurl=$(curl -s -X POST "https://www.blackmagicdesign.com/api/register/us/download/${_downloadId}" \
+    _dlurl=$(curl -s --max-time 60 -X POST "https://www.blackmagicdesign.com/api/register/us/download/${_downloadId}" \
         -H "Content-Type: application/json;charset=UTF-8" \
         -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
         -d "$_reqjson")
@@ -131,19 +146,27 @@ elif [ -f "/usr/share/applications/DaVinciResolve.desktop" ]; then
     cp -f "/usr/share/applications/DaVinciResolve.desktop" "$DESKTOP_DIR/DaVinciResolve.desktop"
 fi
 
+# The gfx override is only correct for Radeon 680M/660M (gfx1035, PCI 1002:1681); elsewhere it breaks ROCm.
+HSA_PREFIX=""
+HSA_EXPORT=""
+if lspci -nn 2>/dev/null | grep -qi '1002:1681'; then
+    HSA_PREFIX="env HSA_OVERRIDE_GFX_VERSION=10.3.0 "
+    HSA_EXPORT="export HSA_OVERRIDE_GFX_VERSION=10.3.0"
+fi
+
 if [ -f "$DESKTOP_DIR/DaVinciResolve.desktop" ]; then
-    sed -i 's|^Exec=.*|Exec=env HSA_OVERRIDE_GFX_VERSION=10.3.0 /opt/resolve/bin/resolve %u|' "$DESKTOP_DIR/DaVinciResolve.desktop"
+    sed -i "s|^Exec=.*|Exec=${HSA_PREFIX}/opt/resolve/bin/resolve %u|" "$DESKTOP_DIR/DaVinciResolve.desktop"
     update-desktop-database "$DESKTOP_DIR" 2>/dev/null || true
-    log "Updated user desktop entry at $DESKTOP_DIR/DaVinciResolve.desktop with HSA_OVERRIDE_GFX_VERSION=10.3.0"
+    log "Updated user desktop entry at $DESKTOP_DIR/DaVinciResolve.desktop"
 fi
 
 # 8. Create a convenient CLI launcher wrapper
 mkdir -p "$HOME/.local/bin"
-cat <<'EOF' > "$HOME/.local/bin/davinci-resolve"
+cat <<EOF > "$HOME/.local/bin/davinci-resolve"
 #!/usr/bin/env bash
-# Wrapper to launch DaVinci Resolve with AMD ROCm / OpenCL compatibility
-export HSA_OVERRIDE_GFX_VERSION=10.3.0
-exec /opt/resolve/bin/resolve "$@"
+# Wrapper to launch DaVinci Resolve (HSA override only on Radeon 680M/660M)
+${HSA_EXPORT}
+exec /opt/resolve/bin/resolve "\$@"
 EOF
 chmod +x "$HOME/.local/bin/davinci-resolve"
 

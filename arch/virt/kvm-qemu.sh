@@ -43,8 +43,12 @@ fi
 
 # Configure /etc/libvirt/libvirtd.conf safely (idempotent)
 echo "Configuring /etc/libvirt/libvirtd.conf..."
-sed -i 's/^#\?\s*unix_sock_group = .*/unix_sock_group = "libvirt"/' /etc/libvirt/libvirtd.conf
-sed -i 's/^#\?\s*unix_sock_rw_perms = .*/unix_sock_rw_perms = "0770"/' /etc/libvirt/libvirtd.conf
+# Monolithic libvirtd and the modular daemons (virtqemud etc.) each read their own conf
+for conf in libvirtd virtqemud virtnetworkd virtstoraged virtnodedevd virtnwfilterd; do
+    [ -f "/etc/libvirt/${conf}.conf" ] || continue
+    sed -i 's/^#\?\s*unix_sock_group = .*/unix_sock_group = "libvirt"/' "/etc/libvirt/${conf}.conf"
+    sed -i 's/^#\?\s*unix_sock_rw_perms = .*/unix_sock_rw_perms = "0770"/' "/etc/libvirt/${conf}.conf"
+done
 
 if ! grep -q "^log_filters=" /etc/libvirt/libvirtd.conf; then
     echo 'log_filters="3:qemu 1:libvirt"' >>/etc/libvirt/libvirtd.conf

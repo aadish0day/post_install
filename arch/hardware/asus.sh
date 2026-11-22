@@ -59,7 +59,7 @@ require_root() {
 # ------------------------- Packages -----------------------------------------
 install_packages() {
     echo "Updating package databases and installing ASUS ROG Zephyrus tools..."
-    pacman -Sy --noconfirm
+    pacman -Syu --noconfirm
 
     # Pinned to official [extra] to avoid third-party repo shadowing
     pacman -S --noconfirm --needed \
@@ -78,6 +78,13 @@ enable_services() {
         echo "Starting asusd.service..."
         systemctl start asusd.service 2>/dev/null || true
     fi
+
+    # asusctl talks to asusd over D-Bus; wait until the daemon answers (max 20s)
+    for _ in $(seq 1 20); do
+        asusctl info &>/dev/null && return 0
+        sleep 1
+    done
+    echo "Warning: asusd did not respond after 20s; asusctl settings below may fail." >&2
 }
 
 # ------------------------- Asusctl & ROG Config ----------------------------
@@ -87,6 +94,7 @@ configure_asusctl() {
 
     # Validate and clamp battery limit
     if ! [[ "$limit" =~ ^[0-9]+$ ]] || [ "$limit" -lt 20 ] || [ "$limit" -gt 100 ]; then
+        echo "Warning: invalid battery limit '$limit' (must be 20-100); using 85." >&2
         limit=85
     fi
 
@@ -105,7 +113,7 @@ configure_asusctl() {
             echo "  [OK] Custom fan curves enabled for profile: $profile"
             sleep 1 # Short pause so asusd persists each fan curve without racing
         else
-            echo "  [INFO] Fan curve profile $profile: default applied."
+            echo "  [WARN] Could not enable custom fan curves for $profile (unsupported or asusd error)." >&2
         fi
     done
 
@@ -154,7 +162,7 @@ print_summary() {
     fi
 
     echo "============================================================"
-    echo " Next step: Run arch/hardware/gpu/amd.sh for AMD CPU/GPU drivers."
+    echo " AMD CPU/GPU drivers: arch/hardware/gpu/amd.sh (run it if you have not already)."
     echo "============================================================"
 }
 
@@ -163,9 +171,9 @@ require_root "$@"
 SESSION_TYPE="${XDG_SESSION_TYPE:-unknown}"
 
 if ! is_zephyrus_g14; then
-    echo "ERROR: This script is exclusively tailored for ASUS ROG Zephyrus G14 (GA402 series)." >&2
-    echo "Detected hardware: $(dmi_vendor) $(dmi_product) ($(dmi_board)). Aborting." >&2
-    exit 1
+    echo "SKIP: this script targets ASUS ROG Zephyrus G14 (GA402 series) only." >&2
+    echo "Detected hardware: $(dmi_vendor) $(dmi_product) ($(dmi_board)). Nothing to do." >&2
+    exit 0
 fi
 
 install_packages

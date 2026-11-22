@@ -190,7 +190,7 @@ detect_system() {
     HAS_INTEL_GPU=false
     local lspci_gpus
     lspci_gpus="$(lspci 2>/dev/null | grep -Ei 'vga|3d controller|display' || true)"
-    if echo "$lspci_gpus" | grep -Eiq 'amd|ati|radeon'; then HAS_AMD_GPU=true; fi
+    if echo "$lspci_gpus" | grep -Eiq '\[AMD/ATI\]|Advanced Micro Devices|radeon'; then HAS_AMD_GPU=true; fi
     if echo "$lspci_gpus" | grep -iq 'nvidia'; then HAS_NVIDIA_GPU=true; fi
     if echo "$lspci_gpus" | grep -iq 'intel'; then HAS_INTEL_GPU=true; fi
 
