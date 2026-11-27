@@ -14,7 +14,7 @@ elif [[ -n "${ROOT_DIR:-}" && -f "$ROOT_DIR/lib/burp-common.sh" ]]; then
     source "$ROOT_DIR/lib/burp-common.sh"
 fi
 
-BURP_STABLE_VERSION="${DEFAULT_BURP_VER:-2026.10.1}"
+BURP_STABLE_VERSION="${DEFAULT_BURP_VER:-2026.11.3}"
 REPO_DIR="${REPO_DIR:-$HOME/Documents/Crack/Burpsuite-Professional}"
 JYTHON_URL="https://repo1.maven.org/maven2/org/python/jython-standalone/2.7.4/jython-standalone-2.7.4.jar"
 JYTHON_JAR="jython-standalone-2.7.4.jar"
@@ -494,7 +494,10 @@ run_burp_installation() {
         fi
         if [[ "$jar_downloaded" == false ]] && command -v curl &>/dev/null; then
             echo "Using curl with auto-resume..."
-            if curl -fLC - --connect-timeout 10 --retry 3 --retry-delay 2 --progress-bar -o "$jar_name.tmp" "$download_url"; then
+            local _curl_rc=0
+            curl -fLC - --connect-timeout 10 --retry 3 --retry-delay 2 --progress-bar -o "$jar_name.tmp" "$download_url" || _curl_rc=$?
+            # Exit code 33 = server doesn't support byte-range (sent full file anyway); treat as success
+            if [[ "$_curl_rc" -eq 0 || "$_curl_rc" -eq 33 ]]; then
                 if is_valid_jar "$jar_name.tmp" "$min_jar_size"; then
                     jar_downloaded=true
                 fi
@@ -1034,9 +1037,17 @@ for uopt in "\${USER_OPTS[@]}"; do
     fi
 done
 
-# Dynamic memory sizing (defaults to 50% RAM; respects explicit percentages, sizes, or user flags)
+# Dynamic memory sizing — auto-scales Xmx based on total system RAM.
+# Tiers (applied to both host and VM automatically):
+#   < 4 GB  total → Xmx=40% RAM  (tight VM)
+#   >= 4 GB total → Xmx=50% RAM  (VM / host)
+# BURP_MAX_RAM env var always overrides Xmx if set.
+_TOTAL_RAM_MB=\$(awk '/MemTotal/ {printf \"%d\", \$2/1024}' /proc/meminfo 2>/dev/null || echo 8192)
+_AUTO_PCT=50
+[ "\$_TOTAL_RAM_MB" -lt 4096 ] && _AUTO_PCT=40
+
 BURP_MEM_VAL="\${BURP_MAX_RAM:-\${BURP_MEMORY:-\${BURP_RAM:-}}}"
-MEM_OPTS=("-XX:MaxRAMPercentage=50")
+MEM_OPTS=("-XX:MaxRAMPercentage=\${_AUTO_PCT}")
 if [ -n "\$BURP_MEM_VAL" ]; then
     if [[ "\$BURP_MEM_VAL" =~ ^([0-9]+)%\$ ]]; then
         MEM_OPTS=("-XX:MaxRAMPercentage=\${BASH_REMATCH[1]}")

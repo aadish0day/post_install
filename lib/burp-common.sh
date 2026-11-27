@@ -5,7 +5,7 @@
 
 # Shared installation directory
 REPO_DIR="${REPO_DIR:-$HOME/Documents/Crack/Burpsuite-Professional}"
-DEFAULT_BURP_VER="2026.10.1"
+DEFAULT_BURP_VER="2026.11.3"
 DEFAULT_JAR_NAME="burpsuite_pro_v${DEFAULT_BURP_VER}.jar"
 
 # Locate burpsuitepro launcher
