@@ -7,13 +7,13 @@
     - Detects Java 21+ (PATH, Registry, Program Files).
     - Auto-installs Java 21 via winget (auto-installs winget via window/system/winget_install.ps1 if missing, with silent MSI fallback).
     - Resolves the Burp version: honors -Version or $env:BURP_VERSION if specified,
-      otherwise defaults directly to the tested stable release (v2026.10.1).
+      otherwise defaults directly to the tested stable release (v2026.11.3).
     - Smart caching: skips downloading loader.jar, Jython 2.7.4, JRuby 9.4.9.0, and Burp Suite Pro JAR if valid and matching/newer versions exist.
     - Built-in Jython 2.7.4 & JRuby 9.4.9.0 Standalone: automatically downloads and configures UserConfigPro.json & UserConfig.json for Python & Ruby BApps.
     - Non-destructive updates: backs up older Burp Suite Pro JARs with .bk extension (never deletes them).
     - Pre-seeds JRE warning suppression flags in Windows Java Preferences registry.
     - Auto-trust Burp CA Certificate flag (--trust-ca / -t) for Windows Root Store and Firefox forks (Zen, LibreWolf, Floorp, Waterfox).
-    - Generates optimized launchers (Burp.bat, burpsuitepro.cmd & Burp-Suite-Pro.vbs) with dynamic Generational ZGC (G1GC fallback), configurable RAM (BURP_MAX_RAM / 50%), HiDPI scaling, port 8080 conflict guard, and crash catcher.
+    - Generates optimized launchers (Burp.bat, burpsuitepro.cmd & Burp-Suite-Pro.vbs) with dynamic Generational ZGC (G1GC fallback), configurable RAM (BURP_MAX_RAM; auto 40% if <4GB RAM, 50% otherwise), HiDPI scaling, port 8080 conflict guard, and crash catcher.
     - Windows file associations (.burp and .burpstate) registered in HKCU:\Software\Classes with official icon and context menu.
     - Creates Desktop & Start Menu shortcuts for Burp Suite Professional.
     - Registers CLI command in User PATH for terminal access.
@@ -56,7 +56,8 @@ function Download-FileWithProgress {
     param (
         [string]$Url,
         [string]$OutputFile,
-        [string]$Description = "Downloading"
+        [string]$Description = "Downloading",
+        [long]$MinSize = 0
     )
 
     $parentDir = Split-Path -Parent $OutputFile
@@ -88,7 +89,7 @@ function Download-FileWithProgress {
             $p = Start-Process -FilePath $aria2Cmd.Source -ArgumentList $ariaArgs -NoNewWindow -Wait -PassThru
             $ErrorActionPreference = $prevEap
 
-            if ($p.ExitCode -eq 0 -and (Test-Path $OutputFile) -and ((Get-Item $OutputFile).Length -gt 0)) {
+            if ($p.ExitCode -eq 0 -and (Test-Path $OutputFile) -and ((Get-Item $OutputFile).Length -gt $MinSize)) {
                 return
             }
         } catch {}
@@ -114,7 +115,8 @@ function Download-FileWithProgress {
 
             $ErrorActionPreference = $prevEap
 
-            if ($p.ExitCode -eq 0 -and (Test-Path $OutputFile) -and ((Get-Item $OutputFile).Length -gt 0)) {
+            # Exit code 33 = server doesn't support byte-range (sent full file anyway); treat as success if size passes
+            if (($p.ExitCode -eq 0 -or $p.ExitCode -eq 33) -and (Test-Path $OutputFile) -and ((Get-Item $OutputFile).Length -gt $MinSize)) {
                 return
             } else {
                 Write-Warning "curl.exe returned exit code $($p.ExitCode). Falling back to .NET stream downloader..."
@@ -694,7 +696,7 @@ if (-not $validJava) {
         foreach ($msiUrl in $msiSources) {
             try {
                 Write-Host "      Connecting to $msiUrl ..." -ForegroundColor DarkGray
-                Download-FileWithProgress -Url $msiUrl -OutputFile $msiFile -Description "Downloading OpenJDK 21 MSI (~170MB)"
+                Download-FileWithProgress -Url $msiUrl -OutputFile $msiFile -Description "Downloading OpenJDK 21 MSI (~170MB)" -MinSize 50000000
                 if ((Test-Path $msiFile) -and ((Get-Item $msiFile).Length -gt 50000000)) {
                     Write-Host "      Installing OpenJDK 21 silently via msiexec (takes ~10 seconds)..." -ForegroundColor Yellow
                     $installArgs = "/i `"$msiFile`" /quiet /qn /norestart"
@@ -756,7 +758,7 @@ if (-not $validJava) {
 Write-Host "`n(3/8) Resolving Burp Suite Professional version..." -ForegroundColor Cyan
 $BURP_VERSION = $null
 $isCustomVersion = $false
-$BURP_STABLE_VERSION = "2026.10.1"
+$BURP_STABLE_VERSION = "2026.11.3"
 
 if (-not [string]::IsNullOrWhiteSpace($Version)) {
     $BURP_VERSION = ($Version.Trim() -replace '^v', '')
@@ -798,7 +800,7 @@ if ((Test-Path $TargetLoader) -and ((Get-Item $TargetLoader).Length -gt 10240) -
     foreach ($url in $loaderSources) {
         try {
             Write-Host "      Fetching from $url ..." -ForegroundColor DarkGray
-            Download-FileWithProgress -Url $url -OutputFile $TargetLoader -Description "Downloading Key Loader"
+            Download-FileWithProgress -Url $url -OutputFile $TargetLoader -Description "Downloading Key Loader" -MinSize 10240
             if ((Test-Path $TargetLoader) -and ((Get-Item $TargetLoader).Length -gt 10240)) {
                 $lBytes = (Get-Item $TargetLoader).Length
                 Write-Host "      [OK] Loader verified ($lBytes bytes)." -ForegroundColor Green
@@ -900,7 +902,7 @@ if (-not $skipDownload) {
     $tempTarget = "$TargetJar.tmp"
 
     Write-Host "      Downloading $JarName (~700MB)..." -ForegroundColor Yellow
-    Download-FileWithProgress -Url $DownloadUrl -OutputFile $tempTarget -Description "Downloading Burp Suite Professional $BURP_VERSION"
+    Download-FileWithProgress -Url $DownloadUrl -OutputFile $tempTarget -Description "Downloading Burp Suite Professional $BURP_VERSION" -MinSize 104857600
 
     # Validate downloaded JAR integrity (> 100MB) before overwriting target
     if ((Test-Path $tempTarget) -and ((Get-Item $tempTarget).Length -gt 100MB)) {
@@ -1002,7 +1004,7 @@ if ((Test-Path $TargetJython) -and ((Get-Item $TargetJython).Length -gt 20MB) -a
     foreach ($url in $jythonSources) {
         try {
             Write-Host "      Downloading Jython 2.7.4 from $url (~48MB)..." -ForegroundColor Yellow
-            Download-FileWithProgress -Url $url -OutputFile $tempJython -Description "Downloading Jython Standalone 2.7.4"
+            Download-FileWithProgress -Url $url -OutputFile $tempJython -Description "Downloading Jython Standalone 2.7.4" -MinSize 20971520
             if ((Test-Path $tempJython) -and ((Get-Item $tempJython).Length -gt 20MB)) {
                 Move-Item -Path $tempJython -Destination $TargetJython -Force
                 $jMb = [math]::Round((Get-Item $TargetJython).Length / 1MB, 1)
@@ -1045,7 +1047,7 @@ if ((Test-Path $TargetJruby) -and ((Get-Item $TargetJruby).Length -gt 30MB) -and
     foreach ($url in $jrubySources) {
         try {
             Write-Host "      Downloading JRuby 9.4.9.0 from $url (~32MB)..." -ForegroundColor Yellow
-            Download-FileWithProgress -Url $url -OutputFile $tempJruby -Description "Downloading JRuby Standalone 9.4.9.0"
+            Download-FileWithProgress -Url $url -OutputFile $tempJruby -Description "Downloading JRuby Standalone 9.4.9.0" -MinSize 31457280
             if ((Test-Path $tempJruby) -and ((Get-Item $tempJruby).Length -gt 30MB)) {
                 Move-Item -Path $tempJruby -Destination $TargetJruby -Force
                 $rMb = [math]::Round((Get-Item $TargetJruby).Length / 1MB, 1)
@@ -1206,6 +1208,30 @@ Set-BurpJreWarningSuppression
 # ------------------------------------------------------------------------------
 Write-Host "`n(7/8) Creating launchers and Windows shortcuts..." -ForegroundColor Cyan
 
+# Shared dynamic memory sizing snippet for Burp.bat and burpsuitepro.cmd
+$DynamicMemBatchLines = @(
+    "rem Dynamic Memory Sizing - auto-scales Xmx based on total system RAM:",
+    "rem   < 4 GB  total -> Xmx=40% RAM  (tight VM)",
+    "rem   >= 4 GB total -> Xmx=50% RAM  (VM / host)",
+    "rem BURP_MAX_RAM / BURP_RAM / BURP_MEMORY env var always overrides if set.",
+    "set `"MEM_OPTS=-XX:MaxRAMPercentage=50`"",
+    "set `"BURP_MEM_VAL=`"",
+    "if defined BURP_MAX_RAM set `"BURP_MEM_VAL=%BURP_MAX_RAM%`"",
+    "if not defined BURP_MEM_VAL if defined BURP_RAM set `"BURP_MEM_VAL=%BURP_RAM%`"",
+    "if not defined BURP_MEM_VAL if defined BURP_MEMORY set `"BURP_MEM_VAL=%BURP_MEMORY%`"",
+    "if defined BURP_MEM_VAL goto mem_override",
+    "for /f %%P in ('powershell.exe -NoProfile -ExecutionPolicy Bypass -Command `"try { `$b = (Get-CimInstance Win32_ComputerSystem -ErrorAction Stop).TotalPhysicalMemory; if (-not `$b) { `$b = (Get-WmiObject Win32_ComputerSystem -ErrorAction Stop).TotalPhysicalMemory }; if (`$b -and `$b -lt 4294967296) { 40 } else { 50 } } catch { 50 }`" 2^>nul') do set `"MEM_OPTS=-XX:MaxRAMPercentage=%%P`"",
+    "goto mem_done",
+    ":mem_override",
+    "echo %BURP_MEM_VAL% | findstr /i `"^-Xmx`" >nul",
+    "if errorlevel 1 (",
+    "    set `"MEM_OPTS=-Xmx%BURP_MEM_VAL%`"",
+    ") else (",
+    "    set `"MEM_OPTS=%BURP_MEM_VAL%`"",
+    ")",
+    ":mem_done"
+)
+
 # 7A. Burp.bat (Direct / CLI launcher with Generational ZGC, High-RAM, HiDPI, Port 8080 Guard, and Crash Catcher)
 $BatPath = Join-Path $InstallDir "Burp.bat"
 $BatLines = @(
@@ -1283,21 +1309,8 @@ $BatLines = @(
     ") else (",
     "    set `"JAVA_BIN=java.exe`"",
     ")",
-    "",
-    "rem 2. Dynamic Memory Sizing: BURP_MAX_RAM, BURP_RAM, BURP_MEMORY or default to 50% RAM",
-    "set `"MEM_OPTS=-XX:MaxRAMPercentage=50`"",
-    "set `"BURP_MEM_VAL=`"",
-    "if defined BURP_MAX_RAM set `"BURP_MEM_VAL=%BURP_MAX_RAM%`"",
-    "if not defined BURP_MEM_VAL if defined BURP_RAM set `"BURP_MEM_VAL=%BURP_RAM%`"",
-    "if not defined BURP_MEM_VAL if defined BURP_MEMORY set `"BURP_MEM_VAL=%BURP_MEMORY%`"",
-    "if defined BURP_MEM_VAL (",
-    "    echo %BURP_MEM_VAL% | findstr /i `"^-Xmx`" >nul",
-    "    if errorlevel 1 (",
-    "        set `"MEM_OPTS=-Xmx%BURP_MEM_VAL%`"",
-    "    ) else (",
-    "        set `"MEM_OPTS=%BURP_MEM_VAL%`"",
-    "    )",
-    ")",
+    ""
+) + $DynamicMemBatchLines + @(
     "",
     "rem 3. Advanced JVM Garbage Collector: Generational ZGC check with G1GC fallback",
     "set `"GC_OPTS=-XX:+UseG1GC`"",
@@ -1641,21 +1654,8 @@ $CliCmdLines = @(
     ") else (",
     "    set `"JAVA_BIN=java.exe`"",
     ")",
-    "",
-    "rem Dynamic Memory Sizing: BURP_MAX_RAM, BURP_RAM, BURP_MEMORY or default to 50% RAM",
-    "set `"MEM_OPTS=-XX:MaxRAMPercentage=50`"",
-    "set `"BURP_MEM_VAL=`"",
-    "if defined BURP_MAX_RAM set `"BURP_MEM_VAL=%BURP_MAX_RAM%`"",
-    "if not defined BURP_MEM_VAL if defined BURP_RAM set `"BURP_MEM_VAL=%BURP_RAM%`"",
-    "if not defined BURP_MEM_VAL if defined BURP_MEMORY set `"BURP_MEM_VAL=%BURP_MEMORY%`"",
-    "if defined BURP_MEM_VAL (",
-    "    echo %BURP_MEM_VAL% | findstr /i `"^-Xmx`" >nul",
-    "    if errorlevel 1 (",
-    "        set `"MEM_OPTS=-Xmx%BURP_MEM_VAL%`"",
-    "    ) else (",
-    "        set `"MEM_OPTS=%BURP_MEM_VAL%`"",
-    "    )",
-    ")",
+    ""
+) + $DynamicMemBatchLines + @(
     "",
     "rem Advanced JVM Garbage Collector: Generational ZGC check with G1GC fallback",
     "set `"GC_OPTS=-XX:+UseG1GC`"",
@@ -1811,8 +1811,8 @@ try {
         if (-not (Test-Path $Directory)) { return }
         $lnkPath = Join-Path $Directory "$Name.lnk"
         $sc = $WshShell.CreateShortcut($lnkPath)
-        $sc.TargetPath = if ($CustomTarget) { $CustomTarget } else { $burpShortcutTarget }
-        $sc.Arguments = if ($null -ne $CustomArgs) { $CustomArgs } else { $burpShortcutArgs }
+        $sc.TargetPath = if (-not [string]::IsNullOrEmpty($CustomTarget)) { $CustomTarget } else { $burpShortcutTarget }
+        $sc.Arguments = if ($PSBoundParameters.ContainsKey('CustomArgs')) { $CustomArgs } else { $burpShortcutArgs }
         $sc.WorkingDirectory = $InstallDir
         $sc.Description = $Description
         $sc.WindowStyle = 1

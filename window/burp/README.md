@@ -39,21 +39,21 @@ irm "https://raw.githubusercontent.com/aadish0day/post_install/main/window/burp/
 
 ## 🎚️ Tested Stable Version & Version Selection
 
-By default, the installer uses the tested stable release (`2026.10.1`) without prompting:
+By default, the installer uses the tested stable release (`2026.11.3`) without prompting:
 
 ```cmd
-.\install.bat                              # installs tested stable release (2026.10.1)
-.\install.bat -Version 2026.10.1           # pin or specify an exact version
+.\install.bat                              # installs tested stable release (2026.11.3)
+.\install.bat -Version 2026.11.3           # pin or specify an exact version
 ```
 
 Custom versions can be supplied via `-Version <version>` or the `$env:BURP_VERSION` environment variable:
 
 ```powershell
 # Via command-line parameter:
-.\install.ps1 -Version "2026.10.1"
+.\install.ps1 -Version "2026.11.3"
 
 # Via environment variable:
-$env:BURP_VERSION = "2026.10.1"
+$env:BURP_VERSION = "2026.11.3"
 .\install.ps1
 ```
 
@@ -66,7 +66,7 @@ $env:BURP_VERSION = "2026.10.1"
   - If Java 21+ already exists, **skips downloading entirely**.
   - If missing or outdated, automatically downloads and silently installs the official **Microsoft OpenJDK 21 MSI** (with Adoptium and `winget` fallbacks).
 - **Tested Stable Release by Default**:
-  - Automatically downloads and verifies the tested stable release (`2026.10.1`), with support for custom version overrides via `-Version` or `$env:BURP_VERSION`.
+  - Automatically downloads and verifies the tested stable release (`2026.11.3`), with support for custom version overrides via `-Version` or `$env:BURP_VERSION`.
 - **High-Speed `curl.exe` Acceleration & Auto-Resume**:
   - Automatically leverages native Windows `curl.exe` (`C:\Windows\System32\curl.exe`) with HTTP/2 and auto-resume (`-C -`), delivering maximum download speeds for the ~750MB JAR. Falls back smoothly to an optimized 1MB buffered .NET stream reader if needed.
 - **Failover Mirror Redundancy**:
@@ -74,7 +74,7 @@ $env:BURP_VERSION = "2026.10.1"
 - **High-RAM & Smooth GC Optimization**:
   - Configures optimized JVM runtime parameters in `Burp.bat` and desktop shortcuts:
     - `-XX:+UseG1GC`: Low-latency Garbage-First garbage collection.
-    - `-XX:MaxRAMPercentage=50`: Dynamically assigns up to 50% of available system memory without hardcoded limits.
+    - `-XX:MaxRAMPercentage=40` / `50`: Auto-detects total system RAM (`40%` if `< 4 GB` RAM, `50%` otherwise), overridable via `BURP_MAX_RAM` / `BURP_RAM` / `BURP_MEMORY`.
     - `-Dsun.java2d.uiScale=auto`: Crystal-clear automatic HiDPI scaling for high-resolution displays.
     - `-Dawt.useSystemAAFontSettings=on -Dswing.aatext=true`: Smooth subpixel anti-aliased font rendering.
 - **Built-in Jython 2.7.4 Standalone & Python BApps Out-of-the-Box**:
@@ -123,7 +123,7 @@ window/burp/
 | :---: | :--- | :--- |
 | **(1/8)** | **Directory Setup** | Creates `%USERPROFILE%\Documents\Crack\Burpsuite-Professional`. |
 | **(2/8)** | **Java Detection & Setup** | Verifies Java 21+. If missing, silently installs OpenJDK 21 via direct MSI. |
-| **(3/8)** | **Version Resolution** | Defaults directly to tested stable release (`2026.10.1`), or honors `-Version` / `$env:BURP_VERSION` overrides. |
+| **(3/8)** | **Version Resolution** | Defaults directly to tested stable release (`2026.11.3`), or honors `-Version` / `$env:BURP_VERSION` overrides. |
 | **(4/8)** | **Loader Fetch** | Downloads `loader.jar` with integrity verification (> 10 KB). |
 | **(5/8)** | **JAR Download & Smart Caching** | Skips download if existing valid JAR matches or exceeds requested version; backs up older JARs with `.bk` extension (non-destructive) instead of deleting them. |
 | **(6/8)** | **Assets, Jython & Registry** | Copies `.config.ini`, `burp_suite_pro.ico`, downloads `jython-standalone-2.7.4.jar`, configures `UserConfigPro.json` for Python BApps, and pre-seeds JRE warning suppression flags in Windows Java Preferences registry. |
@@ -204,13 +204,13 @@ To reinstall or update the JAR without launching the application at the end:
 ```
 
 ### Specifying a Custom Version
-By default, the installer uses the tested stable release (`2026.10.1`). To install or pin a custom version:
+By default, the installer uses the tested stable release (`2026.11.3`). To install or pin a custom version:
 ```powershell
 # Using the -Version parameter
-.\install.ps1 -Version "2026.10.1"
+.\install.ps1 -Version "2026.11.3"
 
 # Or using the BURP_VERSION environment variable
-$env:BURP_VERSION = "2026.10.1"
+$env:BURP_VERSION = "2026.11.3"
 .\install.ps1
 ```
 
